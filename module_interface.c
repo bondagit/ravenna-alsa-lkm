@@ -28,8 +28,7 @@
 #include <net/checksum.h>
 
 
-//MODULE_LICENSE("Proprietary"); // the license type -- this affects runtime behavior
-MODULE_LICENSE("GPL"); // need it for: hrtimer
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Merging Technologies"); // visible when you use modinfo
 MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver."); // see modinfo
 MODULE_VERSION("0.2");
@@ -74,8 +73,9 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
                 printk(KERN_ALERT "sock header null\n");
                 return NF_ACCEPT;
             }
-            //printk(KERN_INFO "got udp packet len = %hu\n", udp_header->len);     //log we’ve got udp packet to /var/log/messages
-            //printk(KERN_INFO "got udp packet len = %u\n", skb->len);     //log we’ve got udp packet to /var/log/messages
+			//log we’ve got udp
+            //printk(KERN_INFO "got udp packet len = %hu\n", udp_header->len);
+            //printk(KERN_INFO "got udp packet len = %u\n", skb->len);
 
             /*TOFILL the RTP stream IP address*/
             //if (*(unsigned char*)&ip_header->daddr == 0xEF/*239.x.y.z*/)
@@ -251,11 +251,11 @@ static int __init merging_alsa_mod_init(void)
         destroy_driver();
         goto _failed;
     }
-	printk(KERN_INFO "Merging Ravenna ALSA module installed\n");
+	printk(KERN_INFO "Merging RAVENNA ALSA module installed\n");
 
 	return 0;
 _failed:
-    printk(KERN_ERR "Merging Ravenna ALSA module installation failed\n");
+    printk(KERN_ERR "Merging RAVENNA ALSA module installation failed\n");
     return err;
 }
 
@@ -264,7 +264,7 @@ static void __exit merging_alsa_mod_exit(void)
     kill_clock_timer();
     cleanup_netlink();
     destroy_driver();
-	printk(KERN_INFO "Merging Ravenna ALSA module removed\n");
+	printk(KERN_INFO "Merging RAVENNA ALSA module removed\n");
 }
 
 module_init(merging_alsa_mod_init);
