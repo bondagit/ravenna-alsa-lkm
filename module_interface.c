@@ -1,5 +1,34 @@
-//==========================================
-// interface.c, required interface for every kernel module
+/****************************************************************************
+*
+*  Module Name    : module_interface.c
+*  Version        : 
+*
+*  Abstract       : RAVENNA/AES67 ALSA LKM
+*
+*  Written by     : Beguec Frederic, Baume Florian, Brulhart Dominic
+*  Date           : 21/03/2016
+*  Modified by    :
+*  Date           :
+*  Modification   :
+*  Known problems : None
+*
+* Copyright(C) 2017 Merging Technologies
+*
+* RAVENNA/AES67 ALSA LKM is free software; you can redistribute it and / or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* RAVENNA/AES67 ALSA LKM is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with RAVAENNA ALSA LKM ; if not, see <http://www.gnu.org/licenses/>.
+*
+****************************************************************************/
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -13,9 +42,7 @@
 
 #include <linux/if_ether.h>
 
-
-#include <asm-generic/div64.h>
-
+#include <asm/div64.h>
 
 #include "module_main.h"
 #include "module_netlink.h"
@@ -28,18 +55,19 @@
 #include <net/checksum.h>
 
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Merging Technologies"); // visible when you use modinfo
-MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver."); // see modinfo
+/////////////////////////////////////////////////////////////////////////////
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Merging Technologies <alsa@merging.com>");
+MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver"); // see modinfo
 MODULE_VERSION("0.2");
-MODULE_SUPPORTED_DEVICE("{{ALSA,Merging Ravenna}}");
+MODULE_SUPPORTED_DEVICE("{{ALSA,Merging RAVENNA}}");
 
 
-static struct nf_hook_ops nf_ho;         // netfilter struct holding set of netfilter hook function options
+static struct nf_hook_ops nf_ho; // netfilter struct holding set of netfilter hook function options
 static int hooked = 0;
 
 
-/** @brief function to be called by hook
+/** @brief function to be called by the netfilter hook
  */
 unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
@@ -56,59 +84,7 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
         hooked = 1;
     }
 
-    ///////// DEBUG
-    {
-        struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);    //grab network header using accessor
-        if (!ip_header)
-        {
-            printk(KERN_ALERT "sock header null\n");
-            return NF_ACCEPT;
-        }
-        if (ip_header->protocol==IPPROTO_UDP)
-        {
-            struct udphdr *udp_header;
-            udp_header = (struct udphdr *)skb_transport_header(skb);  //grab transport header
-            if (!udp_header)
-            {
-                printk(KERN_ALERT "sock header null\n");
-                return NF_ACCEPT;
-            }
-			//log we’ve got udp
-            //printk(KERN_INFO "got udp packet len = %hu\n", udp_header->len);
-            //printk(KERN_INFO "got udp packet len = %u\n", skb->len);
-
-            /*TOFILL the RTP stream IP address*/
-            //if (*(unsigned char*)&ip_header->daddr == 0xEF/*239.x.y.z*/)
-            if (*(unsigned char*)&ip_header->daddr == 0xE0/*224.x.y.z*/)
-            {
-                unsigned char* data = NULL;
-                int data_len = -1;
-
-                if (skb->next || skb->prev)
-                {
-                    printk(KERN_INFO "Got mutiple packet\n");
-                }
-                data_len = skb->len - sizeof(struct iphdr) - sizeof(struct udphdr);
-                if (data_len < 0)
-                {
-                    printk(KERN_INFO "User data size problem\n");
-                    return NF_ACCEPT;
-                }
-                data = skb->data + skb->len - data_len;
-                //if (*data != 0x80)
-                //{
-                //    printk(KERN_INFO "Unexpected data (%x)\n", *data);
-                //    return NF_ACCEPT;
-                //}
-            }
-        }
-    }
-    ////////// ~DEBUG
-
-    //if (skb_is_nonlinear(skb))
-    //{
-    //    printk(KERN_INFO "skb is not linear\n");
-    //}
+    ///////// DEBUG stuff is available into revision prior to 32700
 
     err = skb_linearize(skb);
     if (err < 0)
@@ -116,7 +92,6 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
         printk(KERN_ALERT "skb_linearize error %d\n", err);
 		return NF_DROP;
     }
-
 
     switch (nf_rx_packet(skb_mac_header(skb), skb->len + ETH_HLEN, in->name))
     {
@@ -128,11 +103,6 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
             printk(KERN_ALERT "nf_rx_packet unknown return code\n");
     }
     return NF_ACCEPT;
-}
-
-void __stack_chk_fail(void)
-{
-
 }
 
 static inline uint64_t llu_div(uint64_t numerator, uint64_t denominator)
@@ -163,11 +133,6 @@ static inline int64_t lld_div(int64_t numerator, int64_t denominator)
     }
 
     do_div(num_to_res_u, denominator_u);
-    //if (denominator > 0xffffffff)
-    //{
-    //    printk(KERN_ERR, "divisor superior to 2^32 (%llu) the result is wrong !", divisor);
-    //}
-    //printk(KERN_INFO "DIV %llu div %llu = %llu (%llu)\n", dividend, divisor, __res);
     if (neg)
     {
         result = -num_to_res_u;
@@ -227,6 +192,8 @@ uint64_t __umoddi3(uint64_t numerator, uint64_t denominator)
     return llu_mod(numerator, denominator);
 }
 
+/** @brief LKM initialization
+ */
 static int __init merging_alsa_mod_init(void)
 {
     int err = 0;
@@ -259,6 +226,8 @@ _failed:
     return err;
 }
 
+/** @brief LKM exit
+ */
 static void __exit merging_alsa_mod_exit(void)
 {
     kill_clock_timer();
