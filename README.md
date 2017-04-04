@@ -15,13 +15,13 @@ The RAVENNA ALSA implementation is splitted into 2 parts:
 
 2. A a user land binary call the Daemon : Merging_RAVENNA_Daemon
 
-### 1. The kernel part is responsible of ###
+### The kernel part is responsible of ###
 * Registered as an ALSA driver
 * Generate and receive RTP audio packets
 * PTP driven interrupt loop
 * Netlink communication between user and kernel
 	
-### 2. The Daemon part is responsible of ###
+### The Daemon part is responsible of ###
 * Web server
 * High level RAVENNA/AES67 protocol implementation
   * mDNS discovery
