@@ -11,6 +11,7 @@ TODO Version
 ## Architecture ##
 The RAVENNA ALSA implementation is splitted into 2 parts:
 1. A linux kernel module (LKM) : MergingRavennaALSA.ko
+
 2. A a user land binary call the Daemon : Merging_RAVENNA_Daemon
 
 ### 1. The kernel part is responsible of ###
