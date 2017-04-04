@@ -33,7 +33,7 @@ The RAVENNA ALSA implementation is splitted into 2 parts:
 The Daemon cannot be launched if the LKM has not been previously inserted.
 The LKM cannot be removed as long as the Daemon is running
 
-The Daemon is not provided with this package. This binary is built by Merging Technologies.
+**The Daemon is not provided with this package. This binary is built by Merging Technologies.**
 
 ### ALSA Features ###
 * Volume control
