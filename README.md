@@ -10,20 +10,16 @@ TODO Version
 
 ## Architecture ##
 The RAVENNA ALSA implementation is splitted into 2 parts:
-
 1. A linux kernel module (LKM) : MergingRavennaALSA.ko
-
 2. A a user land binary call the Daemon : Merging_RAVENNA_Daemon
 
 ### 1. The kernel part is responsible of ###
-
 * Registered as an ALSA driver
 * Generate and receive RTP audio packets
 * PTP driven interrupt loop
 * Netlink communication between user and kernel
 	
 ### 2. The Daemon part is responsible of ###
-
 * Web server
 * High level RAVENNA/AES67 protocol implementation
   * mDNS discovery
@@ -35,8 +31,9 @@ The RAVENNA ALSA implementation is splitted into 2 parts:
 The Daemon cannot be launched if the LKM has not been previously inserted.
 The LKM cannot be removed as long as the Daemon is running
 
-### ALSA Features ###
+The Daemon is not provided with this package. This binary is built by Merging Technologies.
 
+### ALSA Features ###
 * Volume control
 * 1 to 8 FS support
 * PCM up to 384 kHz
@@ -44,15 +41,9 @@ The LKM cannot be removed as long as the Daemon is running
 * Interleaved and non-interleaved 16/24/32 bit integer formats
 * Up to 64 I/O (I is not yet supported)
 
-### mDNS implementation ###
-
-The RAVENNA protocol uses mDNS. Depending on the platform/distribution the Daemon will use Bonjour or Avahi libraries.
-If Avahi is present in the system, the Daemon have to use that library. If Avahi is not present in the system, a built-in Bonjour implementation will be used instead.
-In order to correctly build the daemon, we need to know if Avahi is present or not in the system.
 
 ## Configuration ##
 ### Linux Kernel prerequisite ###
-
 The following kernel config are required :
 
 * NETFILTER
@@ -67,7 +58,6 @@ For a better high res timer performance, the following option should be set at 1
 CONFIG_HZ=1000
 
 ### ALSA ###
-
 ALSA lib superior or equal to 1.0.29 for DSD support
 
 
