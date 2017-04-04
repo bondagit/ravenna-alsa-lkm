@@ -50,7 +50,10 @@ The RAVENNA protocol uses mDNS. Depending on the platform/distribition the Daemo
 If Avahi is present in the system, the Daemon have to use that library. If Avahi is not present in the system, a built-in Bonjour implementation will be used instead.
 In order to correctly build the daemon, we need to know if Avahi is present or not in the system.
 
-## Linux Kernel prerequisite ##
+## Confuiguration ##
+### Linux Kernel prerequisite ###
+
+The following kernel option have to activated:
 
 * NETFILTER
 * HIGH_RES_TIMERS
@@ -61,7 +64,7 @@ In order to correctly build the daemon, we need to know if Avahi is present or n
 About the Kernel config, please ensure that at least scenario 2 described in the following doc is achieved
 https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt
 
-The following option should be set at 1000 or more
+For a better high res timer performance, the following option should be set at 1000 or more
 CONFIG_HZ=1000
 
 ### ALSA ###
