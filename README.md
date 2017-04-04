@@ -46,20 +46,19 @@ The LKM cannot be removed as long as the Daemon is running
 
 ### mDNS implementation ###
 
-The RAVENNA protocol uses mDNS. Depending on the platform/distribition the Daemon will use Bonjour or Avahi libraries.
+The RAVENNA protocol uses mDNS. Depending on the platform/distribution the Daemon will use Bonjour or Avahi libraries.
 If Avahi is present in the system, the Daemon have to use that library. If Avahi is not present in the system, a built-in Bonjour implementation will be used instead.
 In order to correctly build the daemon, we need to know if Avahi is present or not in the system.
 
-## Confuiguration ##
+## Configuration ##
 ### Linux Kernel prerequisite ###
 
-The following kernel option have to activated:
+The following kernel config are required :
 
 * NETFILTER
 * HIGH_RES_TIMERS
 * NETLINK
 * Kernel > 2.4 (3.18 for DSD)
-* Kernel Config
 
 About the Kernel config, please ensure that at least scenario 2 described in the following doc is achieved
 https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt
