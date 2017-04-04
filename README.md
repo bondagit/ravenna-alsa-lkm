@@ -3,32 +3,34 @@
 ## Introduction ##
 
 TODO Quick summary
+
 TODO Version
+
 [Merging Technologies](http://www.merging.com)
 
 ## Architecture ##
 
 The RAVENNA ALSA implementation is splitted into 2 parts:
 
-    * A linux kernel module (LKM) : MergingRavennaALSA.ko
-    * A a user land binary call the Daemon : Merging_RAVENNA_Daemon
+    - A linux kernel module (LKM) : MergingRavennaALSA.ko
+    - A a user land binary call the Daemon : Merging_RAVENNA_Daemon
 
 * The kernel part is responsible of the following:
 
-    Registered as an ALSA driver
-    Generate and receive RTP audio packets
-    PTP driven interrupt loop
-    Netlink communication between user and kernel
+    * Registered as an ALSA driver
+    * Generate and receive RTP audio packets
+    * PTP driven interrupt loop
+    * Netlink communication between user and kernel
 
 * The Daemon part is responsible of the following :
 
-    Web server
-    High level RAVENNA/AES67 protocol implementation
-        mDNS discovery
-        SAP discovery
-    Remote volume control
-    RAVENNA devices sample rate arbitration
-    Communication and configuration of the LKM
+    * Web server
+    * High level RAVENNA/AES67 protocol implementation
+      - mDNS discovery
+      - SAP discovery
+    * Remote volume control
+    * RAVENNA devices sample rate arbitration
+    * Communication and configuration of the LKM
 
 The Daemon cannot be launched if the LKM has not been previously inserted.
 
