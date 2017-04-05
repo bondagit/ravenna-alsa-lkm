@@ -2,7 +2,7 @@
 
 ## Introduction ##
 
-TODO Quick summary
+This package provides an ALSA driver to enable RAVENNA and AES67 audio over IP protocols support to various Linux distributions.
 
 TODO Version
 
