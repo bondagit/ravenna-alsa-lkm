@@ -29,7 +29,7 @@
 *
 ****************************************************************************/
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_TargetPlatform.h"
+#include "MTAL_TargetPlatform.h"
 
 #if (defined(MTAL_LINUX) && defined(MTAL_KERNEL))
     #define new NEW
@@ -40,8 +40,8 @@
 #endif
 
 #include "RTP_stream_info.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_DP.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_EthUtils.h"
+#include "MTAL_DP.h"
+#include "MTAL_EthUtils.h"
 
 
 ////////////////////////////////////////////////////////////////////

@@ -43,7 +43,7 @@
 #endif //NT_DRIVER
 
 #include "EtherTubeInterfaces.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL.h"
+#include "MTAL_DP.h"
 #include "RTP_audio_stream.h"
 #include "RTP_stream_info.h"
 

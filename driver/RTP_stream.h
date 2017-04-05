@@ -31,9 +31,8 @@
 
 #pragma once
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_EthUtils.h"
-//#include "../../../IODevices/EtherTube/EtherTubeInterfaces.h"
-#include "../../../Drivers/RavennaALSA/driver/EtherTubeNetfilter.h"
+#include "MTAL_EthUtils.h"
+#include "EtherTubeNetfilter.h"
 #include "RTP_stream_info.h"
 #include "RTP_stream_defs.h"
 

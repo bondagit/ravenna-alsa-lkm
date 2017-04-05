@@ -29,21 +29,21 @@
 *
 ****************************************************************************/
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_TargetPlatform.h"
+#include "MTAL_TargetPlatform.h"
 
 #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     #include <linux/spinlock.h>
     #include <linux/slab.h>
 #endif
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_DP.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_EthUtils.h"
+#include "MTAL_DP.h"
+#include "MTAL_EthUtils.h"
 
 #include "RTP_streams_manager.h"
 
-// Windows min and max defines clash with std::min and std::max
-#undef min
-#undef max
+// // Windows min and max defines clash with std::min and std::max
+// #undef min
+// #undef max
 
 #define RTCP_ENABLED			1
 #define RTCP_COUNTDOWN_INIT		125 //750	// ~ 1s
@@ -588,7 +588,7 @@ int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTi
 		}
 		else
 		{
-			pSinkAheadTime->ui32MinSinkAheadTime = MTAL_Min(pSinkAheadTime->ui32MinSinkAheadTime, SinkAheadTime.ui32MinSinkAheadTime);
+			pSinkAheadTime->ui32MinSinkAheadTime = min(pSinkAheadTime->ui32MinSinkAheadTime, SinkAheadTime.ui32MinSinkAheadTime);
 		}
 	}
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
@@ -628,8 +628,8 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 		}
 		else
 		{
-			pSinksJitter->ui32MinSinkJitter = MTAL_Min(pSinksJitter->ui32MinSinkJitter, ui32SinkJitter);
-			pSinksJitter->ui32MaxSinkJitter = MTAL_Max(pSinksJitter->ui32MaxSinkJitter, ui32SinkJitter);
+			pSinksJitter->ui32MinSinkJitter = min(pSinksJitter->ui32MinSinkJitter, ui32SinkJitter);
+			pSinksJitter->ui32MaxSinkJitter = max(pSinksJitter->ui32MaxSinkJitter, ui32SinkJitter);
 		}
 	}
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)

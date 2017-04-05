@@ -42,7 +42,7 @@
 
 #include "EtherTubeInterfaces.h"
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL.h"
+#include "MTAL_DP.h"
 
 #define PTP_LOCK_HYSTERESIS		4
 #define PTP_WATCHDOG_ELAPSE		20000000	// we assume to receive at least one sync each 2s
@@ -773,8 +773,8 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
     get_clock_time(&ui64CurrentRTXClockTime);
     ui64CurrentRTXClockTime /= NS_2_REF_UNIT; // [100us]
 
-	MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
-	MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), (PVOID)(self->m_ui64TICSAC));
+	//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+	//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), (PVOID)(self->m_ui64TICSAC));
 
 	/////// debug
 	if (abs((int)((signed)self->m_ui64TIC_NextAbsoluteTime - (signed)ui64CurrentRTXClockTime)) > self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT)
@@ -903,7 +903,7 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 		//MTAL_DP("\tTIC_RTXClockTimeFromOrigin %I64u  TIC_PTPClockTimeFromOrigin %I64u\n", self->m_ui64TIC_RTXClockTimeFromOrigin, self->m_ui64TIC_PTPClockTimeFromOrigin);
 		//MTAL_DP("\t ui64CurrentRTXClockTimeDbg %I64u - self->m_ui64TIC_RTXClockOriginTime %I64u =  %I64u\n", ui64CurrentRTXClockTimeDbg, self->m_ui64TIC_RTXClockOriginTime, ui64CurrentRTXClockTime);
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC_DROP, (PVOID)(RT_TRACE_EVENT_OCCURENCE), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC_DROP, (PVOID)(RT_TRACE_EVENT_OCCURENCE), 0);
 		self->m_uiTIC_DropCounter++;
 	}
 	self->m_ui64LastTIC_Count = ui64CurrentTICCount;

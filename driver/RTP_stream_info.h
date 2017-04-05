@@ -42,7 +42,7 @@
 #include <string.h>
 #endif
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_EthUtils.h"
+#include "MTAL_EthUtils.h"
 
 //// Hack to support strang QSC port mapping
 //#define QSC_HACK 1

@@ -34,9 +34,9 @@
 #include "EtherTubeNetfilter.h"
 #include "manager.h"
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_EthUtils.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_DP.h"
-#include "../../../../../MTCommon/Sources/MTAL/MTAL_TargetPlatform.h"
+#include "MTAL_EthUtils.h"
+#include "MTAL_DP.h"
+#include "MTAL_TargetPlatform.h"
 
 #include <linux/spinlock.h>
 #include <linux/slab.h>

@@ -38,17 +38,8 @@
 	#include "stdlib.h"
 #endif //NT_DRIVER
 
-/*#include <math.h>
-#include <stdlib.h>
-#include <string.h>*/
-
 #include "RTP_audio_stream.h"
-
-//#include "MTAL.h"
-//#include "../../../../../MTCommon/Sources/MTAL/MTAL_stdint.h"
 #include "MTAL_DP.h"
-//#include <time.h>
-
 
 #define DEBUG_TRACE(x) MTAL_DP("[RTP Stream] "); MTAL_DP x
 #define ASSERT(x) {if(!(x)) { MTAL_DP("Assert in %s line %i\n", __FILE__, __LINE__); }}

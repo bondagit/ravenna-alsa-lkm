@@ -44,7 +44,7 @@
 
 #include "RTP_stream.h"
 
-#include "../../../../../MTCommon/Sources/MTAL/MTAL.h"
+#include "MTAL_DP.h"
 
 
 #define DEBUG_TRACE(x) MTAL_DP("[RTP Stream] "); MTAL_DP x
@@ -261,21 +261,21 @@ int rtp_stream_send_RTCP_SR_Packet(TRTP_stream* pRTP_stream)
 	}
 	//MTAL_DP("SendRTCP_SR_Packet\n");
 
-	MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);
+	//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);
 	if (AcquireTransmitPacket(pRTP_stream->m_pEth_netfilter, &pHandle, &pvPacket, &ulPacketSize) && ulPacketSize >= (sizeof(TRTCP_SR_PacketBase) + pRTP_stream->m_ulRTCP_SourceDescriptionSize))
 	{
         uint32_t ntp_sec, ntp_fsec;
         uint32_t ui32PacketSize;
         TRTCP_SR_PacketBase* pTRTCP_SR_Packet = (TRTCP_SR_PacketBase*)pvPacket;
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 
 		// Copy the header
 		memcpy(pvPacket, &pRTP_stream->m_RTCPPacketBase, sizeof(TRTCPPacketBase));
 
 		ui32PacketSize = sizeof(TRTCP_SR_PacketBase) + pRTP_stream->m_ulRTCP_SourceDescriptionSize;
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_YELLOW), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_YELLOW), 0);
 		// Update IP's header
 		pTRTCP_SR_Packet->RTCPPacketBase.IPV4Header.usLen = MTAL_SWAP16((unsigned short)ui32PacketSize - sizeof(TEthernetHeader));
 		pTRTCP_SR_Packet->RTCPPacketBase.IPV4Header.usChecksum = 0;
@@ -287,8 +287,8 @@ int rtp_stream_send_RTCP_SR_Packet(TRTP_stream* pRTP_stream)
 		pTRTCP_SR_Packet->RTCPPacketBase.UDPHeader.usLen = MTAL_SWAP16((unsigned short)ui32PacketSize - sizeof(TEthernetHeader) - sizeof(TIPV4Header));
 		pTRTCP_SR_Packet->RTCPPacketBase.UDPHeader.usCheckSum = 0;
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PINK), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PINK), 0);
 		// Update RTCP_SenderInfo
 		// Insert the NTP and RTP timestamps for the 'wallclock time':
 		get_ntp_time(&ntp_sec, &ntp_fsec);
@@ -300,8 +300,8 @@ int rtp_stream_send_RTCP_SR_Packet(TRTP_stream* pRTP_stream)
 		*/
 		//uint32_t ui32RTPTimestamp = 0;//fSink->convertToRTPTimestamp(timeNow); // RTP ts
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_ORANGE), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_ORANGE), 0);
 
 		pTRTCP_SR_Packet->RTCP_SenderInfo.ui32NTPTimestamp_MSW = MTAL_SWAP32(ntp_sec);
 		pTRTCP_SR_Packet->RTCP_SenderInfo.ui32NTPTimestamp_LSW = MTAL_SWAP32(ntp_fsec);
@@ -316,22 +316,22 @@ int rtp_stream_send_RTCP_SR_Packet(TRTP_stream* pRTP_stream)
 		}
 
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_TURQUOISE), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_TURQUOISE), 0);
 
 		// TODO Optimization: as the UDP checksum is not mandatory we could disable its computation or ask to the hardware to compute the checksum
 		// Compute UDP checksum
 		pTRTCP_SR_Packet->RTCPPacketBase.UDPHeader.usCheckSum = MTAL_SWAP16(MTAL_ComputeUDPChecksum(&pTRTCP_SR_Packet->RTCPPacketBase.UDPHeader, (unsigned short)ui32PacketSize - sizeof(TEthernetHeader)  - sizeof(TIPV4Header), (unsigned short*)&pTRTCP_SR_Packet->RTCPPacketBase.IPV4Header.ui32SrcIP, (unsigned short*)&pTRTCP_SR_Packet->RTCPPacketBase.IPV4Header.ui32DestIP));
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PURPLE), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PURPLE), 0);
 		TransmitAcquiredPacket(pRTP_stream->m_pEth_netfilter, pHandle, pvPacket, ui32PacketSize);
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 	}
 	else
 	{
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 		// Cancel the transmission
 		if(pHandle)
 		{
@@ -361,20 +361,20 @@ int rtp_stream_send_RTCP_RR_Packet(TRTP_stream* pRTP_stream)
 	}
 	//MTAL_DP("SendRTCP_RR_Packet\n");
 
-	MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);
+	//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);
 	if(AcquireTransmitPacket(pRTP_stream->m_pEth_netfilter, &pHandle, &pvPacket, &ulPacketSize) && ulPacketSize >= sizeof(TRTCP_RR_PacketBase))
 	{
         uint32_t ui32PacketSize = sizeof(TRTCP_RR_PacketBase);
         TRTCP_RR_PacketBase* pTRTCP_RR_Packet;
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 
 		pTRTCP_RR_Packet = (TRTCP_RR_PacketBase*)pvPacket;
 
 		// Copy the header
 		memcpy(pvPacket, &pRTP_stream->m_RTCPPacketBase, sizeof(TRTCPPacketBase));
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_YELLOW), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_YELLOW), 0);
 		// Update IP's header
 		pTRTCP_RR_Packet->RTCPPacketBase.IPV4Header.usLen = MTAL_SWAP16((unsigned short)ui32PacketSize - sizeof(TEthernetHeader));
 		pTRTCP_RR_Packet->RTCPPacketBase.IPV4Header.usChecksum = 0;
@@ -400,15 +400,15 @@ int rtp_stream_send_RTCP_RR_Packet(TRTP_stream* pRTP_stream)
 		// Compute UDP checksum
 		pTRTCP_RR_Packet->RTCPPacketBase.UDPHeader.usCheckSum	= MTAL_SWAP16(MTAL_ComputeUDPChecksum(&pTRTCP_RR_Packet->RTCPPacketBase.UDPHeader, (unsigned short)ui32PacketSize - sizeof(TEthernetHeader)  - sizeof(TIPV4Header), (unsigned short*)&pTRTCP_RR_Packet->RTCPPacketBase.IPV4Header.ui32SrcIP, (unsigned short*)&pTRTCP_RR_Packet->RTCPPacketBase.IPV4Header.ui32DestIP));
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PURPLE), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PURPLE), 0);
 		TransmitAcquiredPacket(pRTP_stream->m_pEth_netfilter, pHandle, pvPacket, ui32PacketSize);
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 	}
 	else
 	{
-		MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
+		//MTAL_RtTraceEvent(RTTRACEEVENT_RTCP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 		// Cancel the transmission
 		if(pHandle)
 		{

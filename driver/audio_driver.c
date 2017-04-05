@@ -65,14 +65,14 @@
 
 #define MR_ALSA_PTP_FRAME_RATE_FOR_DSD (352800)
 
-#ifndef min
-    #define min(a,b) ((a) > (b))? (b) : (a)
-    #define __undefmin
-#endif // min
-#ifndef max
-    #define max(a,b) ((a) < (b))? (b) : (a)
-    #define __undefmax
-#endif // max
+// #ifndef min
+    // #define min(a,b) ((a) > (b))? (b) : (a)
+    // #define __undefmin
+// #endif // min
+// #ifndef max
+    // #define max(a,b) ((a) < (b))? (b) : (a)
+    // #define __undefmax
+// #endif // max
 
 
 
