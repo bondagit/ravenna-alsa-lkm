@@ -37,11 +37,10 @@ The LKM cannot be removed as long as the Daemon is running
 
 ### ALSA Features ###
 * Volume control
-* 1 to 8 FS support
-* PCM up to 384 kHz
+* PCM up from 44.1 kHz to 384 kHz
 * Native DSD (64/128/256) support (DOP not supported)
 * Interleaved and non-interleaved 16/24/32 bit integer formats
-* Up to 64 I/O (I is not yet supported)
+* Up to 64 playback streams (Capture streams are not yet supported)
 
 
 ## Configuration ##
