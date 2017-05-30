@@ -832,7 +832,19 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
         case MT_ALSA_Msg_Update_RTPStream_Name:
             break;
         case MT_ALSA_Msg_GetPTPInfo:
-            break;
+		{
+			//MTAL_DP_INFO("Get PTP Info\n");
+
+			TPTPInfo ptpInfo;
+			GetPTPInfo(&self->m_PTP, &ptpInfo);
+
+			msg_reply.errCode = 0;
+			msg_reply.dataSize = sizeof(TPTPInfo);
+			msg_reply.data = &ptpInfo;
+
+			CW_netlink_send_reply_to_user_land(&msg_reply);
+			return; // because stream_handle is outof the scope if send reply at the end of the function
+		}
 		case MT_ALSA_Msg_SetMasterOutputVolume:
 			if (msg_rcv->dataSize != sizeof(int32_t))
             {
