@@ -2,11 +2,11 @@
 
 ## Introduction ##
 
-TODO Quick summary
+This package provides an ALSA driver to enable RAVENNA and AES67 audio over IP protocols support to various Linux distributions.
 
 TODO Version
 
-[Merging Technologies](http://www.merging.com)
+More information about Merging Technologies, RAVENNA and AES67 can be found on : [http://www.merging.com/products/pyramix/ravenna](http://www.merging.com/products/pyramix/ravenna)
 
 ## Architecture ##
 The RAVENNA ALSA implementation is splitted into 2 parts:
@@ -37,11 +37,10 @@ The LKM cannot be removed as long as the Daemon is running
 
 ### ALSA Features ###
 * Volume control
-* 1 to 8 FS support
-* PCM up to 384 kHz
+* PCM up from 44.1 kHz to 384 kHz
 * Native DSD (64/128/256) support (DOP not supported)
 * Interleaved and non-interleaved 16/24/32 bit integer formats
-* Up to 64 I/O (I is not yet supported)
+* Up to 64 playback streams (Capture streams are not yet supported)
 
 
 ## Configuration ##
@@ -70,7 +69,7 @@ ALSA lib superior or equal to 1.0.29 for DSD support
 git clone https://AlsaIntegrator@bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git .
 cd driver
 make
-insmod MergingRavennaALSA.ko
+sudo insmod MergingRavennaALSA.ko
 ```
 
 
