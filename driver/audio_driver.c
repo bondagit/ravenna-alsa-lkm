@@ -2392,8 +2392,8 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
     }
 
 	// Create a card instance
-    // use snd_card_new in Kernel v3.19 and higher
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+    // use snd_card_new in Kernel v3.15 and higher
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
     err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, sizeof(struct mr_alsa_audio_chip), &card);
     #else
 	err = snd_card_create(index, id, THIS_MODULE, sizeof(struct mr_alsa_audio_chip), &card);
