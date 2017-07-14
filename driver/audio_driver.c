@@ -55,9 +55,9 @@
 #include "../common/MergingRAVENNACommon.h"
 #include "audio_driver.h"
 
-#define SND_MR_ALSA_AUDIO_DRIVER	"snd_merging_rav"
+#define SND_MR_ALSA_AUDIO_DRIVER    "snd_merging_rav"
 #define CARD_NAME "Merging RAVENNA"
-#define MR_ALSA_AUDIO_PM_OPS	NULL // TODO to be changed for implementing Power Management
+#define MR_ALSA_AUDIO_PM_OPS    NULL // TODO to be changed for implementing Power Management
 
 #define MR_ALSA_RINGBUFFER_NB_FRAMES (RINGBUFFERSIZE) // multiple of 48 * 16 and multiple of 64 * 16 //32768. Note * 16 because up to 16FS
 #define MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS (DEFAULT_NADAC_TICFRAMESIZE)
@@ -90,6 +90,9 @@ static bool enable = SNDRV_DEFAULT_ENABLE1; /* Enable this card */
 //static char *model = NULL;
 static int pcm_devs = 1;
 //static int pcm_substreams = 8;
+#ifdef MUTE_CHECK
+static bool playback_mute_detected = false;
+#endif
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
@@ -132,23 +135,23 @@ struct mr_alsa_audio_chip
 
     struct platform_device *dev;
 
-    unsigned char *capture_buffer;	/// non interleaved Ravenna Ring Buffer
-	unsigned char *playback_buffer;	 /// non interleaved Ravenna Ring Buffer
-	uint32_t capture_buffer_pos;	 /// in ravenna samples
-	uint32_t playback_buffer_pos;	 /// in ravenna samples
-	uint64_t playback_buffer_alsa_sac;	 /// in alsa frames
-	uint64_t playback_buffer_rav_sac;	 /// in alsa frames
-	u64 current_alsa_playback_format; /// init with Ravenna Manager then retrieved from hw params
+    unsigned char *capture_buffer;  /// non interleaved Ravenna Ring Buffer
+    unsigned char *playback_buffer;  /// non interleaved Ravenna Ring Buffer
+    uint32_t capture_buffer_pos;     /// in ravenna samples
+    uint32_t playback_buffer_pos;    /// in ravenna samples
+    uint64_t playback_buffer_alsa_sac;   /// in alsa frames
+    uint64_t playback_buffer_rav_sac;    /// in alsa frames
+    u64 current_alsa_playback_format; /// init with Ravenna Manager then retrieved from hw params
     u64 current_alsa_capture_format; /// init with Ravenna Manager then retrieved from hw params
     uint32_t current_alsa_playback_stride; /// number of data bytes per sample (ex: 3 for format = SNDRV_PCM_FORMAT_S24_3LE, 4 for format = SNDRV_PCM_FORMAT_S24_LE, 4 for format = SNDRV_PCM_FORMAT_S32_LE)
     uint32_t current_alsa_capture_stride; /// number of data bytes per sample (ex: 3 for format = SNDRV_PCM_FORMAT_S24_3LE, 4 for format = SNDRV_PCM_FORMAT_S24_LE, 4 for format = SNDRV_PCM_FORMAT_S32_LE)
 
-	unsigned int first_capture_interrupt; /// 1 if first Ravenna TIC Interrupt since capture started, 0 otherwise
+    unsigned int first_capture_interrupt; /// 1 if first Ravenna TIC Interrupt since capture started, 0 otherwise
     unsigned int first_playback_interrupt; /// 1 if first Ravenna TIC Interrupt since playback started, 0 otherwise
 
-    pid_t capture_pid;	/* process id which uses capture */
-    pid_t playback_pid;	/* process id which uses playback */
-    int running;		/* running status */
+    pid_t capture_pid;  /* process id which uses capture */
+    pid_t playback_pid; /* process id which uses playback */
+    int running;        /* running status */
 
     unsigned int current_rate;  /// updated on each alsa hw_params and prepare
     unsigned int current_dsd;   /// 0 for pcm, 1 for dsd64, 2 for dsd128, 4 for dsd256. updated on each alsa hw_params and prepare
@@ -166,8 +169,8 @@ struct mr_alsa_audio_chip
     int32_t current_playback_volume; /// cached value for volume control
     int32_t current_playback_switch; /// cached value for switch control
 
-    struct snd_card *card;	/* one card */
-    struct snd_pcm *pcm;	/* has one pcm */
+    struct snd_card *card;  /* one card */
+    struct snd_pcm *pcm;    /* has one pcm */
 };
 
 
@@ -175,220 +178,220 @@ struct mr_alsa_audio_chip
 
 /// channel mappings (NADAC only)
 static const struct snd_pcm_chmap_elem mr_alsa_audio_nadac_playback_ch_map[] = {
-	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
-	{ .channels = 2,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
-	{ .channels = 3,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC} },
-	{ .channels = 4,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // quadro
-	{ .channels = 5,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // 5.0 smpte
-	{ .channels = 6,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // 5.1 smpte
-	{ .channels = 7,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR, SNDRV_CHMAP_RC} }, // 6.1 smpte
-	{ .channels = 8,
-	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR} }, // 7.1 smpte
-	{ }
+    { .channels = 1,
+      .map = { SNDRV_CHMAP_MONO } },
+    { .channels = 2,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+    { .channels = 3,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC} },
+    { .channels = 4,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // quadro
+    { .channels = 5,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // 5.0 smpte
+    { .channels = 6,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // 5.1 smpte
+    { .channels = 7,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR, SNDRV_CHMAP_RC} }, // 6.1 smpte
+    { .channels = 8,
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR} }, // 7.1 smpte
+    { }
 };
 
 
 /// NADAC Master Output controls definitions
 
 ///Playback Volume control
-static int mr_alsa_audio_output_gain_info(	struct snd_kcontrol *kcontrol,// TODO Playback Volume control
-											struct snd_ctl_elem_info *uinfo)
+static int mr_alsa_audio_output_gain_info(  struct snd_kcontrol *kcontrol,// TODO Playback Volume control
+                                            struct snd_ctl_elem_info *uinfo)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	if(kcontrol == NULL || uinfo == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-		return -EINVAL;
+    struct mr_alsa_audio_chip *chip = NULL;
+    if(kcontrol == NULL || uinfo == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+        return -EINVAL;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
-	//printk("mr_alsa_audio_output_gain_info: uinfo->count = %u \n", uinfo->count);
-	uinfo->value.integer.min = -99;
-	uinfo->value.integer.max = 0;
-	return 0;
+    uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+    chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
+    //printk("mr_alsa_audio_output_gain_info: uinfo->count = %u \n", uinfo->count);
+    uinfo->value.integer.min = -99;
+    uinfo->value.integer.max = 0;
+    return 0;
 }
 
 
 static int mr_alsa_audio_output_gain_get(struct snd_kcontrol *kcontrol,// TODO Playback Volume control
-				    struct snd_ctl_elem_value *ucontrol)
+                    struct snd_ctl_elem_value *ucontrol)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	int err = 0;
-	unsigned int chidx = 0;
-	//printk(" >> >> enter mr_alsa_audio_output_gain_get\n");
-	if(kcontrol == NULL || ucontrol == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
+    struct mr_alsa_audio_chip *chip = NULL;
+    int err = 0;
+    unsigned int chidx = 0;
+    //printk(" >> >> enter mr_alsa_audio_output_gain_get\n");
+    if(kcontrol == NULL || ucontrol == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
 
-	//spin_lock_irq(&chip->lock);
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-	{
-		err = -EINVAL;
-	}
-	else
-	{
-		//printk(" >> >> mr_alsa_audio_output_gain_get: value = %d \n", chip->current_playback_volume);
-		//err = chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
-		ucontrol->value.integer.value[0] = chip->current_playback_volume;
-		if(chip->current_nboutputs > 1)
-		{
-			for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
-				ucontrol->value.integer.value[chidx] = chip->current_playback_volume;
-		}
-		err = 0;
-	}
-	//spin_unlock_irq(&chip->lock);
-	return err;
+    //spin_lock_irq(&chip->lock);
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+    {
+        err = -EINVAL;
+    }
+    else
+    {
+        //printk(" >> >> mr_alsa_audio_output_gain_get: value = %d \n", chip->current_playback_volume);
+        //err = chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
+        ucontrol->value.integer.value[0] = chip->current_playback_volume;
+        if(chip->current_nboutputs > 1)
+        {
+            for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
+                ucontrol->value.integer.value[chidx] = chip->current_playback_volume;
+        }
+        err = 0;
+    }
+    //spin_unlock_irq(&chip->lock);
+    return err;
 }
 static int mr_alsa_audio_output_gain_put(struct snd_kcontrol *kcontrol,// TODO Playback Volume control
-				    struct snd_ctl_elem_value *ucontrol)
+                    struct snd_ctl_elem_value *ucontrol)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	int32_t value = 0;
-	int err = 0;
-	//printk(" >> >> enter mr_alsa_audio_output_gain_put\n");
-	if(kcontrol == NULL || ucontrol == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
-	//spin_lock_irq(&chip->lock);
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-	{
-		err = -EINVAL;
-	}
-	else
-	{
-		value = ucontrol->value.integer.value[0];
-		//printk(" >> >> mr_alsa_audio_output_gain_put: value = %d\n", value);
-		if(chip->current_playback_volume != (int32_t)value)
-		{
-			chip->current_playback_volume = (int32_t)value;
-			err = chip->mr_alsa_audio_ops->notify_master_volume_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
-		}
-	}
-	//spin_unlock_irq(&chip->lock);
-	return err;
+    struct mr_alsa_audio_chip *chip = NULL;
+    int32_t value = 0;
+    int err = 0;
+    //printk(" >> >> enter mr_alsa_audio_output_gain_put\n");
+    if(kcontrol == NULL || ucontrol == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
+    //spin_lock_irq(&chip->lock);
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+    {
+        err = -EINVAL;
+    }
+    else
+    {
+        value = ucontrol->value.integer.value[0];
+        //printk(" >> >> mr_alsa_audio_output_gain_put: value = %d\n", value);
+        if(chip->current_playback_volume != (int32_t)value)
+        {
+            chip->current_playback_volume = (int32_t)value;
+            err = chip->mr_alsa_audio_ops->notify_master_volume_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
+        }
+    }
+    //spin_unlock_irq(&chip->lock);
+    return err;
 }
 
 static const DECLARE_TLV_DB_SCALE(mr_alsa_audio_db_scale_output_gain, -9900, 100, 0); /// min = -9900 * 0.01 = -99 dB, 100*0.01 dB = 1 dB step
 
 static struct snd_kcontrol_new mr_alsa_audio_ctrl_output_gain = {
-	.name = "Master Playback Volume",
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-	.info = mr_alsa_audio_output_gain_info,
-	.get = mr_alsa_audio_output_gain_get,
-	.put = mr_alsa_audio_output_gain_put,
-	.tlv = {.p = mr_alsa_audio_db_scale_output_gain}
+    .name = "Master Playback Volume",
+    .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+    .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+    .info = mr_alsa_audio_output_gain_info,
+    .get = mr_alsa_audio_output_gain_get,
+    .put = mr_alsa_audio_output_gain_put,
+    .tlv = {.p = mr_alsa_audio_db_scale_output_gain}
 };
 
 /// Playback Switch control
 static int mr_alsa_audio_output_switch_info(struct snd_kcontrol *kcontrol,
-											struct snd_ctl_elem_info *uinfo)
+                                            struct snd_ctl_elem_info *uinfo)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	if(kcontrol == NULL || uinfo == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-		return -EINVAL;
+    struct mr_alsa_audio_chip *chip = NULL;
+    if(kcontrol == NULL || uinfo == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+        return -EINVAL;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
+    uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+    chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
+    uinfo->value.integer.min = 0;
+    uinfo->value.integer.max = 1;
+    return 0;
 }
 
 
-static int mr_alsa_audio_output_switch_get(	struct snd_kcontrol *kcontrol,
-											struct snd_ctl_elem_value *ucontrol)
+static int mr_alsa_audio_output_switch_get( struct snd_kcontrol *kcontrol,
+                                            struct snd_ctl_elem_value *ucontrol)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	int err = 0;
-	unsigned int chidx = 0;
-	//printk(" >> >> enter mr_alsa_audio_output_switch_get\n");
-	if(kcontrol == NULL || ucontrol == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
+    struct mr_alsa_audio_chip *chip = NULL;
+    int err = 0;
+    unsigned int chidx = 0;
+    //printk(" >> >> enter mr_alsa_audio_output_switch_get\n");
+    if(kcontrol == NULL || ucontrol == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
 
-	//spin_lock_irq(&chip->lock);
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-	{
-		err = -EINVAL;
-	}
-	else
-	{
-		//printk(" >> >> mr_alsa_audio_output_switch_get: value = %d\n", chip->current_playback_switch);
-		//err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
-		ucontrol->value.integer.value[0] = chip->current_playback_switch;
-		if(chip->current_nboutputs > 1)
-		{
-			for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
-				ucontrol->value.integer.value[chidx] = chip->current_playback_switch;
-		}
-		err = 0;
-	}
-	//spin_unlock_irq(&chip->lock);
+    //spin_lock_irq(&chip->lock);
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+    {
+        err = -EINVAL;
+    }
+    else
+    {
+        //printk(" >> >> mr_alsa_audio_output_switch_get: value = %d\n", chip->current_playback_switch);
+        //err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
+        ucontrol->value.integer.value[0] = chip->current_playback_switch;
+        if(chip->current_nboutputs > 1)
+        {
+            for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
+                ucontrol->value.integer.value[chidx] = chip->current_playback_switch;
+        }
+        err = 0;
+    }
+    //spin_unlock_irq(&chip->lock);
 
-	return err;
+    return err;
 }
-static int mr_alsa_audio_output_switch_put(	struct snd_kcontrol *kcontrol,
-											struct snd_ctl_elem_value *ucontrol)
+static int mr_alsa_audio_output_switch_put( struct snd_kcontrol *kcontrol,
+                                            struct snd_ctl_elem_value *ucontrol)
 {
-	struct mr_alsa_audio_chip *chip = NULL;
-	int32_t value = 0;
-	int err = 0;
-//	printk(" >> >> enter mr_alsa_audio_output_switch_put\n");
-	if(kcontrol == NULL || ucontrol == NULL)
-		return -EINVAL;
-	chip = snd_kcontrol_chip(kcontrol);
-	if(chip == NULL)
-		return -EINVAL;
+    struct mr_alsa_audio_chip *chip = NULL;
+    int32_t value = 0;
+    int err = 0;
+//  printk(" >> >> enter mr_alsa_audio_output_switch_put\n");
+    if(kcontrol == NULL || ucontrol == NULL)
+        return -EINVAL;
+    chip = snd_kcontrol_chip(kcontrol);
+    if(chip == NULL)
+        return -EINVAL;
 
-	//spin_lock_irq(&chip->lock);
-	if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
-	{
-		err = -EINVAL;
-	}
-	else
-	{
-		value = ucontrol->value.integer.value[0];
-		//printk(" >> >> mr_alsa_audio_output_switch_put: value = %d\n", value);
-		if(chip->current_playback_switch != (int32_t)value)
-		{
-			chip->current_playback_switch = (int32_t)value;
-			err = chip->mr_alsa_audio_ops->notify_master_switch_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
-		}
-	}
-	//spin_unlock_irq(&chip->lock);
+    //spin_lock_irq(&chip->lock);
+    if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
+    {
+        err = -EINVAL;
+    }
+    else
+    {
+        value = ucontrol->value.integer.value[0];
+        //printk(" >> >> mr_alsa_audio_output_switch_put: value = %d\n", value);
+        if(chip->current_playback_switch != (int32_t)value)
+        {
+            chip->current_playback_switch = (int32_t)value;
+            err = chip->mr_alsa_audio_ops->notify_master_switch_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
+        }
+    }
+    //spin_unlock_irq(&chip->lock);
 
-	return err;
+    return err;
 }
 
 static struct snd_kcontrol_new mr_alsa_audio_ctrl_output_switch = {
-	.name = "Master Playback Switch",
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.info = mr_alsa_audio_output_switch_info,
-	.get = mr_alsa_audio_output_switch_get,
-	.put = mr_alsa_audio_output_switch_put
+    .name = "Master Playback Switch",
+    .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+    .info = mr_alsa_audio_output_switch_info,
+    .get = mr_alsa_audio_output_switch_get,
+    .put = mr_alsa_audio_output_switch_put
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -640,79 +643,79 @@ static uint32_t mr_alsa_audio_pcm_get_playback_buffer_offset(void *rawchip)
 
 static int mr_alsa_audio_notify_master_volume_change(void* rawchip, int direction, int32_t value)
 {
-	int err = 0;
-	if(rawchip)
+    int err = 0;
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
         if(direction == SNDRV_PCM_STREAM_PLAYBACK)
-		{
-			if(chip->playback_volume_control)
-			{
-				if(chip->current_playback_volume != value)
-				{
-					chip->current_playback_volume = value;
-					snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_volume_control->id);
-				}
-				err = 0;
-			}
-			else
-			{
-				err = -EINVAL;
-			}
-		}
+        {
+            if(chip->playback_volume_control)
+            {
+                if(chip->current_playback_volume != value)
+                {
+                    chip->current_playback_volume = value;
+                    snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_volume_control->id);
+                }
+                err = 0;
+            }
+            else
+            {
+                err = -EINVAL;
+            }
+        }
     }
     else
-	{
-		err = -EINVAL;
-	}
+    {
+        err = -EINVAL;
+    }
     return err;
 }
 
 static int mr_alsa_audio_notify_master_switch_change(void* rawchip, int direction, int32_t value)
 {
-	int err = 0;
-	if(rawchip)
+    int err = 0;
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
         if(direction == SNDRV_PCM_STREAM_PLAYBACK)
-		{
-			if(chip->playback_switch_control)
-			{
-				//printk("mr_alsa_audio_notify_master_switch_change: new value = %d \n", value);
-				if(value != chip->current_playback_switch)
-				{
-					chip->current_playback_switch = value;
-					snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_switch_control->id);
-				}
-				err = 0;
-			}
-			else
-			{
-				err = -EINVAL;
-			}
-		}
+        {
+            if(chip->playback_switch_control)
+            {
+                //printk("mr_alsa_audio_notify_master_switch_change: new value = %d \n", value);
+                if(value != chip->current_playback_switch)
+                {
+                    chip->current_playback_switch = value;
+                    snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_switch_control->id);
+                }
+                err = 0;
+            }
+            else
+            {
+                err = -EINVAL;
+            }
+        }
     }
     else
-	{
-		err = -EINVAL;
-	}
+    {
+        err = -EINVAL;
+    }
     return err;
 }
 
 static struct ravenna_mgr_ops g_ravenna_manager_ops = {
-    .get_playback_buffer =	mr_alsa_audio_get_playback_buffer,
+    .get_playback_buffer =  mr_alsa_audio_get_playback_buffer,
     .get_playback_buffer_size_in_frames = mr_alsa_audio_get_playback_buffer_size_in_frames,
-	.get_capture_buffer =	mr_alsa_audio_get_capture_buffer,
+    .get_capture_buffer =   mr_alsa_audio_get_capture_buffer,
     .get_capture_buffer_size_in_frames = mr_alsa_audio_get_capture_buffer_size_in_frames,
-	.lock_playback_buffer = mr_alsa_audio_lock_playback_buffer,
-	.unlock_playback_buffer = mr_alsa_audio_unlock_playback_buffer,
-	.lock_capture_buffer = mr_alsa_audio_lock_capture_buffer,
-	.unlock_capture_buffer = mr_alsa_audio_unlock_capture_buffer,
-	.pcm_interrupt = mr_alsa_audio_pcm_interrupt,
-	.get_capture_buffer_offset = mr_alsa_audio_pcm_get_capture_buffer_offset,
-	.get_playback_buffer_offset = mr_alsa_audio_pcm_get_playback_buffer_offset,
-	.notify_master_volume_change = mr_alsa_audio_notify_master_volume_change,
-	.notify_master_switch_change = mr_alsa_audio_notify_master_switch_change
+    .lock_playback_buffer = mr_alsa_audio_lock_playback_buffer,
+    .unlock_playback_buffer = mr_alsa_audio_unlock_playback_buffer,
+    .lock_capture_buffer = mr_alsa_audio_lock_capture_buffer,
+    .unlock_capture_buffer = mr_alsa_audio_unlock_capture_buffer,
+    .pcm_interrupt = mr_alsa_audio_pcm_interrupt,
+    .get_capture_buffer_offset = mr_alsa_audio_pcm_get_capture_buffer_offset,
+    .get_playback_buffer_offset = mr_alsa_audio_pcm_get_playback_buffer_offset,
+    .notify_master_volume_change = mr_alsa_audio_notify_master_volume_change,
+    .notify_master_switch_change = mr_alsa_audio_notify_master_switch_change
 };
 
 
@@ -735,7 +738,7 @@ static struct ravenna_mgr_ops g_ravenna_manager_ops = {
 static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd)
 {
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(alsa_sub);
-	struct snd_pcm_runtime *runtime = alsa_sub->runtime;
+    struct snd_pcm_runtime *runtime = alsa_sub->runtime;
     char cmdString[64];
     if(SNDRV_PCM_TRIGGER_START == cmd)
         strcpy(cmdString, "Start");
@@ -755,9 +758,9 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
     //printk("$$ mr_alsa_audio_pcm_trigger(%s), rate=%d format=%d channels=%d period_size=%lu\n",cmdString,
     //        runtime->rate, runtime->format, runtime->channels, runtime->period_size);
 
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+    switch (cmd) {
+    case SNDRV_PCM_TRIGGER_START:
+    case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
     case SNDRV_PCM_TRIGGER_RESUME:
         if(alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
         {
@@ -773,16 +776,16 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
             chip->first_capture_interrupt = 1;
         }
         chip->mr_alsa_audio_ops->start_interrupts(chip->ravenna_peer);
-		return 0;
+        return 0;
 
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+    case SNDRV_PCM_TRIGGER_STOP:
+    case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
     case SNDRV_PCM_TRIGGER_SUSPEND:
         chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
         return 0;
-	default:
-		return -EINVAL;
-	}
+    default:
+        return -EINVAL;
+    }
 }
 
 /// prepare callback
@@ -793,7 +796,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
 {
     int err = 0;
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
+    struct snd_pcm_runtime *runtime = substream->runtime;
 
 
     spin_lock_irq(&chip->lock);
@@ -809,7 +812,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
             spin_unlock_irq(&chip->lock);
             return -EINVAL;
         }
-        printk("mr_alsa_audio_pcm_prepare: rate=%d format=%d channels=%d period_size=%lu, nb periods=%u\n", runtime->rate, runtime->format, runtime->channels, runtime->period_size, runtime->periods);
+        printk(KERN_INFO "mr_alsa_audio_pcm_prepare: rate=%d format=%d channels=%d period_size=%lu, nb periods=%u\n", runtime->rate, runtime->format, runtime->channels, runtime->period_size, runtime->periods);
         chip->mr_alsa_audio_ops->get_sample_rate(chip->ravenna_peer, &chip->current_rate);
         chip->current_dsd = mr_alsa_audio_get_dsd_mode(chip->current_rate);
 
@@ -833,19 +836,19 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         /// Number of channels
         if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
         {
-            printk("mr_alsa_audio_pcm_prepare for playback stream\n");
+            printk(KERN_INFO "mr_alsa_audio_pcm_prepare for playback stream\n");
             if(chip->ravenna_peer)
             {
                 chip->current_nboutputs = runtime->channels;
                 if(chip->playback_volume_control)
-					snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &chip->playback_volume_control->id);
+                    snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &chip->playback_volume_control->id);
                 if(err < 0)
                 {
                     printk("mr_alsa_audio_pcm_prepare for playback stream failed\n");
                     spin_unlock_irq(&chip->lock);
                     return -EINVAL;
                 }
-			}
+            }
             chip->current_alsa_playback_format = runtime->format;
             chip->current_alsa_playback_stride = snd_pcm_format_physical_width(runtime->format) >> 3;
             chip->playback_buffer_pos = 0;
@@ -866,7 +869,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         }
         else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
         {
-            printk("mr_alsa_audio_pcm_prepare for capture stream\n");
+            printk(KERN_INFO "mr_alsa_audio_pcm_prepare for capture stream\n");
             if(chip->ravenna_peer)
             {
                 chip->current_nbinputs = runtime->channels;
@@ -892,7 +895,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         printk("Error in mr_alsa_audio_pcm_prepare: runtime is NULL\n");
     }
     spin_unlock_irq(&chip->lock);
-    printk("Leaving mr_alsa_audio_pcm_prepare..\n");
+    printk(KERN_INFO "Leaving mr_alsa_audio_pcm_prepare..\n");
     return err;
 }
 
@@ -902,10 +905,10 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
 /// The position must be returned in frames, ranging from 0 to buffer_size - 1
 static snd_pcm_uframes_t mr_alsa_audio_pcm_pointer(struct snd_pcm_substream *alsa_sub)
 {
-	snd_pcm_uframes_t dma_offset = 0;
+    snd_pcm_uframes_t dma_offset = 0;
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(alsa_sub);
-	//struct snd_pcm_runtime *runtime = alsa_sub->runtime;
-	uint32_t offset = 0;
+    //struct snd_pcm_runtime *runtime = alsa_sub->runtime;
+    uint32_t offset = 0;
 
     if(alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
@@ -930,8 +933,8 @@ static snd_pcm_uframes_t mr_alsa_audio_pcm_pointer(struct snd_pcm_substream *als
         }
 
         /*if(offset < runtime->period_size)
-			offset += runtime->buffer_size;
-		offset -= runtime->period_size;*/
+            offset += runtime->buffer_size;
+        offset -= runtime->period_size;*/
 
 
     }
@@ -963,7 +966,7 @@ static snd_pcm_uframes_t mr_alsa_audio_pcm_pointer(struct snd_pcm_substream *als
 
     //printk("!!!!  mr_alsa_audio_pcm_pointer (returning dma_offset = %u)...\n", offset);
 
-	return dma_offset;
+    return dma_offset;
 
 }
 
@@ -1010,7 +1013,7 @@ static snd_pcm_uframes_t mr_alsa_audio_pcm_pointer(struct snd_pcm_substream *als
 /// used in the driver nor in the alsa-lib. So, you can ignore this field.
 static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_playback =
 {
-    .info =		(   /*SNDRV_PCM_INFO_MMAP |*/ /* hardware supports mmap */
+    .info =     (   /*SNDRV_PCM_INFO_MMAP |*/ /* hardware supports mmap */
                     SNDRV_PCM_INFO_INTERLEAVED |
                     SNDRV_PCM_INFO_NONINTERLEAVED | /* channels are not interleaved */
                     SNDRV_PCM_INFO_BLOCK_TRANSFER | /* hardware transfer block of samples */
@@ -1019,35 +1022,35 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_playback =
                     SNDRV_PCM_INFO_MMAP_VALID /*|  period data are valid during transfer */
                     //SNDRV_PCM_INFO_BATCH /* double buffering */
                      /*| SNDRV_PCM_INFO_JOINT_DUPLEX*/ /*| SNDRV_PCM_INFO_PAUSE*/ /*| SNDRV_PCM_INFO_RESUME*/),
-	.formats = (
-	#ifdef SNDRV_PCM_FMTBIT_DSD_U8
-    		SNDRV_PCM_FMTBIT_DSD_U8 |
-	#endif
-	#ifdef SNDRV_PCM_FMTBIT_DSD_U16_BE
-    		SNDRV_PCM_FMTBIT_DSD_U16_BE |
-	#endif
-	#ifdef SNDRV_PCM_FMTBIT_DSD_U32_BE
-    		SNDRV_PCM_FMTBIT_DSD_U32_BE |
-	#endif
-		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
-		SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE),
-	.rates =	(SNDRV_PCM_RATE_KNOT|SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000),
-	.rate_min =		    44100,
-	.rate_max =		    384000,
-	.channels_min =		2,
-	.channels_max =		MR_ALSA_NB_CHANNELS_MAX,
-	.buffer_bytes_max =	MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
-	.period_bytes_min =	MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 3, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
-	.period_bytes_max =	MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
-	.periods_min =		12, // min number of periods per buffer (for 8fs)
-	.periods_max =		96, // max number of periods per buffer (for 1fs)
-	.fifo_size =		0
+    .formats = (
+    #ifdef SNDRV_PCM_FMTBIT_DSD_U8
+            SNDRV_PCM_FMTBIT_DSD_U8 |
+    #endif
+    #ifdef SNDRV_PCM_FMTBIT_DSD_U16_BE
+            SNDRV_PCM_FMTBIT_DSD_U16_BE |
+    #endif
+    #ifdef SNDRV_PCM_FMTBIT_DSD_U32_BE
+            SNDRV_PCM_FMTBIT_DSD_U32_BE |
+    #endif
+        SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+        SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE),
+    .rates =    (SNDRV_PCM_RATE_KNOT|SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000),
+    .rate_min =         44100,
+    .rate_max =         384000,
+    .channels_min =     2,
+    .channels_max =     MR_ALSA_NB_CHANNELS_MAX,
+    .buffer_bytes_max = MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
+    .period_bytes_min = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 3, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
+    .period_bytes_max = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
+    .periods_min =      12, // min number of periods per buffer (for 8fs)
+    .periods_max =      96, // max number of periods per buffer (for 1fs)
+    .fifo_size =        0
 };
 
 
 static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
 {
-    .info =		(   /*SNDRV_PCM_INFO_MMAP |*/ /* hardware supports mmap */
+    .info =     (   /*SNDRV_PCM_INFO_MMAP |*/ /* hardware supports mmap */
                     SNDRV_PCM_INFO_NONINTERLEAVED | /* channels are not interleaved */
                     SNDRV_PCM_INFO_BLOCK_TRANSFER | /* hardware transfer block of samples */
                     SNDRV_PCM_INFO_JOINT_DUPLEX |
@@ -1055,18 +1058,18 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
                     SNDRV_PCM_INFO_MMAP_VALID /*|  period data are valid during transfer */
                     //SNDRV_PCM_INFO_BATCH /* double buffering */
                      /*| SNDRV_PCM_INFO_JOINT_DUPLEX*/ /*| SNDRV_PCM_INFO_PAUSE*/ /*| SNDRV_PCM_INFO_RESUME*/), // TODO (mmap, pause/resume, duplex)
-	.formats =	(SNDRV_PCM_FMTBIT_S32_LE/* | SNDRV_PCM_FMTBIT_S24_3LE*//* | SNDRV_PCM_FMTBIT_FLOAT_LE*/), // TODO (float?)
-	.rates =	(SNDRV_PCM_RATE_KNOT|SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000),
-	.rate_min =		    44100,
-	.rate_max =		    384000,
-	.channels_min =		2,
-	.channels_max =		MR_ALSA_NB_CHANNELS_MAX,
-	.buffer_bytes_max =	MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
-	.period_bytes_min =	MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 4, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
-	.period_bytes_max =	MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
-	.periods_min =		12, // min number of periods per buffer (for 8fs)
-	.periods_max =		96, // min number of periods per buffer (for 1fs)
-	.fifo_size =		0
+    .formats =  (SNDRV_PCM_FMTBIT_S32_LE/* | SNDRV_PCM_FMTBIT_S24_3LE*//* | SNDRV_PCM_FMTBIT_FLOAT_LE*/), // TODO (float?)
+    .rates =    (SNDRV_PCM_RATE_KNOT|SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000),
+    .rate_min =         44100,
+    .rate_max =         384000,
+    .channels_min =     2,
+    .channels_max =     MR_ALSA_NB_CHANNELS_MAX,
+    .buffer_bytes_max = MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
+    .period_bytes_min = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 4, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
+    .period_bytes_max = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
+    .periods_min =      12, // min number of periods per buffer (for 8fs)
+    .periods_max =      96, // min number of periods per buffer (for 1fs)
+    .fifo_size =        0
 };
 
 /// This callback is called whenever the alsa application wants to write data
@@ -1088,11 +1091,19 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
     uint32_t dsdrate = mr_alsa_audio_get_dsd_sample_rate(runtime->format, runtime->rate);
     uint32_t dsdmode = (dsdrate > 0? mr_alsa_audio_get_dsd_mode(dsdrate) : 0);
 
+
     /// Ravenna DSD always uses a rate of 352k with eventual zero padding to maintain a 32 bit alignment
     /// while DSD in ALSA uses a continuous 8, 16 or 32 bit aligned stream with at 352k, 176k or 88k
     /// so respective ring buffers might have different scale and size
     uint32_t ravenna_buffer_pos = pos * chip->nb_playback_interrupts_per_period;
     uint32_t alsa_ring_buffer_nb_frames = MR_ALSA_RINGBUFFER_NB_FRAMES / chip->nb_playback_interrupts_per_period;
+    
+#ifdef MUTE_CHECK
+    // mute check
+    bool mute_detected = false;
+    char testblock [256];
+    memset(testblock, 0, sizeof(testblock));
+#endif
 
 
     if(snd_BUG_ON(ravenna_buffer_pos >= MR_ALSA_RINGBUFFER_NB_FRAMES))
@@ -1100,9 +1111,10 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
 
     if(snd_BUG_ON(chip->playback_buffer_rav_sac > chip->playback_buffer_alsa_sac))
     {
-        //printk("playback_copy: chip->playback_buffer_rav_sac > chip->playback_buffer_alsa_sac Error\n");
+        printk("mr_alsa_audio_pcm_playback_copy: Playback stall. Missing playback data from the player application.");
         return -EINVAL;
     }
+
     //printk("playback_copy: initial count = %u, alsa_ring_buffer_nb_frames = %u \n", count, alsa_ring_buffer_nb_frames);
     if(alsa_ring_buffer_nb_frames < chip->playback_buffer_alsa_sac - chip->playback_buffer_rav_sac)
     {
@@ -1130,7 +1142,18 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
             return -EIO;
         if(copy_from_user(hwbuf, src, frames_to_bytes(runtime, count)))
             return -EFAULT;
-
+        
+        #ifdef MUTE_CHECK
+        mute_detected = !memcmp(testblock, hwbuf, min((ssize_t )256, frames_to_bytes(runtime, count)));
+        if (mute_detected != playback_mute_detected)
+        {
+            if (mute_detected)
+                printk("Playback buffer mute detected");
+            else
+                printk("Playback buffer signal detected");
+            playback_mute_detected = mute_detected;
+        }
+        #endif
         {
             /// de-interleaving
             unsigned char *in, *out;
@@ -1169,23 +1192,23 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
                     else
                     {
                         /// interleaved DSD stream to non interleaved 32 bit aligned blocks with 1/2/4 DSD bytes per 32 bit
-						uint32_t out_cnt;
-						for(out_cnt = 0; out_cnt < chip->nb_playback_interrupts_per_period; ++out_cnt)
-						{
-							switch(dsdmode)
-							{
-								case 1: ///DSD64
-									val = *(int32_t*)(in + out_cnt) & 0xFF;
-									break;
-								case 2: ///DSD128
-									val = (((int32_t)(in[2 * out_cnt + 1]) << 8) | ((int32_t)(in[2 * out_cnt]))) & 0xFFFF;
-									break;
-								case 4: ///DSD256
-									val = *(int32_t*)(in);
-									break;
-							}
-							((int32_t*)out)[out_cnt] = val;
-						}
+                        uint32_t out_cnt;
+                        for(out_cnt = 0; out_cnt < chip->nb_playback_interrupts_per_period; ++out_cnt)
+                        {
+                            switch(dsdmode)
+                            {
+                                case 1: ///DSD64
+                                    val = *(int32_t*)(in + out_cnt) & 0xFF;
+                                    break;
+                                case 2: ///DSD128
+                                    val = (((int32_t)(in[2 * out_cnt + 1]) << 8) | ((int32_t)(in[2 * out_cnt]))) & 0xFFFF;
+                                    break;
+                                case 4: ///DSD256
+                                    val = *(int32_t*)(in);
+                                    break;
+                            }
+                            ((int32_t*)out)[out_cnt] = val;
+                        }
                     }
 
                     in += stepIn;
@@ -1213,6 +1236,19 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
                 return -EIO;
             if(copy_from_user(hwbuf, src, samples_to_bytes(runtime, count)))
                 return -EFAULT;
+            
+            #ifdef MUTE_CHECK
+            mute_detected = !memcmp(testblock, hwbuf, min((ssize_t)256, frames_to_bytes(runtime, count)));
+            if (mute_detected != playback_mute_detected)
+            {
+                if (mute_detected)
+                    printk("Playback buffer mute detected");
+                else
+                    printk("Playback buffer signal detected");
+                playback_mute_detected = mute_detected;
+            }
+            #endif
+            
             //printk("mr_alsa_audio_pcm_playback_copy: no de-interleaving, converting %u frames with strideIn = %u\n", count, strideIn);
             /// do the format conversion to the Ravenna Ring buffer
             {
@@ -1250,22 +1286,22 @@ static int mr_alsa_audio_pcm_playback_copy(  struct snd_pcm_substream *substream
                     {
                         /// interleaved DSD stream to non interleaved 32 bit aligned blocks with 1/2/4 DSD bytes per 32 bit
                         uint32_t out_cnt;
-						for(out_cnt = 0; out_cnt < chip->nb_playback_interrupts_per_period; ++out_cnt)
-						{
-							switch(dsdmode)
-							{
-								case 1: ///DSD64
-									val = *(int32_t*)(in + out_cnt) & 0xFF;
-									break;
-								case 2: ///DSD128
-									val = (((int32_t)(in[2 * out_cnt + 1]) << 8) | ((int32_t)(in[2 * out_cnt]))) & 0xFFFF;
-									break;
-								case 4: ///DSD256
-									val = *(int32_t*)(in);
-									break;
-							}
-							((int32_t*)out)[out_cnt] = val;
-						}
+                        for(out_cnt = 0; out_cnt < chip->nb_playback_interrupts_per_period; ++out_cnt)
+                        {
+                            switch(dsdmode)
+                            {
+                                case 1: ///DSD64
+                                    val = *(int32_t*)(in + out_cnt) & 0xFF;
+                                    break;
+                                case 2: ///DSD128
+                                    val = (((int32_t)(in[2 * out_cnt + 1]) << 8) | ((int32_t)(in[2 * out_cnt]))) & 0xFFFF;
+                                    break;
+                                case 4: ///DSD256
+                                    val = *(int32_t*)(in);
+                                    break;
+                            }
+                            ((int32_t*)out)[out_cnt] = val;
+                        }
                     }
                     in += stepIn;
                     if(currentOutPos + stepOut >= ravBuffer_csize)
@@ -1333,7 +1369,7 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     /// so respective ring buffers might have different scale and size
     pos *= chip->nb_playback_interrupts_per_period;
 
-    printk("!! mr_alsa_audio_pcm_playback_silence called for %lu frames at pos %lu\n", count, pos);
+    printk("mr_alsa_audio_pcm_playback_silence called for %lu frames at pos %lu\n", count, pos);
 
     if(sil_pat == NULL)
         sil_pat = &def_sil_pat[0];
@@ -1464,21 +1500,21 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     int err = 0;
 
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
-	//struct snd_pcm_runtime *runtime = substream->runtime;
-	//unsigned long flags;
-	uint32_t ptp_frame_size;
-	unsigned int		rate = params_rate(params);
-	snd_pcm_format_t	format = params_format(params);
-	unsigned int nbCh = params_channels(params);
-	unsigned int periodSize = params_period_size(params);
-	unsigned int nbPeriods = params_periods(params);
-	unsigned int bufferSize = params_buffer_size(params);
-	unsigned int bufferBytes = params_buffer_bytes(params);
-	uint32_t dsd_rate = mr_alsa_audio_get_dsd_sample_rate(format, rate);
+    //struct snd_pcm_runtime *runtime = substream->runtime;
+    //unsigned long flags;
+    uint32_t ptp_frame_size;
+    unsigned int        rate = params_rate(params);
+    snd_pcm_format_t    format = params_format(params);
+    unsigned int nbCh = params_channels(params);
+    unsigned int periodSize = params_period_size(params);
+    unsigned int nbPeriods = params_periods(params);
+    unsigned int bufferSize = params_buffer_size(params);
+    unsigned int bufferBytes = params_buffer_bytes(params);
+    uint32_t dsd_rate = mr_alsa_audio_get_dsd_sample_rate(format, rate);
     uint32_t dsd_mode = mr_alsa_audio_get_dsd_mode(dsd_rate);
 
     //printk("mr_alsa_audio_pcm_hw_params (enter): rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
-	spin_lock_irq(&chip->lock);
+    spin_lock_irq(&chip->lock);
 
     if(dsd_mode != 0)
     {
@@ -1494,7 +1530,7 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
         err = chip->mr_alsa_audio_ops->set_sample_rate(chip->ravenna_peer, rate);
     }
 
-	if(chip->ravenna_peer)
+    if(chip->ravenna_peer)
         chip->mr_alsa_audio_ops->get_interrupts_frame_size(chip->ravenna_peer, &ptp_frame_size);
 
 
@@ -1518,7 +1554,7 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
         if(nbPeriods * ptp_frame_size * chip->nb_playback_interrupts_per_period != MR_ALSA_RINGBUFFER_NB_FRAMES)
             printk("mr_alsa_audio_pcm_hw_params : wrong nbPeriods (%u instead of %u)...\n",nbPeriods, MR_ALSA_RINGBUFFER_NB_FRAMES / (ptp_frame_size * chip->nb_playback_interrupts_per_period));
 
-	}
+    }
     else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
         chip->current_alsa_capture_stride = snd_pcm_format_physical_width(format) >> 3;
@@ -1550,7 +1586,7 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
 
     spin_unlock_irq(&chip->lock);
 
-    printk("mr_alsa_audio_pcm_hw_params done: rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
+    printk(KERN_INFO "mr_alsa_audio_pcm_hw_params done: rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
     return err;
 }
 
@@ -1569,8 +1605,8 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
     //printk("mr_alsa_audio_pcm_hw_free pre - snd_pcm_lib_free_vmalloc_buffer = %p \n", runtime->dma_area);
     if(runtime->dma_area != NULL)
         err = snd_pcm_lib_free_vmalloc_buffer(substream);
-	spin_unlock_irq(&chip->lock);
-	return err;
+    spin_unlock_irq(&chip->lock);
+    return err;
 }
 
 
@@ -1596,8 +1632,8 @@ static int mr_alsa_audio_hw_rule_rate_by_format( struct snd_pcm_hw_params *param
 {
     //struct mr_alsa_audio_chip *chip = rule->private;
     int ret = 0;
-	struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+    struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+    struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
     uint64_t fmask = f->bits[0] + ((uint64_t)f->bits[1] << 32);
     //uint32_t orig_min = r->min, orig_max = r->max;
 #ifdef SNDRV_PCM_FMTBIT_DSD_U8
@@ -1638,22 +1674,22 @@ static int mr_alsa_audio_hw_rule_rate_by_format( struct snd_pcm_hw_params *param
 
     }
     //printk("mr_alsa_audio_hw_rule_rate_by_format returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, r->min, r->max);
-	return ret;
+    return ret;
 }
 
 static int mr_alsa_audio_hw_rule_period_size_by_rate(struct snd_pcm_hw_params *params,
                                                                 struct snd_pcm_hw_rule *rule)
 {
-	struct mr_alsa_audio_chip *chip = rule->private;
-	struct snd_interval *ps = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
-	struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval t;
-	uint32_t minPTPFrameSize, maxPTPFrameSize;
-	int ret = 0;
-	//uint32_t orig_min = ps->min, orig_max = ps->max;
-	snd_interval_any(&t);
-	chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
-	chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
+    struct mr_alsa_audio_chip *chip = rule->private;
+    struct snd_interval *ps = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
+    struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+    struct snd_interval t;
+    uint32_t minPTPFrameSize, maxPTPFrameSize;
+    int ret = 0;
+    //uint32_t orig_min = ps->min, orig_max = ps->max;
+    snd_interval_any(&t);
+    chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
+    chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
     if (r->min > 192000 && r->max <= 384000)
     {
         t.min = t.max = min(maxPTPFrameSize, minPTPFrameSize * 8);
@@ -1667,41 +1703,41 @@ static int mr_alsa_audio_hw_rule_period_size_by_rate(struct snd_pcm_hw_params *p
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_size_by_rate Period Size interval for SR= [%u, %u] => %u\n", r->min, r->max, t.max);
         return snd_interval_refine(ps, &t);
-	}
-	else if (r->min > 48000 && r->max <= 96000)
+    }
+    else if (r->min > 48000 && r->max <= 96000)
     {
-		t.min = t.max = min(maxPTPFrameSize, minPTPFrameSize * 2);
+        t.min = t.max = min(maxPTPFrameSize, minPTPFrameSize * 2);
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_size_by_rate Period Size interval for SR= [%u, %u] => %u\n", r->min, r->max, t.max);
         ret = snd_interval_refine(ps, &t);
-	}
+    }
     else if (r->max < 64000)
     {
-		t.min = t.max = min(maxPTPFrameSize, minPTPFrameSize);
+        t.min = t.max = min(maxPTPFrameSize, minPTPFrameSize);
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_size_by_rate Period Size interval for SR= [%u, %u] => %u\n", r->min, r->max, t.max);
         ret = snd_interval_refine(ps, &t);
-	}
-	//printk("mr_alsa_audio_hw_rule_period_size_by_rate returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, ps->min, ps->max);
-	return ret;
+    }
+    //printk("mr_alsa_audio_hw_rule_period_size_by_rate returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, ps->min, ps->max);
+    return ret;
 }
 
 static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_hw_params *params,
                                                                 struct snd_pcm_hw_rule *rule)
 {
-	//unsigned int nbPeriods;
-	struct mr_alsa_audio_chip *chip = rule->private;
-	struct snd_interval *pn = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIODS);
-	struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-	uint64_t fmask = f->bits[0] + ((uint64_t)f->bits[1] << 32);
-	struct snd_interval t;
-	uint32_t minPTPFrameSize, maxPTPFrameSize;
-	int ret = 0;
-	//uint32_t orig_min = pn->min, orig_max = pn->max;
-	snd_interval_any(&t);
-	chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
-	chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
+    //unsigned int nbPeriods;
+    struct mr_alsa_audio_chip *chip = rule->private;
+    struct snd_interval *pn = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIODS);
+    struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+    struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+    uint64_t fmask = f->bits[0] + ((uint64_t)f->bits[1] << 32);
+    struct snd_interval t;
+    uint32_t minPTPFrameSize, maxPTPFrameSize;
+    int ret = 0;
+    //uint32_t orig_min = pn->min, orig_max = pn->max;
+    snd_interval_any(&t);
+    chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
+    chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
     if (r->min > 192000 && r->max <= 384000)
     {
         t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / min(maxPTPFrameSize, (minPTPFrameSize * 8));
@@ -1731,10 +1767,10 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
         ret = snd_interval_refine(pn, &t);
-	}
-	else if (r->min > 48000 && r->max <= 96000)
+    }
+    else if (r->min > 48000 && r->max <= 96000)
     {
-		uint32_t nbPeriods = MR_ALSA_RINGBUFFER_NB_FRAMES / min(maxPTPFrameSize, (minPTPFrameSize * 2));
+        uint32_t nbPeriods = MR_ALSA_RINGBUFFER_NB_FRAMES / min(maxPTPFrameSize, (minPTPFrameSize * 2));
         if (!(fmask & ~(
         #ifdef SNDRV_PCM_FMTBIT_DSD_U32_BE
             SNDRV_PCM_FMTBIT_DSD_U32_BE |
@@ -1748,16 +1784,16 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
         ret = snd_interval_refine(pn, &t);
-	}
+    }
     else if (r->max < 64000)
     {
-		t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
+        t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
         ret = snd_interval_refine(pn, &t);
-	}
-	//printk("mr_alsa_audio_hw_rule_period_nb_by_rate_and_format returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, pn->min, pn->max);
-	return ret;
+    }
+    //printk("mr_alsa_audio_hw_rule_period_nb_by_rate_and_format returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, pn->min, pn->max);
+    return ret;
 }
 
 /// open callback
@@ -1769,19 +1805,19 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
 static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 {
     int ret = 0;
-	struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long flags;
-	uint32_t minPTPFrameSize, maxPTPFrameSize, ptp_frame_size, idx;
-	//uint32_t period_time_us_min, period_time_us_max;
-	size_t period_bytes_min, period_bytes_max;
-	unsigned int periods_min, periods_max;
+    struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    unsigned long flags;
+    uint32_t minPTPFrameSize, maxPTPFrameSize, ptp_frame_size, idx;
+    //uint32_t period_time_us_min, period_time_us_max;
+    size_t period_bytes_min, period_bytes_max;
+    unsigned int periods_min, periods_max;
 
-	chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
-	chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
+    chip->mr_alsa_audio_ops->get_min_interrupts_frame_size(chip->ravenna_peer, &minPTPFrameSize);
+    chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
 
-	//period_time_us_min = (minPTPFrameSize * 1000000) / 48000; // TODO finde max and Min according the Horus Frame size limitation
-	//period_time_us_max = 1 + (minPTPFrameSize * 1000000) / 44100;
+    //period_time_us_min = (minPTPFrameSize * 1000000) / 48000; // TODO finde max and Min according the Horus Frame size limitation
+    //period_time_us_max = 1 + (minPTPFrameSize * 1000000) / 44100;
 
     //printk("entering mr_alsa_audio_pcm_open (substream name=%s #%d) ...\n", substream->name, substream->number);
     chip->mr_alsa_audio_ops->get_sample_rate(chip->ravenna_peer, &chip->current_rate);
@@ -1791,10 +1827,10 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 
 
 
-	spin_lock_irq(&chip->lock);
+    spin_lock_irq(&chip->lock);
 
 
-	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+    if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
         /// retrieve the supported range of nb bits per sample based on mr_alsa_audio_pcm_hardware_playback.formats mask
         struct snd_interval t;
@@ -1852,9 +1888,9 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
         chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)substream->stream, &chip->current_playback_volume);
         err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)substream->stream, &chip->current_playback_switch);
         if(err != 0)
-			printk("mr_alsa_audio_pcm_open: get_master_switch_value error\n");
-		/*else
-			printk("mr_alsa_audio_pcm_open: get_master_switch_value returns %d\n", chip->current_playback_switch);*/
+            printk("mr_alsa_audio_pcm_open: get_master_switch_value error\n");
+        /*else
+            printk("mr_alsa_audio_pcm_open: get_master_switch_value returns %d\n", chip->current_playback_switch);*/
         snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_volume_control->id);
         snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->playback_switch_control->id);
 
@@ -1941,7 +1977,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
     ///Periods
 
     /// Update the Period Sizes Static array accordingly
-    printk("\nCurrent PTPFrame Size = %u\n", ptp_frame_size);
+    printk(KERN_INFO "\nCurrent PTPFrame Size = %u\n", ptp_frame_size);
     for(idx = 0; idx < ARRAY_SIZE(g_supported_period_sizes); ++idx)
     {
         g_supported_period_sizes[idx] = min(minPTPFrameSize << idx, maxPTPFrameSize);
@@ -1973,7 +2009,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 
     //snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME, period_time_us_min, period_time_us_max);
 
-	return 0;
+    return 0;
 }
 
 
@@ -1983,9 +2019,9 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
 {
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
+    unsigned long flags;
 
-	//printk("entering mr_alsa_audio_pcm_close (substream name=%s #%d) ...\n", substream->name, substream->number);
+    //printk("entering mr_alsa_audio_pcm_close (substream name=%s #%d) ...\n", substream->name, substream->number);
     spin_lock_irq(&chip->lock);
     if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
@@ -1994,14 +2030,14 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
         chip->playback_substream = NULL;
         mr_alsa_audio_unlock_playback_buffer(chip, &flags);
     }
-	else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+    else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
         mr_alsa_audio_lock_capture_buffer(chip, &flags);
         chip->capture_pid = -1;
         chip->capture_substream = NULL;
         mr_alsa_audio_unlock_capture_buffer(chip, &flags);
     }
-	spin_unlock_irq(&chip->lock);
+    spin_unlock_irq(&chip->lock);
     return 0;
 }
 
@@ -2010,34 +2046,34 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
 
 /////////////////////////////////////////////////////////////////////////////////////
 static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
-	.open =		mr_alsa_audio_pcm_open,
-	.close =	mr_alsa_audio_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	mr_alsa_audio_pcm_hw_params,
-	.hw_free =	mr_alsa_audio_pcm_hw_free,
-	.prepare =	mr_alsa_audio_pcm_prepare,
-	.trigger =	mr_alsa_audio_pcm_trigger,
-	.pointer =	mr_alsa_audio_pcm_pointer,
-	.copy =     mr_alsa_audio_pcm_playback_copy,
-	.silence =  mr_alsa_audio_pcm_playback_silence,
-	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
+    .open =     mr_alsa_audio_pcm_open,
+    .close =    mr_alsa_audio_pcm_close,
+    .ioctl =    snd_pcm_lib_ioctl,
+    .hw_params =    mr_alsa_audio_pcm_hw_params,
+    .hw_free =  mr_alsa_audio_pcm_hw_free,
+    .prepare =  mr_alsa_audio_pcm_prepare,
+    .trigger =  mr_alsa_audio_pcm_trigger,
+    .pointer =  mr_alsa_audio_pcm_pointer,
+    .copy =     mr_alsa_audio_pcm_playback_copy,
+    .silence =  mr_alsa_audio_pcm_playback_silence,
+    .page =     snd_pcm_lib_get_vmalloc_page,
+    .mmap =     snd_pcm_lib_mmap_vmalloc,
 };
 
 // disabled because when capture is initialized with snd_pcm_new, it produces a crash on some system when freed some memory
 /*static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
-	.open =		mr_alsa_audio_pcm_open,
-	.close =	mr_alsa_audio_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	mr_alsa_audio_pcm_hw_params,
-	.hw_free =	mr_alsa_audio_pcm_hw_free,
-	.prepare =	mr_alsa_audio_pcm_prepare,
-	.trigger =	mr_alsa_audio_pcm_trigger,
-	.pointer =	mr_alsa_audio_pcm_pointer,
-	.copy =     NULL, //mr_alsa_audio_pcm_capture_copy,
-	.silence =  NULL, //mr_alsa_audio_pcm_silence,
-	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
+    .open =     mr_alsa_audio_pcm_open,
+    .close =    mr_alsa_audio_pcm_close,
+    .ioctl =    snd_pcm_lib_ioctl,
+    .hw_params =    mr_alsa_audio_pcm_hw_params,
+    .hw_free =  mr_alsa_audio_pcm_hw_free,
+    .prepare =  mr_alsa_audio_pcm_prepare,
+    .trigger =  mr_alsa_audio_pcm_trigger,
+    .pointer =  mr_alsa_audio_pcm_pointer,
+    .copy =     NULL, //mr_alsa_audio_pcm_capture_copy,
+    .silence =  NULL, //mr_alsa_audio_pcm_silence,
+    .page =     snd_pcm_lib_get_vmalloc_page,
+    .mmap =     snd_pcm_lib_mmap_vmalloc,
 };*/
 
 
@@ -2047,9 +2083,9 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
 
 /* prototypes */
 static int mr_alsa_audio_create_alsa_devices(struct snd_card *card,
-					 struct mr_alsa_audio_chip *chip);
+                     struct mr_alsa_audio_chip *chip);
 static int mr_alsa_audio_create_pcm(struct snd_card *card,
-				struct mr_alsa_audio_chip *chip);
+                struct mr_alsa_audio_chip *chip);
 
 //static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out);
 static int mr_alsa_audio_set_defaults(struct mr_alsa_audio_chip *chip);
@@ -2066,24 +2102,24 @@ static int mr_alsa_audio_set_defaults(struct mr_alsa_audio_chip *chip);
 static int mr_alsa_audio_create_controls(   struct snd_card *card,
                                             struct mr_alsa_audio_chip *chip)
 {
-	int err = 0;
-	spin_lock_irq(&chip->lock);
-	chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &chip->current_playback_volume);
-	chip->playback_volume_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_gain, chip);
-	err = snd_ctl_add(card, chip->playback_volume_control);
-	if (err >= 0)
-	{
-		err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &chip->current_playback_switch);
-		if(err != 0)
+    int err = 0;
+    spin_lock_irq(&chip->lock);
+    chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &chip->current_playback_volume);
+    chip->playback_volume_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_gain, chip);
+    err = snd_ctl_add(card, chip->playback_volume_control);
+    if (err >= 0)
+    {
+        err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &chip->current_playback_switch);
+        if(err != 0)
 
-			printk("mr_alsa_audio_pcm_open: get_master_switch_value error\n");
-		else
-			printk("mr_alsa_audio_pcm_open: get_master_switch_value returns %d\n", chip->current_playback_switch);
-		chip->playback_switch_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_switch, chip);
-		err = snd_ctl_add(card, chip->playback_switch_control);
-	}
-	spin_unlock_irq(&chip->lock);
-	return err;
+            printk("mr_alsa_audio_pcm_open: get_master_switch_value error\n");
+        else
+            printk(KERN_INFO "mr_alsa_audio_pcm_open: get_master_switch_value returns %d\n", chip->current_playback_switch);
+        chip->playback_switch_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_switch, chip);
+        err = snd_ctl_add(card, chip->playback_switch_control);
+    }
+    spin_unlock_irq(&chip->lock);
+    return err;
 }
 
 
@@ -2095,31 +2131,31 @@ static int mr_alsa_audio_create_controls(   struct snd_card *card,
 static void mr_alsa_audio_proc_read_debug(  struct snd_info_entry *entry,
                                             struct snd_info_buffer *buffer)
 {
-	//struct mr_alsa_audio_chip *chip = entry->private_data;
+    //struct mr_alsa_audio_chip *chip = entry->private_data;
 
     // TODO
-	//int j,i;
+    //int j,i;
 
-	//for (i = 0; i < 256 /* 1024*64 */; i += j) {
-	//	snd_iprintf(buffer, "0x%08X: ", i);
-	//	for (j = 0; j < 16; j += 4)
-	//		snd_iprintf(buffer, "%08X ", hdspm_read(hdspm, i + j));
-	//	snd_iprintf(buffer, "\n");
-	//}
+    //for (i = 0; i < 256 /* 1024*64 */; i += j) {
+    //  snd_iprintf(buffer, "0x%08X: ", i);
+    //  for (j = 0; j < 16; j += 4)
+    //      snd_iprintf(buffer, "%08X ", hdspm_read(hdspm, i + j));
+    //  snd_iprintf(buffer, "\n");
+    //}
 }
 #endif // CONFIG_SND_DEBUG
 
 /* static void mr_alsa_audio_proc_read(  struct snd_info_entry *entry,
                                         struct snd_info_buffer *buffer)
 {
-	struct mr_alsa_audio_chip *chip = entry->private_data;
-	//unsigned int status, status2, control, freq;
+    struct mr_alsa_audio_chip *chip = entry->private_data;
+    //unsigned int status, status2, control, freq;
 
-	//char *pref_sync_ref;
-	//char *autosync_ref;
-	//char *system_clock_mode;
-	//char *insel;
-	//int x, x2;
+    //char *pref_sync_ref;
+    //char *autosync_ref;
+    //char *system_clock_mode;
+    //char *insel;
+    //int x, x2;
 
     snd_iprintf(buffer, "Merging Ravenna, ravenna User = %p\n", chip->ravenna_peer);
 
@@ -2128,25 +2164,25 @@ static void mr_alsa_audio_proc_read_debug(  struct snd_info_entry *entry,
 
     // latency & system sample rate
     //snd_iprintf(buffer, "--- Settings ---\n");
-	//x = mr_alsa_audio_get_latency(chip);
-	//snd_iprintf(buffer, "Size (Latency): %d samples (2 periods of %lu bytes)\n", x, (unsigned long) chip->period_bytes);
-    //snd_iprintf(buffer, "System Clock Frequency: %d\n",	chip->system_sample_rate);
+    //x = mr_alsa_audio_get_latency(chip);
+    //snd_iprintf(buffer, "Size (Latency): %d samples (2 periods of %lu bytes)\n", x, (unsigned long) chip->period_bytes);
+    //snd_iprintf(buffer, "System Clock Frequency: %d\n",   chip->system_sample_rate);
 
     snd_iprintf(buffer, "\n");
 }*/
 
  /*static void mr_alsa_audio_proc_init(struct mr_alsa_audio_chip *chip)
 {
-	struct snd_info_entry *entry;
+    struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(chip->card, "merging_ravenna", &entry))
-		snd_info_set_text_ops(entry, chip,	mr_alsa_audio_proc_read);
+    if (!snd_card_proc_new(chip->card, "merging_ravenna", &entry))
+        snd_info_set_text_ops(entry, chip,  mr_alsa_audio_proc_read);
 
 #ifdef CONFIG_SND_DEBUG
     // TODO
-	if (!snd_card_proc_new(chip->card, "debug", &entry))
-		snd_info_set_text_ops(entry, chip,
-				mr_alsa_audio_proc_read_debug);
+    if (!snd_card_proc_new(chip->card, "debug", &entry))
+        snd_info_set_text_ops(entry, chip,
+                mr_alsa_audio_proc_read_debug);
 #endif
 }*/
 
@@ -2163,12 +2199,12 @@ int mr_alsa_audio_set_defaults(struct mr_alsa_audio_chip *chip)
  ------------------------------------------------------------*/
 static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
 {
-	int err;
-	struct snd_pcm *pcm;
-	size_t wanted;
+    int err;
+    struct snd_pcm *pcm;
+    size_t wanted;
 
-	pcm = chip->pcm;
-	wanted = mr_alsa_audio_pcm_hardware_playback.buffer_bytes_max; // MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4;
+    pcm = chip->pcm;
+    wanted = mr_alsa_audio_pcm_hardware_playback.buffer_bytes_max; // MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4;
 
 
     chip->playback_buffer = vmalloc(wanted);
@@ -2193,8 +2229,8 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
 
 _failed:
 
-	printk("mr_alsa_audio_preallocate_memory: Could not preallocate %zd Bytes\n", wanted);
-	return err;
+    printk("mr_alsa_audio_preallocate_memory: Could not preallocate %zd Bytes\n", wanted);
+    return err;
 }
 
 static void mr_alsa_audio_free_preallocate_memory(struct mr_alsa_audio_chip *chip)
@@ -2221,28 +2257,28 @@ static void mr_alsa_audio_free_preallocate_memory(struct mr_alsa_audio_chip *chi
 static int mr_alsa_audio_create_pcm(struct snd_card *card,
                                     struct mr_alsa_audio_chip *chip)
 {
-	struct snd_pcm *pcm;
-	int err;
-	err = snd_pcm_new(card, CARD_NAME, 0, 1, 0, &pcm);
-	if (err < 0)
-		return err;
+    struct snd_pcm *pcm;
+    int err;
+    err = snd_pcm_new(card, CARD_NAME, 0, 1, 0, &pcm);
+    if (err < 0)
+        return err;
 
-	chip->pcm = pcm;
-	pcm->private_data = chip;
-	strcpy(pcm->name, CARD_NAME);
+    chip->pcm = pcm;
+    pcm->private_data = chip;
+    strcpy(pcm->name, CARD_NAME);
 
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,	&mr_alsa_audio_pcm_playback_ops);
-	snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, mr_alsa_audio_nadac_playback_ch_map, 8, 0, NULL);
-	//snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,  &mr_alsa_audio_pcm_capture_ops);
-	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
+    snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &mr_alsa_audio_pcm_playback_ops);
+    snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, mr_alsa_audio_nadac_playback_ch_map, 8, 0, NULL);
+    //snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,  &mr_alsa_audio_pcm_capture_ops);
+    pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 
-	err = mr_alsa_audio_preallocate_memory(chip);
-	if (err < 0)
+    err = mr_alsa_audio_preallocate_memory(chip);
+    if (err < 0)
     {
         printk("mr_alsa_audio_preallocate_memory failed...\n");
-		return err;
+        return err;
     }
-	return 0;
+    return 0;
 }
 
 
@@ -2254,62 +2290,62 @@ static int mr_alsa_audio_create_pcm(struct snd_card *card,
 static int mr_alsa_audio_create_alsa_devices(   struct snd_card *card,
                                                 struct mr_alsa_audio_chip *chip)
 {
-	int err;
-	err = mr_alsa_audio_create_pcm(card, chip); // will also allocate the capture and playback buffers once for all
-	if (err < 0)
-		return err;
+    int err;
+    err = mr_alsa_audio_create_pcm(card, chip); // will also allocate the capture and playback buffers once for all
+    if (err < 0)
+        return err;
 
 
-	chip->capture_buffer_pos = 0;
-	chip->playback_buffer_pos = 0;
-	chip->playback_buffer_alsa_sac = 0;
-	chip->playback_buffer_rav_sac = 0;
-	chip->current_alsa_capture_stride = 0;
-	chip->current_alsa_playback_stride = 0;
-	chip->current_alsa_capture_format = -1;
-	chip->current_alsa_playback_format = -1;
+    chip->capture_buffer_pos = 0;
+    chip->playback_buffer_pos = 0;
+    chip->playback_buffer_alsa_sac = 0;
+    chip->playback_buffer_rav_sac = 0;
+    chip->current_alsa_capture_stride = 0;
+    chip->current_alsa_playback_stride = 0;
+    chip->current_alsa_capture_format = -1;
+    chip->current_alsa_playback_format = -1;
 
-	chip->current_rate = -1;
-	chip->current_dsd = 0;
+    chip->current_rate = -1;
+    chip->current_dsd = 0;
 
-	chip->nb_playback_interrupts_per_period = 1; /// default PCM case
-	chip->current_playback_interrupt_idx = 0;
+    chip->nb_playback_interrupts_per_period = 1; /// default PCM case
+    chip->current_playback_interrupt_idx = 0;
 
-	chip->nb_capture_interrupts_per_period = 1;
-	chip->current_capture_interrupt_idx = 0;
+    chip->nb_capture_interrupts_per_period = 1;
+    chip->current_capture_interrupt_idx = 0;
 
-	chip->current_nbinputs = 0;
-	chip->current_nboutputs = 0;
-	//chip->ravenna_input_buffer_off = 0;
-	//chip->ravenna_output_buffer_off = 0;
+    chip->current_nbinputs = 0;
+    chip->current_nboutputs = 0;
+    //chip->ravenna_input_buffer_off = 0;
+    //chip->ravenna_output_buffer_off = 0;
 
-	chip->playback_pid = -1;
-	chip->capture_pid = -1;
-	chip->capture_substream = NULL;
-	spin_lock_init(&chip->capture_lock);
-	chip->playback_substream = NULL;
-	spin_lock_init(&chip->playback_lock);
+    chip->playback_pid = -1;
+    chip->capture_pid = -1;
+    chip->capture_substream = NULL;
+    spin_lock_init(&chip->capture_lock);
+    chip->playback_substream = NULL;
+    spin_lock_init(&chip->playback_lock);
 
-	chip->first_capture_interrupt = 1;
-	chip->first_playback_interrupt = 1;
+    chip->first_capture_interrupt = 1;
+    chip->first_playback_interrupt = 1;
 
-	chip->playback_volume_control = NULL;
-	chip->playback_switch_control = NULL;
-	chip->current_playback_volume = 0;
-	chip->current_playback_switch = 1;
+    chip->playback_volume_control = NULL;
+    chip->playback_switch_control = NULL;
+    chip->current_playback_volume = 0;
+    chip->current_playback_switch = 1;
 
 
-	/// creates controls (for NADAC)
-	err = mr_alsa_audio_create_controls(card, chip);
-	if (err < 0)
-		return err;
+    /// creates controls (for NADAC)
+    err = mr_alsa_audio_create_controls(card, chip);
+    if (err < 0)
+        return err;
 
     /// sets callbacks for Ravenna Manager
-	if(chip->ravenna_peer && chip->mr_alsa_audio_ops)
+    if(chip->ravenna_peer && chip->mr_alsa_audio_ops)
     {
         uint32_t minPTPFrameSize, idx;
 
-        printk("Register ALSA driver into Ravenna Peer...\n");
+        printk(KERN_INFO "Register ALSA driver into Ravenna Peer...\n");
         chip->mr_alsa_audio_ops->register_alsa_driver(chip->ravenna_peer, &g_ravenna_manager_ops, (void*)chip);
         chip->mr_alsa_audio_ops->get_nb_inputs(chip->ravenna_peer, &chip->current_nbinputs);
         chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &chip->current_nboutputs);
@@ -2326,14 +2362,14 @@ static int mr_alsa_audio_create_alsa_devices(   struct snd_card *card,
         printk("Register ALSA driver into Ravenna Peer FAILED (ravenna_peer = 0x%p, chip->mr_alsa_audio_ops = 0x%p)...\n", chip->ravenna_peer, chip->mr_alsa_audio_ops);
     }
 
-	err = mr_alsa_audio_set_defaults(chip);
-	if (err < 0)
+    err = mr_alsa_audio_set_defaults(chip);
+    if (err < 0)
     {
         printk("mr_alsa_audio_set_defaults failed...\n");
-		return err;
+        return err;
     }
 
-	return 0;
+    return 0;
 }
 
 static int mr_alsa_audio_chip_create(   struct snd_card *card,
@@ -2342,7 +2378,7 @@ static int mr_alsa_audio_chip_create(   struct snd_card *card,
                                         struct alsa_ops *ops)
 {
 
-	int ret = 0;
+    int ret = 0;
     spin_lock_init(&chip->lock);
     chip->card = card;
     chip->ravenna_peer = ravenna_peer;
@@ -2355,7 +2391,7 @@ static int mr_alsa_audio_chip_create(   struct snd_card *card,
         printk("mr_alsa_audio_create_alsa_devices failed.. \n");
         return ret;
     }
-	return 0;
+    return 0;
 }
 static int mr_alsa_audio_chip_free(struct mr_alsa_audio_chip* chip)
 {
@@ -2365,9 +2401,9 @@ static int mr_alsa_audio_chip_free(struct mr_alsa_audio_chip* chip)
 
 static void mr_alsa_audio_card_free(struct snd_card *card)
 {
-	struct mr_alsa_audio_chip *chip = card->private_data;
-	if (chip)
-		mr_alsa_audio_chip_free(chip);
+    struct mr_alsa_audio_chip *chip = card->private_data;
+    if (chip)
+        mr_alsa_audio_chip_free(chip);
 }
 
 
@@ -2379,34 +2415,34 @@ static void mr_alsa_audio_card_free(struct snd_card *card)
 static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
 {
     static int dev = 0;
-	struct mr_alsa_audio_chip *chip = NULL;
-	struct snd_card *card;
-	int err;
+    struct mr_alsa_audio_chip *chip = NULL;
+    struct snd_card *card;
+    int err;
 
     if (dev >= 1)
-		return -ENODEV;
+        return -ENODEV;
     if(!enable)
     {
         ++dev;
         return -ENOENT;
     }
 
-	// Create a card instance
+    // Create a card instance
     // use snd_card_new in Kernel v3.15 and higher
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
     err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, sizeof(struct mr_alsa_audio_chip), &card);
     #else
-	err = snd_card_create(index, id, THIS_MODULE, sizeof(struct mr_alsa_audio_chip), &card);
-	#endif // LINUX_VERSION_CODE
-	if (err < 0)
+    err = snd_card_create(index, id, THIS_MODULE, sizeof(struct mr_alsa_audio_chip), &card);
+    #endif // LINUX_VERSION_CODE
+    if (err < 0)
     {
-		dev_err(&devptr->dev, "cannot create alsa card.\n");
-		return err;
-	}
+        dev_err(&devptr->dev, "cannot create alsa card.\n");
+        return err;
+    }
 
     chip = card->private_data;
-	card->private_free = mr_alsa_audio_card_free;
-	chip->dev = devptr;
+    card->private_free = mr_alsa_audio_card_free;
+    chip->dev = devptr;
 
     // create the private chip struct
     err = mr_alsa_audio_chip_create(card, chip, g_ravenna_peer, g_mr_alsa_audio_ops);
@@ -2414,9 +2450,9 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
         goto _err;
 
     // driver ID and name strings
-	strlcpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
-	strlcpy(card->shortname, CARD_NAME, sizeof(card->shortname));
-	strlcat(card->longname, card->shortname, sizeof(card->longname));
+    strlcpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
+    strlcpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+    strlcat(card->longname, card->shortname, sizeof(card->longname));
 
 
     // register the device struct
@@ -2425,20 +2461,20 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
     snd_card_set_dev(card, &devptr->dev);
 
        // register the card instance
-	err = snd_card_register(card);
-	if (err < 0)
+    err = snd_card_register(card);
+    if (err < 0)
     {
-		dev_err(&devptr->dev, "cannot register " CARD_NAME " card\n");
-		printk("snd_card_register failed..\n");
-		goto _err_card_destroy;
-	}
+        dev_err(&devptr->dev, "cannot register " CARD_NAME " card\n");
+        printk("snd_card_register failed..\n");
+        goto _err_card_destroy;
+    }
     else
     {
         dev_info(&devptr->dev, "mr_alsa_audio snd_card_register successful\n");
     }
 
     // set the platform driver data
-	platform_set_drvdata(devptr, card);
+    platform_set_drvdata(devptr, card);
 
 
 _err_card_destroy:
@@ -2447,7 +2483,7 @@ _err_card_destroy:
 _err:
     if(err != 0)
         printk("mr_alsa_audio_chip_probe failed...\n");
-	return err;
+    return err;
 }
 
 static int mr_alsa_audio_chip_remove(struct platform_device *devptr)
@@ -2455,18 +2491,18 @@ static int mr_alsa_audio_chip_remove(struct platform_device *devptr)
     struct snd_card *card;
     card = platform_get_drvdata(devptr);
     snd_card_free(card);
-	return 0;
+    return 0;
 }
 
 
 
 static struct platform_driver mr_alsa_audio_driver = {
-	.probe		= mr_alsa_audio_chip_probe,
-	.remove		= mr_alsa_audio_chip_remove,
-	.driver		= {
-		.name	= SND_MR_ALSA_AUDIO_DRIVER,
-		.pm	= MR_ALSA_AUDIO_PM_OPS,
-	},
+    .probe      = mr_alsa_audio_chip_probe,
+    .remove     = mr_alsa_audio_chip_remove,
+    .driver     = {
+        .name   = SND_MR_ALSA_AUDIO_DRIVER,
+        .pm = MR_ALSA_AUDIO_PM_OPS,
+    },
 };
 
 static void mr_alsa_audio_unregister_all(void)
@@ -2476,27 +2512,27 @@ static void mr_alsa_audio_unregister_all(void)
         platform_device_unregister(g_device);
         g_device = NULL;
     }
-	platform_driver_unregister(&mr_alsa_audio_driver);
+    platform_driver_unregister(&mr_alsa_audio_driver);
 }
 
 /// entry point: should be called by module init
 int mr_alsa_audio_card_init(void* ravenna_peer, struct alsa_ops *callbacks)
 {
 
-	int err, cards;
-	struct platform_device *device = NULL;
+    int err, cards;
+    struct platform_device *device = NULL;
 
     g_ravenna_peer = ravenna_peer;
     g_mr_alsa_audio_ops = callbacks;
-	err = platform_driver_register(&mr_alsa_audio_driver);
-	if (err < 0)
-		return err;
+    err = platform_driver_register(&mr_alsa_audio_driver);
+    if (err < 0)
+        return err;
 
-	cards = 0;
+    cards = 0;
 
-	if (enable)
+    if (enable)
     {
-		device = platform_device_register_simple(SND_MR_ALSA_AUDIO_DRIVER, 0, NULL, 0);
+        device = platform_device_register_simple(SND_MR_ALSA_AUDIO_DRIVER, 0, NULL, 0);
         if (!IS_ERR(device))
         {
             if (!platform_get_drvdata(device))
@@ -2515,25 +2551,25 @@ int mr_alsa_audio_card_init(void* ravenna_peer, struct alsa_ops *callbacks)
             printk("mr_alsa_audio_card_init: platform_device_register_simple failed..\n" );
         }
     }
-	if (!cards)
+    if (!cards)
     {
-		printk("mr_alsa_audio: No Merging Ravenna audio driver enabled\n" );
+        printk("mr_alsa_audio: No Merging Ravenna audio driver enabled\n" );
 
-		mr_alsa_audio_unregister_all();
-		return -ENODEV;
-	}
+        mr_alsa_audio_unregister_all();
+        return -ENODEV;
+    }
 
-	return 0;
+    return 0;
 }
 
 /// exit point: should be called by module exit
 void mr_alsa_audio_card_exit(void)
 {
-    printk("entering mr_alsa_audio_card_exit..\n" );
-	mr_alsa_audio_unregister_all();
+    printk(KERN_INFO "entering mr_alsa_audio_card_exit..\n" );
+    mr_alsa_audio_unregister_all();
     g_ravenna_peer = NULL;
     g_mr_alsa_audio_ops = NULL;
-    printk("leaving mr_alsa_audio_card_exit..\n");
+    printk(KERN_INFO "leaving mr_alsa_audio_card_exit..\n");
 }
 
 #ifdef __undefmin

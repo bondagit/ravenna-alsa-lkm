@@ -72,10 +72,11 @@ static int hooked = 0;
 unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
     int err = 0;
+    struct iphdr *ip_header = NULL;
     if (!skb)
     {
         printk(KERN_ALERT "sock buffer null\n");
-    	return NF_ACCEPT;
+        return NF_ACCEPT;
     }
 
     if (hooked == 0)
@@ -83,14 +84,32 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
         printk(KERN_INFO "nf_hook_func first message received\n");
         hooked = 1;
     }
+    
+    ip_header = (struct iphdr *)skb_network_header(skb);    //grab network header using accessor
+    if (!ip_header)
+    {
+        printk(KERN_ALERT "sock header null\n");
+        return NF_ACCEPT;
+    }
+    if (ip_header->saddr == 0x0100007f) // 127.0.0.1
+    {
+        //printk(KERN_INFO "Loopback address detected\n");
+        return NF_ACCEPT;
+    }
+    
 
     ///////// DEBUG stuff is available into revision prior to 32700
 
-    err = skb_linearize(skb);
-    if (err < 0)
-	{
-        printk(KERN_ALERT "skb_linearize error %d\n", err);
-		return NF_DROP;
+    if (skb_is_nonlinear(skb))
+    {
+        //printk(KERN_INFO "skb_is_nonlinear. try to linearize...\n");
+        err = skb_linearize(skb);
+        if (err < 0)
+        {
+            printk(KERN_WARNING "skb_linearize error %d\n", err);
+            printk(KERN_INFO "Protocol = %d, IP source addr = 0x%08x, total packet len = %d", ip_header->protocol, ip_header->saddr, ip_header->tot_len);
+            return NF_ACCEPT;
+        }
     }
 
     switch (nf_rx_packet(skb_mac_header(skb), skb->len + ETH_HLEN, in->name))
@@ -197,30 +216,30 @@ uint64_t __umoddi3(uint64_t numerator, uint64_t denominator)
 static int __init merging_alsa_mod_init(void)
 {
     int err = 0;
-	if(err < 0)
+    if(err < 0)
         goto _failed;
-	nf_hook_fct((void*)nf_hook_func, (void*)&nf_ho);
-	err = setup_netlink();
+    nf_hook_fct((void*)nf_hook_func, (void*)&nf_ho);
+    err = setup_netlink();
     if(err < 0)
     {
         goto _failed;
     }
-	err = init_driver();
-	if(err < 0)
-	{
+    err = init_driver();
+    if(err < 0)
+    {
         cleanup_netlink();
         goto _failed;
     }
-	err = init_clock_timer();
-	if(err < 0)
-	{
+    err = init_clock_timer();
+    if(err < 0)
+    {
         cleanup_netlink();
         destroy_driver();
         goto _failed;
     }
-	printk(KERN_INFO "Merging RAVENNA ALSA module installed\n");
+    printk(KERN_INFO "Merging RAVENNA ALSA module installed\n");
 
-	return 0;
+    return 0;
 _failed:
     printk(KERN_ERR "Merging RAVENNA ALSA module installation failed\n");
     return err;
@@ -233,7 +252,7 @@ static void __exit merging_alsa_mod_exit(void)
     kill_clock_timer();
     cleanup_netlink();
     destroy_driver();
-	printk(KERN_INFO "Merging RAVENNA ALSA module removed\n");
+    printk(KERN_INFO "Merging RAVENNA ALSA module removed\n");
 }
 
 module_init(merging_alsa_mod_init);
