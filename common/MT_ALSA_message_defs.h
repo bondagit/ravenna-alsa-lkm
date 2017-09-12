@@ -40,15 +40,15 @@
 enum MT_ALSA_msg_id
 {
 
-    MT_ALSA_Msg_Start,                    //	U2K No arguments
-    MT_ALSA_Msg_Stop,                     //	U2K No arguments
-    MT_ALSA_Msg_Reset,                    //	U2K No arguments
-    MT_ALSA_Msg_StartIO,                  //	U2K No arguments
-    MT_ALSA_Msg_StopIO,                   //	U2K No arguments
-    MT_ALSA_Msg_SetSampleRate,            //	U2K K2U One input: the new sample rate as a 32 bit integer
-    MT_ALSA_Msg_GetSampleRate,            //	U2K One input: the new sample rate as a 32 bit integer
-    MT_ALSA_Msg_GetAudioMode,             //	U2K One input: the audio mode as a 32 bit integer
-    MT_ALSA_Msg_SetDSDAudioMode,          //	U2K One input: the new DSD audio mode as a 32 bit integer
+    MT_ALSA_Msg_Start,                    //    U2K No arguments
+    MT_ALSA_Msg_Stop,                     //    U2K No arguments
+    MT_ALSA_Msg_Reset,                    //    U2K No arguments
+    MT_ALSA_Msg_StartIO,                  //    U2K No arguments
+    MT_ALSA_Msg_StopIO,                   //    U2K No arguments
+    MT_ALSA_Msg_SetSampleRate,            //    U2K K2U One input: the new sample rate as a 32 bit integer
+    MT_ALSA_Msg_GetSampleRate,            //    U2K One input: the new sample rate as a 32 bit integer
+    MT_ALSA_Msg_GetAudioMode,             //    U2K One input: the audio mode as a 32 bit integer
+    MT_ALSA_Msg_SetDSDAudioMode,          //    U2K One input: the new DSD audio mode as a 32 bit integer
     MT_ALSA_Msg_SetTICFrameSizeAt1FS,     //    U2K One input: the new 1 Fs TIC Frame size as a 64 bit integer
     MT_ALSA_Msg_SetMaxTICFrameSize,       //    U2K One input: the new Max TIC Frame size as a 64 bit integer
     MT_ALSA_Msg_SetNumberOfInputs,        //    U2K One input: the new number of inputs as a 32 bit integer
@@ -65,8 +65,8 @@ enum MT_ALSA_msg_id
     MT_ALSA_Msg_Ping,                     //    U2K K2U No arguments
     MT_ALSA_Msg_SetMasterOutputVolume,    //    U2K K2U NADAC only : one input: int32_t value (-99 to 0)
     MT_ALSA_Msg_SetMasterOutputSwitch,    //    U2K K2U NADAC only : one input: int32_t value (0 or 1)
-    MT_ALSA_Msg_GetMasterOutputVolume,    //    K2U NADAC only : one onput: int32_t value (-99 to 0)
-    MT_ALSA_Msg_GetMasterOutputSwitch     //    K2U NADAC only : one onput: int32_t value (0 or 1)
+    MT_ALSA_Msg_GetMasterOutputVolume,    //    K2U NADAC only : one output: int32_t value (-99 to 0)
+    MT_ALSA_Msg_GetMasterOutputSwitch     //    K2U NADAC only : one output: int32_t value (0 or 1)
 };
 
 struct MT_ALSA_msg
