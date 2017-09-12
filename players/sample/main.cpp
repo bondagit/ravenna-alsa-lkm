@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "../../common/MT_ALSA_daemon_message_defs.h"
-#include "../../../../../../MTCommon/Sources/MTAL/MTAL_IPC.h"
+#include "../../common/MTAL_IPC.h"
 
 
 pthread_t thread;
