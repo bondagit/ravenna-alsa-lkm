@@ -24,13 +24,16 @@ int MTPTP_IPC_IOCTL_Callback(void* cb_user, uint32_t ui32MsgId, void const * pui
     {
         case MT_ALSA_d_On_NADAC_Added:
         {
-            //MT_ALSA_d_T_device_id device_id; 
-            std::cout << "NADAC found on the network" << std::endl;
+            const MT_ALSA_d_T_device_id* device_id = reinterpret_cast<const MT_ALSA_d_T_device_id*>(pui8InBuffer); 
+            std::cout << "NADAC Id " << device_id->device_id << " found on the network" << std::endl;
             break;
         }
-        case MT_ALSA_d_On_NADAC_Removed:    
-            std::cout << "NADAC leave the network" << std::endl;
+        case MT_ALSA_d_On_NADAC_Removed:
+        {
+            const MT_ALSA_d_T_device_id* device_id = reinterpret_cast<const MT_ALSA_d_T_device_id*>(pui8InBuffer); 
+            std::cout << "NADAC Id " << device_id->device_id << " leave the network" << std::endl;
             break;
+        }
         case MT_ALSA_d_On_NADAC_PlayerSource_Lost:
             std::cout << "NADAC player source lost" << std::endl;
             break;
@@ -47,10 +50,11 @@ int MTPTP_IPC_IOCTL_Callback(void* cb_user, uint32_t ui32MsgId, void const * pui
 void* run(void*)
 {
     uintptr_t pptrHandle;
-    int ret = MTAL_IPC_init(1, 2, &MTPTP_IPC_IOCTL_Callback, NULL/*cb_user*/, &pptrHandle);
-    if (ret < 0)
+    EMTAL_IPC_Error ipc_err = MIE_SUCCESS;
+    ipc_err = MTAL_IPC_init(1, 2, &MTPTP_IPC_IOCTL_Callback, NULL/*cb_user*/, &pptrHandle);
+    if (ipc_err != MIE_SUCCESS)
     {
-        std::cout << "MTAL_IPC_init return MsgId = " << ret << std::endl;
+        std::cout << "MTAL_IPC_init return err " << ipc_err << std::endl;
         return NULL;
     }
     
@@ -83,11 +87,14 @@ void* run(void*)
                 MT_ALSA_d_T_device_id device_id;
                 out_size = sizeof(MT_ALSA_d_T_device_id);
                 
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_GetTarget_NADAC, 
-                    NULL, 0, &device_id, &out_size);
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_GetTarget_NADAC, 
+                    NULL, 0, &device_id, &out_size, reinterpret_cast<int32_t*>(&err_code));
                     
                 std::cout << "Get NADAC target ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -108,12 +115,15 @@ void* run(void*)
                 std::cin >> device_id.device_id;
                 std::cout << std::endl;
                 
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_SetTarget_NADAC, 
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_SetTarget_NADAC, 
                     &device_id, sizeof(MT_ALSA_d_T_device_id), 
-                    NULL, 0);
+                    NULL, 0, reinterpret_cast<int32_t*>(&err_code));
                     
                 std::cout << "Set NADAC target ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -139,12 +149,15 @@ void* run(void*)
                 out_size = sizeof(MT_ALSA_d_T_device_text);
                 do
                 {               
-                    err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                        pptrHandle, MT_ALSA_d_Get_NADAC_Name, 
+                    ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_Get_NADAC_Name, 
                         &device_id, sizeof(MT_ALSA_d_T_device_id), 
-                        &device_name, &out_size);
+                        &device_name, &out_size, reinterpret_cast<int32_t*>(&err_code));
                     
                     std::cout << "Get NADAC name for id ";
+                    if (ipc_err != MIE_SUCCESS)
+                    {
+                        std::cout << "failed. IPC error " << ipc_err << std::endl;
+                    }
                     switch (err_code)
                     {
                         case MT_ALSA_d_E_SUCCESSFULL:
@@ -164,11 +177,14 @@ void* run(void*)
             }   
             case '+':
             {
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_Set_NADAC_Source_ToPlayer, 
-                    NULL, 0, NULL, &out_size);
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_Set_NADAC_Source_ToPlayer, 
+                    NULL, 0, NULL, &out_size, reinterpret_cast<int32_t*>(&err_code));
                     
                 std::cout << "Set NADAC source to player ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -184,11 +200,14 @@ void* run(void*)
             }
             case '1':
             {
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_Display_NADAC_IconPlay, 
-                    NULL, 0, NULL, &out_size);
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_Display_NADAC_IconPlay, 
+                    NULL, 0, NULL, &out_size, reinterpret_cast<int32_t*>(&err_code));
                 
                 std::cout << "Display NADAC play logo ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -204,10 +223,13 @@ void* run(void*)
             }
             case '2':
             {
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_Display_NADAC_IconPause, 
-                    NULL, 0, NULL, &out_size);
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_Display_NADAC_IconPause, 
+                    NULL, 0, NULL, &out_size, reinterpret_cast<int32_t*>(&err_code));
                 std::cout << "Display NADAC pause logo ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -223,10 +245,13 @@ void* run(void*)
             }               
             case '3':
             {
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_Display_NADAC_IconNone, 
-                    NULL, 0, NULL, &out_size);
+                ipc_err = MTAL_IPC_SendIOCTL(pptrHandle, MT_ALSA_d_Display_NADAC_IconNone, 
+                    NULL, 0, NULL, &out_size, reinterpret_cast<int32_t*>(&err_code));
                 std::cout << "Remove NADAC play logo ";
+                if (ipc_err != MIE_SUCCESS)
+                {
+                    std::cout << "failed. IPC error " << ipc_err << std::endl;
+                }
                 switch (err_code)
                 {
                     case MT_ALSA_d_E_SUCCESSFULL:
@@ -234,33 +259,6 @@ void* run(void*)
                         break;
                     case MT_ALSA_d_E_NO_CONNECTION:
                         std::cout << "failed. NADAC not connected." << std::endl;
-                        break;
-                    default:
-                        std::cout << "failed. Unexpected error " << err_code << std::endl;
-                }
-            }
-            case 'T':
-            {
-                std::string text;
-                std::cout << "Enter a text (leave blank for default) : ";
-                std::cin >> text;
-                std::cout << std::endl;
-                
-                MT_ALSA_d_T_device_text device_text;
-                strcpy(device_text.name, text.c_str());
-                err_code = (MT_ALSA_d_error_code)MTAL_IPC_SendIOCTL(
-                    pptrHandle, MT_ALSA_d_Display_NADAC_TextInfo, 
-                    &device_text, sizeof(MT_ALSA_d_T_device_text), 
-                    NULL, 0);
-                    
-                std::cout << "Display a custom text ";
-                switch (err_code)
-                {
-                    case MT_ALSA_d_E_SUCCESSFULL:
-                        std::cout << "sucessfully completed." << std::endl;
-                        break;
-                    case MT_ALSA_d_E_NO_CONNECTION:
-                        std::cout << "failed. The selected NADAC is not connected." << std::endl;
                         break;
                     default:
                         std::cout << "failed. Unexpected error " << err_code << std::endl;
@@ -277,7 +275,6 @@ void* run(void*)
 
 void exit_handler(int s)
 {
-    //putchar('Q');
     printf("...Caught signal %d\n",s);
     exiting = true;
     //pthread_join(thread, NULL);

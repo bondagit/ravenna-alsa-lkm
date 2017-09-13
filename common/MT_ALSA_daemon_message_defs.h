@@ -55,7 +55,7 @@ typedef enum
     MT_ALSA_d_Display_NADAC_IconPlay = 0x30,         //    P2D No parameters
     MT_ALSA_d_Display_NADAC_IconPause = 0x31,        //    P2D No parameters
     MT_ALSA_d_Display_NADAC_IconNone = 0x32,         //    P2D No parameters
-    MT_ALSA_d_Display_NADAC_TextInfo = 0x33,         //    P2D In MT_ALSA_d_T_device_text: 
+    //MT_ALSA_d_Display_NADAC_TextInfo = 0x33,       //    P2D In MT_ALSA_d_T_device_text: 
     
     // Associated DAC sources control/notication NOT IMPLEMENTED. Will do if requested
     //MT_ALSA_d_Set_NADAC_Source,                    //    P2D One input: the source ID
