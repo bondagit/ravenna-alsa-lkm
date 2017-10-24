@@ -243,13 +243,13 @@ int send_msg_to_user_land(struct MT_ALSA_msg* tx_msg, struct MT_ALSA_msg* rx_msg
 }
 
 int setup_netlink(void)
-{
+{	
 #if LINUX_VERSION_CODE != KERNEL_VERSION(3,3,4)
     struct netlink_kernel_cfg u2k_cfg = { .input = recv_msg_from_user_land, };
     struct netlink_kernel_cfg k2u_cfg = { .input = recv_reply_from_user_land, };
 #endif // LINUX_VERSION_CODE
 
-    printk(KERN_INFO "setup_netlink\n");
+	response_from_user_land = NULL;
 
 #if LINUX_VERSION_CODE != KERNEL_VERSION(3,3,4)
     nl_u2k_sk = netlink_kernel_create(&init_net, NETLINK_U2K_ID, &u2k_cfg);
