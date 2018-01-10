@@ -37,14 +37,17 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// send command
-#define PTPV2D_PTP_SERVER_FIFO "/tmp/PTPv2d_PTP_server_fifo"
-#define PTPV2D_ZMAN_SERVER_FIFO "/tmp/PTPv2d_ZMAN_server_fifo"
-
+#ifdef MT_EMBEDDED
+// send command
+	#define REQUEST_FIFO_PREFIX "/tmp/fifo/MTAL_IPC_Request"
 	// send command's answer
-#define PTPV2D_PTP_CLIENT_FIFO "/tmp/PTPv2d_PTP_client_fifo"
-#define PTPV2D_ZMAN_CLIENT_FIFO "/tmp/PTPv2d_ZMAN_client_fifo"
-
+	#define ANSWER_FIFO_PREFIX "/tmp/fifo/MTAL_IPC_Answer"
+#else
+	// send command
+	#define REQUEST_FIFO_PREFIX "/tmp/MTAL_IPC_Request"
+	// send command's answer
+	#define ANSWER_FIFO_PREFIX "/tmp/MTAL_IPC_Answer"
+#endif
 
 #define MAX_CONTROLLER_BUFFER_SIZE	2048
 typedef struct
@@ -55,15 +58,15 @@ typedef struct
 
 	int32_t	i32Result;
 
-} MTPTP_IPC_MsgBlockBase;
+} MTAL_IPC_MsgBlockBase;
 
 typedef struct
 {	
-	MTPTP_IPC_MsgBlockBase	base;
+	MTAL_IPC_MsgBlockBase	base;
 
 	uint8_t					pui8Buffer[MAX_CONTROLLER_BUFFER_SIZE];
 
-} MTPTP_IPC_MsgBlock;
+} MTAL_IPC_MsgBlock;
 
 
 typedef struct
@@ -107,12 +110,15 @@ EMTAL_IPC_Error MTAL_IPC_init(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerS
 	return private_init(0, ui32LocalServerPrefix, ui32PeerServerPrefix, cb, cb_user, pptrHandle);
 }
 
-////////////////////////////////////////////////////////////////
-//int MTAL_IPC_init(int bPTPv2d, .... MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user)
-//{
-//	return private_init(1, ui32LocalServerPrefix, ui32PeerServerPrefix,  cb, cb_user, pptrHandle);
-//}
+#ifdef MTAL_IPC_PTPV2D
+//////////////////////////////////////////////////////////////////
+EMTAL_IPC_Error MTAL_IPC_init_PTPV2D(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle)
+{
+	return private_init(1, ui32LocalServerPrefix, ui32PeerServerPrefix, cb, cb_user, pptrHandle);
+}
+#endif
 
+//////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error private_init(int bPTPv2dMode, uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle)
 {
 	// static init
@@ -167,13 +173,23 @@ EMTAL_IPC_Error private_init(int bPTPv2dMode, uint32_t ui32LocalServerPrefix, ui
 	// local server FIFOs
 	////////////////////////////////////////////
 	// name of the fifo which is the server for this instance
-	{
-		sprintf(szFIFO_Name, "/tmp/MTAL_IPC_Request_%u", ui32LocalServerPrefix);
+	{		
+		sprintf(szFIFO_Name, REQUEST_FIFO_PREFIX "_%u", ui32LocalServerPrefix);
 		// create fifo if not exist
-		if ((mkfifo(szFIFO_Name, 0664) == -1) && (errno != EEXIST)) {
-			rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
-			return MIE_FIFO_ERROR;
+		if (access(szFIFO_Name, F_OK) == -1)
+		{
+			if ((mkfifo(szFIFO_Name, 0666) == -1) && (errno != EEXIST)) {
+				rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
+			// change permission because umask removes o:w
+			if (chmod(szFIFO_Name, 0666) == -1)
+			{
+				rv_log(LOG_ERR, "Unable to change permission to fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
 		}
+
 		// open fifo
 		if ((pTMTAL_IPC_Instance->s_server_fd = open(szFIFO_Name, O_RDWR | (bPTPv2dMode ? O_NONBLOCK : 0))) == -1)
 		{
@@ -185,12 +201,21 @@ EMTAL_IPC_Error private_init(int bPTPv2dMode, uint32_t ui32LocalServerPrefix, ui
 	////////////////////////////////////////////	
 	// name of the fifo which is the client to server for this instance
 	{
-		sprintf(szFIFO_Name, "/tmp/MTAL_IPC_Answer_%u", ui32LocalServerPrefix);
+		sprintf(szFIFO_Name, ANSWER_FIFO_PREFIX "_%u", ui32LocalServerPrefix);
 		// create fifo if not exist
-		if ((mkfifo(szFIFO_Name, 0664) == -1) && (errno != EEXIST)) {
-			rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
-			return MIE_FIFO_ERROR;
+		if (access(szFIFO_Name, R_OK | W_OK) == -1)
+		{
+			if ((mkfifo(szFIFO_Name, 0666) == -1) && (errno != EEXIST)) {
+				rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
+			if (chmod(szFIFO_Name, 0666) == -1)
+			{
+				rv_log(LOG_ERR, "Unable to change permission to fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
 		}
+
 		// open fifo
 		if ((pTMTAL_IPC_Instance->s_client_fd = open(szFIFO_Name, O_RDWR)) == -1)
 		{
@@ -206,11 +231,19 @@ EMTAL_IPC_Error private_init(int bPTPv2dMode, uint32_t ui32LocalServerPrefix, ui
 	////////////////////////////////////////////
 	// name of the fifo which is the server for this instance
 	{
-		sprintf(szFIFO_Name, "/tmp/MTAL_IPC_Request_%u", ui32PeerServerPrefix);
+		sprintf(szFIFO_Name, REQUEST_FIFO_PREFIX "_%u", ui32PeerServerPrefix);
 		// create fifo if not exist
-		if ((mkfifo(szFIFO_Name, 0664) == -1) && (errno != EEXIST)) {
-			rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
-			return MIE_FIFO_ERROR;
+		if (access(szFIFO_Name, R_OK | W_OK) == -1)
+		{
+			if ((mkfifo(szFIFO_Name, 0666) == -1) && (errno != EEXIST)) {
+				rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
+			if (chmod(szFIFO_Name, 0666) == -1)
+			{
+				rv_log(LOG_ERR, "Unable to change permission to fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
 		}
 		// open fifo
 		if ((pTMTAL_IPC_Instance->s_peer_server_fd = open(szFIFO_Name, O_RDWR)) == -1)
@@ -222,12 +255,21 @@ EMTAL_IPC_Error private_init(int bPTPv2dMode, uint32_t ui32LocalServerPrefix, ui
 	
 	// name of the fifo which is the client to server for this instance
 	{
-		sprintf(szFIFO_Name, "/tmp/MTAL_IPC_Answer_%u", ui32PeerServerPrefix);
+		sprintf(szFIFO_Name, ANSWER_FIFO_PREFIX "_%u", ui32PeerServerPrefix);
 		// create fifo if not exist
-		if ((mkfifo(szFIFO_Name, 0664) == -1) && (errno != EEXIST)) {
-			rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
-			return MIE_FIFO_ERROR;
+		if (access(szFIFO_Name, R_OK | W_OK) == -1)
+		{
+			if ((mkfifo(szFIFO_Name, 0666) == -1) && (errno != EEXIST)) {
+				rv_log(LOG_ERR, "Unable to create fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
+			if (chmod(szFIFO_Name, 0666) == -1)
+			{
+				rv_log(LOG_ERR, "Unable to change permission to fifo %s", szFIFO_Name);
+				return MIE_FIFO_ERROR;
+			}
 		}
+
 		// open fifo
 		if ((pTMTAL_IPC_Instance->s_peer_client_fd = open(szFIFO_Name, O_RDWR)) == -1)
 		{
@@ -336,19 +378,32 @@ static void display_elapse_time(char* pcText, uint32_t ui32startTime);
 static EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t* pi32MsgErr);
 
 
+#ifdef MTAL_IPC_PTPV2D
+	//////////////////////////////////////////////////////////////////
+	EMTAL_IPC_Error MTAL_IPC_get_FIFO_fd(uintptr_t ptrHandle, int * piFd)
+	{
+		if (!ptrHandle || !piFd)
+		{
+			return MIE_HANDLE_INVALID;
+		}
+		TMTAL_IPC_Instance* pTMTAL_IPC_Instance = (TMTAL_IPC_Instance*)ptrHandle;
+		*piFd = pTMTAL_IPC_Instance->s_server_fd;
+		return MIE_SUCCESS;
+	}
 
-//////////////////////////////////////////////////////////////////
-//int MTPTP_IPC_get_FIFO_fd(uintptr_t ptrHandle)
-//{
-//	return pTMTAL_IPC_Instance->s_server_fd;
-//}
-//
-//////////////////////////////////////////////////////////////////
-//int MTPTP_IPC_process_FIFO(uintptr_t ptrHandle, void* user)
-//{
-//	pTMTAL_IPC_Instance->s_callback_user = user;
-//	return process_message_from_fifo(s_server_fd);
-//}
+	//////////////////////////////////////////////////////////////////
+	EMTAL_IPC_Error MTAL_IPC_process_FIFO(uintptr_t ptrHandle, void* user, int* piRet)
+	{
+		if (!ptrHandle || !piRet)
+		{
+			return MIE_HANDLE_INVALID;
+		}
+		TMTAL_IPC_Instance* pTMTAL_IPC_Instance = (TMTAL_IPC_Instance*)ptrHandle;
+		pTMTAL_IPC_Instance->s_callback_user = user;
+		*piRet = process_message_from_fifo(pTMTAL_IPC_Instance, pTMTAL_IPC_Instance->s_server_fd);
+		return MIE_SUCCESS;
+	}
+#endif
 
 ////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void const * pvInBuffer, uint32_t ui32InBufferSize, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t *pi32MsgErr)
@@ -357,6 +412,12 @@ EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void
 	{
 		rv_log(LOG_ERR, "error: buffer size error\n");
 		return MIE_INVALID_BUFFER_SIZE;
+	}
+
+	////////////////////////////////////////////////////////////////
+	if (ui32MsgId == 9) // MT_PTPV2D_IPC_MSG__SET_FREQ_ADJ
+	{
+		rv_log(LOG_NOTICE, "MTAL_IPC_SendIOCTL(ui32MsgId:%u, ui32InBufferSize:%u)\n", ui32MsgId, ui32InBufferSize);
 	}
     
     TMTAL_IPC_Instance* pTMTAL_IPC_Instance = (TMTAL_IPC_Instance*)ptrHandle;
@@ -371,18 +432,25 @@ EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void
 	{
 		// send message
 		{
-			MTPTP_IPC_MsgBlock MTPTP_IPC_MsgBlock_tmp;
+			MTAL_IPC_MsgBlock MTAL_IPC_MsgBlock_tmp;
 
-			MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTPTP_IPC_MsgBlockBase) + ui32InBufferSize;
-			MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSeqId = ++pTMTAL_IPC_Instance->s_ui32MsgSeqId;
-			MTPTP_IPC_MsgBlock_tmp.base.ui32MsgId = ui32MsgId;
-			MTPTP_IPC_MsgBlock_tmp.base.i32Result = 0;
+			MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTAL_IPC_MsgBlockBase) + ui32InBufferSize;
+			MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId = ++pTMTAL_IPC_Instance->s_ui32MsgSeqId;
+			MTAL_IPC_MsgBlock_tmp.base.ui32MsgId = ui32MsgId;
+			MTAL_IPC_MsgBlock_tmp.base.i32Result = 0;
 			if (pvInBuffer && ui32InBufferSize > 0)
 			{
-				memcpy(&MTPTP_IPC_MsgBlock_tmp.pui8Buffer, pvInBuffer, ui32InBufferSize);
+				memcpy(&MTAL_IPC_MsgBlock_tmp.pui8Buffer, pvInBuffer, ui32InBufferSize);
 			}
-			ssize_t bytes_to_write = MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSize;
-			iRet = send_buffer_to_fifo(pTMTAL_IPC_Instance->s_peer_server_fd, (uint8_t*)&MTPTP_IPC_MsgBlock_tmp, bytes_to_write);
+
+			////////////////////////////////////////////////////////////////
+			if (ui32MsgId == 9) // MT_PTPV2D_IPC_MSG__SET_FREQ_ADJ
+			{
+				rv_log(LOG_NOTICE, "MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize=%u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize);
+			}
+
+			ssize_t bytes_to_write = MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize;
+			iRet = send_buffer_to_fifo(pTMTAL_IPC_Instance->s_peer_server_fd, (uint8_t*)&MTAL_IPC_MsgBlock_tmp, bytes_to_write);
 		}
 
 		if (iRet == 0)
@@ -395,13 +463,14 @@ EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void
 
 	if (pTMTAL_IPC_Instance->ui32DisplayElapsedTimeThreshold != (unsigned)~0 && get_elapse_time(ui32StartTime) > pTMTAL_IPC_Instance->ui32DisplayElapsedTimeThreshold)
 	{
-		char display[] = "MTPTP_IPC_SendIOCTL";
+		char display[256];
+		sprintf(display, "[%i]MTAL_IPC_SendIOCTL", pTMTAL_IPC_Instance->ui32LocalServerPrefix);
 		display_elapse_time(display, ui32StartTime);
 	}
 
 	if (iRet < MIE_SUCCESS)
 	{
-		rv_log(LOG_ERR, "MTPTP_IPC_SendIOCTL(%u) failed\n", ui32MsgId);
+		rv_log(LOG_ERR, "MTAL_IPC_SendIOCTL(%u) failed\n", ui32MsgId);
 	}
 	return iRet;
 }
@@ -500,7 +569,7 @@ EMTAL_IPC_Error send_buffer_to_fifo(int fd, uint8_t* pBuffer, uint32_t ui32Buffe
 // return latest message in the fifo.
 EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t* pi32MsgErr)
 {
-	uint8_t pui8Buffer[sizeof(MTPTP_IPC_MsgBlock )];
+	uint8_t pui8Buffer[sizeof(MTAL_IPC_MsgBlock )];
 
 	uint32_t ui32MaxRetryDuration = 500000; // [us]
 	uint32_t ui32StartTime = get_current_time(); // [us]
@@ -517,43 +586,43 @@ EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* p
 			}
 			////rv_log(LOG_DEBUG, "bytes_read = %i\n", bytes_read);
 
-			if (bytes_read > 0 && (unsigned)bytes_read < sizeof(MTPTP_IPC_MsgBlockBase))
+			if (bytes_read > 0 && (unsigned)bytes_read < sizeof(MTAL_IPC_MsgBlockBase))
 			{
 				rv_log(LOG_ERR, "read too less bytes from fifo bytes read: %u errno: %u\n", (unsigned int)bytes_read, errno);
 				return MIE_FAIL;
 			}
 
-			MTPTP_IPC_MsgBlockBase* pMTPTP_IPC_MsgBlockBase = (MTPTP_IPC_MsgBlockBase*)pui8Buffer;
+			MTAL_IPC_MsgBlockBase* pMTAL_IPC_MsgBlockBase = (MTAL_IPC_MsgBlockBase*)pui8Buffer;
 			int32_t i32RemainingBytes = bytes_read;
-			while ((unsigned)i32RemainingBytes >= sizeof(MTPTP_IPC_MsgBlockBase))
+			while ((unsigned)i32RemainingBytes >= sizeof(MTAL_IPC_MsgBlockBase))
 			{
-				uint32_t ui32MsgSize = pMTPTP_IPC_MsgBlockBase->ui32MsgSize;
+				uint32_t ui32MsgSize = pMTAL_IPC_MsgBlockBase->ui32MsgSize;
 
-				//rv_log(LOG_DEBUG, "SeqId = %u, %u\n", pMTPTP_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
-				if (pMTPTP_IPC_MsgBlockBase->ui32MsgSeqId != ui32SeqId)
+				//rv_log(LOG_DEBUG, "SeqId = %u, %u\n", pMTAL_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
+				if (pMTAL_IPC_MsgBlockBase->ui32MsgSeqId != ui32SeqId)
 				{
-					rv_log(LOG_ERR, "Answer doesn't match our message SeqId = %u, %u\n", pMTPTP_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
+					rv_log(LOG_ERR, "Answer doesn't match our message SeqId = %u, %u\n", pMTAL_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
 				}
 				else
 				{
 					if (pvOutBuffer && pui32OutBufferSize)
 					{
 						*pui32OutBufferSize = ui32MsgSize < *pui32OutBufferSize ? ui32MsgSize : *pui32OutBufferSize;
-						memcpy(pvOutBuffer, (uint8_t*)pMTPTP_IPC_MsgBlockBase + sizeof(MTPTP_IPC_MsgBlockBase), *pui32OutBufferSize);
+						memcpy(pvOutBuffer, (uint8_t*)pMTAL_IPC_MsgBlockBase + sizeof(MTAL_IPC_MsgBlockBase), *pui32OutBufferSize);
 					}
-					if (pMTPTP_IPC_MsgBlockBase->i32Result < 0)
+					if (pMTAL_IPC_MsgBlockBase->i32Result < 0)
 					{
-						rv_log(LOG_WARNING, "pMTPTP_IPC_MsgBlockBase->iResult = %i\n", pMTPTP_IPC_MsgBlockBase->i32Result);
+						rv_log(LOG_WARNING, "pMTAL_IPC_MsgBlockBase->iResult = %i\n", pMTAL_IPC_MsgBlockBase->i32Result);
 					}
 					//display_elapse_time("read_answer_from_fifo", ui32StartTime);
 					if (pi32MsgErr)
 					{
-						*pi32MsgErr = pMTPTP_IPC_MsgBlockBase->i32Result;
+						*pi32MsgErr = pMTAL_IPC_MsgBlockBase->i32Result;
 					}
 					return MIE_SUCCESS;
 				}
 
-				pMTPTP_IPC_MsgBlockBase = (MTPTP_IPC_MsgBlockBase*)((uint8_t*)pMTPTP_IPC_MsgBlockBase + ui32MsgSize);
+				pMTAL_IPC_MsgBlockBase = (MTAL_IPC_MsgBlockBase*)((uint8_t*)pMTAL_IPC_MsgBlockBase + ui32MsgSize);
 				i32RemainingBytes -= ui32MsgSize;
 			}
 		}		
@@ -577,53 +646,78 @@ EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* p
 //		1: means we received the END message (thread must died)
 static int process_message_from_fifo(TMTAL_IPC_Instance* pTMTAL_IPC_Instance, int fd)
 {
-	MTPTP_IPC_MsgBlock MTPTP_IPC_MsgBlock_tmp;
-	ssize_t bytes_read;
-	
-	//uint32_t ui32StartTime = get_current_time(); // [us]
-	// get a message
-	bytes_read = read(fd, &MTPTP_IPC_MsgBlock_tmp, sizeof(MTPTP_IPC_MsgBlock_tmp));
-	if ((bytes_read == -1 && (errno == EINTR || errno == EAGAIN))
-		|| bytes_read == 0)
+	do
 	{
+		MTAL_IPC_MsgBlock MTAL_IPC_MsgBlock_tmp;
+		ssize_t bytes_read;
+
 		//display_elapse_time("fifo read", ui32StartTime);
-		return 0;
-	}
-	else if (bytes_read == -1)
-	{
-		rv_log(LOG_ERR, "read error: errno = %i\n", errno);
-	}
-	else if (bytes_read == 1)
-	{ // it is time to die
-		rv_log(LOG_INFO, "it is time to die\n");
-		return 1;
-	}
-	else if ((unsigned)bytes_read < sizeof(MTPTP_IPC_MsgBlockBase))
-	{
-		// wrong message
-		rv_log(LOG_ERR, "wrong message size: %u expected >= %lu", (unsigned int)bytes_read, sizeof(MTPTP_IPC_MsgBlockBase));
-		return -1;
-	}
-	//display_elapse_time("fifo read", ui32StartTime);
-	
-	
-	//rv_log(LOG_DEBUG, "SeqId = %u\n", MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSeqId);
-	// call message_proc()	
-	uint8_t pui8OutBuffer[MAX_CONTROLLER_BUFFER_SIZE];
-	uint32_t ui32OutBufferSize = sizeof(pui8OutBuffer);
-	MTPTP_IPC_MsgBlock_tmp.base.i32Result = pTMTAL_IPC_Instance->s_callback(pTMTAL_IPC_Instance->s_callback_user, 
-        MTPTP_IPC_MsgBlock_tmp.base.ui32MsgId,
-		MTPTP_IPC_MsgBlock_tmp.pui8Buffer, bytes_read - sizeof(MTPTP_IPC_MsgBlockBase),
-		pui8OutBuffer, &ui32OutBufferSize);
-	MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTPTP_IPC_MsgBlockBase) + ui32OutBufferSize;
-	memcpy(MTPTP_IPC_MsgBlock_tmp.pui8Buffer, pui8OutBuffer, ui32OutBufferSize);
 
-	// send answer
-	uint32_t ui32Seq = MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSeqId;
-	MTPTP_IPC_MsgBlock_tmp.base.ui32MsgSeqId = ui32Seq;
-	send_buffer_to_fifo(pTMTAL_IPC_Instance->s_client_fd, (uint8_t*)&MTPTP_IPC_MsgBlock_tmp, sizeof(MTPTP_IPC_MsgBlockBase) + ui32OutBufferSize);
+		// get the message base
+		bytes_read = read(fd, &MTAL_IPC_MsgBlock_tmp, sizeof(MTAL_IPC_MsgBlockBase));
+		if ((bytes_read == -1 && (errno == EINTR || errno == EAGAIN))
+			|| bytes_read == 0)
+		{
+			//display_elapse_time("fifo read", ui32StartTime);
+			return 0;
+		}
+		else if (bytes_read < 0)
+		{
+			rv_log(LOG_ERR, "read error: errno = %i\n", errno);
+			return -1;
+		}
+		else if (bytes_read == 1)
+		{ // it is time to die
+			rv_log(LOG_INFO, "it is time to die\n");
+			return 1;
+		}
+		else if ((unsigned)bytes_read < sizeof(MTAL_IPC_MsgBlockBase))
+		{
+			// wrong message
+			rv_log(LOG_ERR, "wrong message size: %u expected >= %lu", (unsigned int)bytes_read, sizeof(MTAL_IPC_MsgBlockBase));
+			return -1;
+		}
 
-	return 0;
+		// get the message input buffer
+		if (MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize > sizeof(MTAL_IPC_MsgBlockBase))
+		{
+			ssize_t bytes_read2 = read(fd, &MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
+			if (bytes_read2 < 0)
+			{
+				rv_log(LOG_ERR, "2. read error: errno = %i\n", errno);
+				return -1;
+			}			
+			else if ((unsigned)bytes_read2 <  MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase))
+			{
+				// wrong message
+				rv_log(LOG_ERR, "2. wrong message size: %u expected >= %lu", (unsigned int)bytes_read2, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
+				return -1;
+			}
+
+			bytes_read += bytes_read2;
+		}
+
+		//rv_log(LOG_DEBUG, "SeqId = %u, ui32MsgSize = %u, bytes_read=%u, sizeof(MTAL_IPC_MsgBlockBase)=%u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize, bytes_read, sizeof(MTAL_IPC_MsgBlockBase));
+
+		//rv_log(LOG_DEBUG, "SeqId = %u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId);
+		// call message_proc()	
+		uint8_t pui8OutBuffer[MAX_CONTROLLER_BUFFER_SIZE];
+		uint32_t ui32OutBufferSize = sizeof(pui8OutBuffer);
+		MTAL_IPC_MsgBlock_tmp.base.i32Result = pTMTAL_IPC_Instance->s_callback(pTMTAL_IPC_Instance->s_callback_user,
+			MTAL_IPC_MsgBlock_tmp.base.ui32MsgId,
+			MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase),
+			pui8OutBuffer, &ui32OutBufferSize);
+		MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTAL_IPC_MsgBlockBase) + ui32OutBufferSize;
+		memcpy(MTAL_IPC_MsgBlock_tmp.pui8Buffer, pui8OutBuffer, ui32OutBufferSize);
+
+		// send answer
+		uint32_t ui32Seq = MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId;
+		MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId = ui32Seq;
+		send_buffer_to_fifo(pTMTAL_IPC_Instance->s_client_fd, (uint8_t*)&MTAL_IPC_MsgBlock_tmp, sizeof(MTAL_IPC_MsgBlockBase) + ui32OutBufferSize);
+	}
+	while (true);
+
+	return 0;	
 }
 
 ////////////////////////////////////////////////////////////////
@@ -711,12 +805,11 @@ static void display_elapse_time(char* pcText, uint32_t ui32StartTime) // [us]
 	}
 	rv_log(LOG_DEBUG, "Duration %s: %u [us]\n", pcText, get_elapse_time(ui32StartTime));
 }
-
-#elif WIN32
+#else
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// WIN32
+// WIN32/OSX must be implemented
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -726,6 +819,26 @@ EMTAL_IPC_Error MTAL_IPC_init(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerS
 {
 	return MIE_SUCCESS;
 }
+
+////////////////////////////////////////////////////////////////
+#ifdef MTAL_IPC_PTPV2D
+	EMTAL_IPC_Error MTAL_IPC_init_PTPV2D(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle)
+	{
+		return MIE_SUCCESS;
+	}
+
+	////////////////////////////////////////////////////////////////
+	EMTAL_IPC_Error MTAL_IPC_get_FIFO_fd(uintptr_t ptrHandle, int* piFd)
+	{
+		return MIE_SUCCESS;
+	}
+
+	////////////////////////////////////////////////////////////////
+	EMTAL_IPC_Error MTAL_IPC_process_FIFO(uintptr_t ptrHandle, void* user, int * piRet)
+	{
+		return MIE_SUCCESS;
+	}
+#endif
 
 ////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error MTAL_IPC_destroy(uintptr_t ptrHandle)

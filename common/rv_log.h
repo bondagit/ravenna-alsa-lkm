@@ -6,13 +6,23 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef WIN32
+	#ifdef __cplusplus
+	extern "C" {
+	#endif
+		extern int g_bANSI_Enabled;
+	#ifdef __cplusplus
+	}
+	#endif
+#endif
+
 // to make the preprocessor directives as __LINE__ interpreted
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #ifdef WIN32
-	#define __FILE_NAME__ (strrchr(__FILE__, '\\') ? (strrchr(__FILE__, '\\') + 1) : __FILE__)
+#define __FILE_NAME__ (strrchr(__FILE__, '\\') ? (strrchr(__FILE__, '\\') + 1) : __FILE__)
 #else
-	#define __FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1) : __FILE__)
+#define __FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1) : __FILE__)
 #endif
 //#define AT "In " __FILE__ ", line " TOSTRING(__LINE__) ": "
 
@@ -21,7 +31,7 @@
 #include <syslog.h>
 
 #define rv_log(log_level, ...) \
-    {syslog(log_level, AT __VA_ARGS__);}
+	{syslog(log_level, AT __VA_ARGS__);}
 #define rv_log2(log_level, ...) \
 		{;}
 //    {syslog(log_level, __VA_ARGS__);}
@@ -37,9 +47,9 @@
 #define LOG_INFO        6       /* informational */
 #define LOG_DEBUG       7       /* debug-level messages */
 #ifndef OSX
-    #define LOG_TRACE		8
+#define LOG_TRACE		8
 #else
-    #define LOG_TRACE		7   // there are only 3bit for priorities [0-7]
+#define LOG_TRACE		7   // there are only 3bit for priorities [0-7]
 #endif
 
 #define RV_LOG_BLACK(x)		{printf("\033[30m\033[1m");	printf x; printf("\033[0m");}
@@ -69,13 +79,60 @@
 //syslog(log_level, AT __VA_ARGS__);
 
 #if UNDER_RTSS
-	#include "MTAL_DP.h"
-	#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__); MTAL_DP(__VA_ARGS__); }}
+#include "MTAL_DP.h"
+#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__); MTAL_DP(__VA_ARGS__); }}
 
-	#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__);  MTAL_DP(__VA_ARGS__); MTAL_DP("\r\n"); }}
+#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__);  MTAL_DP(__VA_ARGS__); MTAL_DP("\r\n"); }}
 #elif WIN32	
-	#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { printf("In %s, line %i: ", __FILE_NAME__, __LINE__); printf(__VA_ARGS__); /*printf("\r\n");*/ fflush(stdout); }}
-	#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { printf("In %s, line %i: ", __FILE_NAME__, __LINE__);  printf(__VA_ARGS__); printf("\r\n"); fflush(stdout); }}
+	//#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { printf("In %s, line %i: ", __FILE_NAME__, __LINE__); printf(__VA_ARGS__); /*printf("\r\n");*/ fflush(stdout); }}
+	//#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { printf("In %s, line %i: ", __FILE_NAME__, __LINE__);  printf(__VA_ARGS__); printf("\r\n"); fflush(stdout); }}
+#define rv_log(log_level, ...)  \
+		{\
+		if(log_level <= LOG_MAX_LEVEL)\
+			{\
+			printf("In %s, line %i: ", __FILE_NAME__, __LINE__); \
+			if(g_bANSI_Enabled == 0)\
+				printf(__VA_ARGS__);\
+			else if(log_level < LOG_WARNING) \
+				RV_LOG_RED((__VA_ARGS__)) \
+			else if(log_level == LOG_WARNING) \
+				RV_LOG_YELLOW((__VA_ARGS__)) \
+			else if(log_level == LOG_NOTICE) \
+				RV_LOG_CYAN((__VA_ARGS__)) \
+			else if(log_level == LOG_INFO) \
+				RV_LOG_GREEN((__VA_ARGS__)) \
+			else if(log_level == LOG_DEBUG) \
+				RV_LOG_MAGENTA((__VA_ARGS__)) \
+			else \
+				printf(__VA_ARGS__);\
+			/*printf("\r\n");*/ fflush(stdout);\
+			}\
+				}
+
+#define log4c_log(device_category, log_level, ...)\
+		{\
+			if(log_level <= LOG_MAX_LEVEL) {\
+				if(log_level <= LOG_MAX_LEVEL)\
+				{\
+					printf("In %s, line %i: ", __FILE_NAME__, __LINE__); \
+					if(log_level < LOG_WARNING) \
+						RV_LOG_RED((__VA_ARGS__)) \
+					else if(log_level == LOG_WARNING) \
+						RV_LOG_YELLOW((__VA_ARGS__)) \
+					else if(log_level == LOG_NOTICE) \
+						RV_LOG_CYAN((__VA_ARGS__)) \
+					else if(log_level == LOG_INFO) \
+						RV_LOG_GREEN((__VA_ARGS__)) \
+					else if(log_level == LOG_DEBUG) \
+						RV_LOG_MAGENTA((__VA_ARGS__)) \
+					else \
+						printf(__VA_ARGS__);\
+					printf("\r\n"); fflush(stdout);\
+				 }\
+			}\
+		}
+
+
 #elif OSX
 //#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
@@ -123,6 +180,8 @@
 				RV_LOG_RED((__VA_ARGS__)) \
 			else if(log_level == LOG_WARNING) \
 				RV_LOG_YELLOW((__VA_ARGS__)) \
+			else if(log_level == LOG_NOTICE) \
+				RV_LOG_CYAN((__VA_ARGS__)) \
 			else if(log_level == LOG_INFO) \
 				RV_LOG_GREEN((__VA_ARGS__)) \
 			else if(log_level == LOG_DEBUG) \
@@ -147,6 +206,8 @@
 						RV_LOG_RED((__VA_ARGS__)) \
 					else if(log_level == LOG_WARNING) \
 						RV_LOG_YELLOW((__VA_ARGS__)) \
+					else if(log_level == LOG_NOTICE) \
+						RV_LOG_CYAN((__VA_ARGS__)) \
 					else if(log_level == LOG_INFO) \
 						RV_LOG_GREEN((__VA_ARGS__)) \
 					else if(log_level == LOG_DEBUG) \

@@ -759,6 +759,7 @@ void computeNextAbsoluteTime(TClock_PTP* self, uint32_t ui32FrameCount)
 //int print_coutner = 0;
 uint64_t g_ui64LastCurrentRTXClockTime;
 uint64_t g_ui64LastAbsoluteTime;
+uint64_t g_ui64CurrentTimeMinus5Second = 0;
 ///////////////////////////////////////////////////////////////////////////////
 void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 {
@@ -914,9 +915,19 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         //ui64AbsoluteTime = self->m_dTIC_CurrentPeriod / 10000 + ui64CurrentRTXClockTime; // Virtual box
         // too late detection
         uint64_t ui64CurrentTime;
+		bool dropout_every_5second = false; // DSD mute debug
+		
         get_clock_time(&ui64CurrentTime);
         ui64CurrentTime /= NS_2_REF_UNIT; // [100us]
-        if (ui64AbsoluteTime <= ui64CurrentTime)
+		
+		/*if (ui64CurrentTime - g_ui64CurrentTimeMinus5Second > 50000)
+		{
+			g_ui64CurrentTimeMinus5Second = ui64CurrentTime;
+			dropout_every_5second = true;
+			MTAL_DP("DEBUG DROPOUT triggered");
+		}*/
+		
+        if (ui64AbsoluteTime <= ui64CurrentTime || dropout_every_5second)
         {
             if (ui64CurrentTime - ui64AbsoluteTime < self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT) // give a chance to be late of 200us
             {
@@ -925,11 +936,13 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 			else if (GetLockStatus(self) == PTPLS_LOCKED)
             {
                 MTAL_DP("timerProcess elapsed time = %llu [100us]", ui64CurrentTime-ui64CurrentRTXClockTime);
-                MTAL_DP("%llu [us] Overrun ! Jump to 500 [ms] from now; ui64AbsoluteTime = %llu, ui64CurrentTime = %llu\n", (ui64CurrentTime-ui64AbsoluteTime)/10, ui64AbsoluteTime, ui64CurrentTime);
 				MTAL_DP("Delta absolute time %llu; Timer CPU time period %llu\n", (ui64AbsoluteTime - g_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - g_ui64LastCurrentRTXClockTime);
+                /*
+				MTAL_DP("%llu [us] Overrun ! Jump to 500 [ms] from now; ui64AbsoluteTime = %llu, ui64CurrentTime = %llu\n", (ui64CurrentTime-ui64AbsoluteTime)/10, ui64AbsoluteTime, ui64CurrentTime);
                 computeNextAbsoluteTime(self, self->m_ui32SamplingRate / self->m_ui32FrameSize / 2); // near 500ms jump
                 ui64AbsoluteTime = self->m_ui64TIC_NextAbsoluteTime;
 				MTAL_DP("Next wakeup time (absolute time) =  %llu\n", ui64AbsoluteTime);
+				*/
             }
 			else
 			{

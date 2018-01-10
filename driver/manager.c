@@ -146,6 +146,8 @@ bool init(struct TManager* self, int* errorCode)
 
     self->m_RingBufferFrameSize = RINGBUFFERSIZE;
 
+    self->m_nPlayoutDelay = 0;
+    self->m_nCaptureDelay = 0;
 
     self->m_NumberOfInputs = DEFAULT_NUMBEROFINPUTS;
     SetNumberOfInputs(self, self->m_NumberOfInputs);
@@ -375,6 +377,7 @@ bool SetSamplingRate(struct TManager* self, uint32_t samplingRate)
 
     self->m_SampleRate = samplingRate;
     UpdateFrameSize(self);
+    MuteOutputBuffer(self);
 
     if(self->m_bIsStarted)
     {
@@ -413,6 +416,7 @@ bool SetDSDSamplingRate(struct TManager* self, uint32_t samplingRate)
 
     self->m_SampleRate = samplingRate;
     UpdateFrameSize(self);
+    MuteOutputBuffer(self);
 
     if(self->m_bIsStarted)
     {
@@ -523,7 +527,7 @@ void EtherTubeHookFct(struct TManager* self, void* hook_fct, void* hook_struct)
     netfilter_hook_fct(&self->m_EthernetFilter, hook_fct, hook_struct);
 }
 
-// Messaging
+// Messaging with userland (use netlink)
 //////////////////////////////////////////////////////////////////////////////////
 void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
 {
@@ -874,6 +878,33 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
                 if(self->m_pALSAChip && value_ptr != nullptr)
                     self->m_alsa_driver_frontend->notify_master_switch_change(self->m_pALSAChip, 0, *value_ptr);
 
+                msg_reply.errCode = 0;
+            }
+            break;
+        case MT_ALSA_Msg_SetPlayoutDelay:
+            if (msg_rcv->dataSize != sizeof(int32_t))
+            {
+                MTAL_DP_ERR("MT_ALSA_Msg_SetPlayoutDelay invalid data size\n");
+                msg_reply.errCode = -315;
+            }
+            else
+            {
+                int32_t* value_ptr = (int32_t*)msg_rcv->data;
+                self->m_nPlayoutDelay = *value_ptr;
+                MTAL_DP_INFO("MT_ALSA_Msg_SetPlayoutDelay set to %d\n", self->m_nPlayoutDelay);
+                msg_reply.errCode = 0;
+            }
+            break;
+        case MT_ALSA_Msg_SetCaptureDelay:
+            if (msg_rcv->dataSize != sizeof(int32_t))
+            {
+                MTAL_DP_ERR("MT_ALSA_Msg_SetCaptureDelay invalid data size\n");
+                msg_reply.errCode = -315;
+            }
+            else
+            {
+                int32_t* value_ptr = (int32_t*)msg_rcv->data;
+                self->m_nCaptureDelay = *value_ptr;
                 msg_reply.errCode = 0;
             }
             break;
@@ -1558,6 +1589,28 @@ int get_nb_outputs(void* user, uint32_t *nb_Channels)
     return -EINVAL;
 }
 
+int get_playout_delay(void* user, snd_pcm_sframes_t *delay_in_sample)
+{
+    struct TManager* self = (struct TManager*)user;
+    if (delay_in_sample)
+    {
+        *delay_in_sample = self->m_nPlayoutDelay;
+        return 0;
+    }
+    return -EINVAL;
+}
+
+int get_capture_delay(void* user, snd_pcm_sframes_t *delay_in_sample)
+{
+    struct TManager* self = (struct TManager*)user;
+    if (delay_in_sample)
+    {
+        *delay_in_sample = self->m_nCaptureDelay;
+        return 0;
+    }
+    return -EINVAL;
+}
+
 /*int get_output_jitter_buffer_offset(void* user, uint32_t *offset)
 {
     struct TManager* self = (struct TManager*)user;
@@ -1627,6 +1680,7 @@ int start_interrupts(void* user)
 int stop_interrupts(void* user)
 {
     struct TManager* self = (struct TManager*)user;
+	MTAL_DP("entering CManager::stop_interrupts..\n");
     if(stopIO(self))
         return 0;
     return -1;
@@ -1786,6 +1840,8 @@ void init_alsa_callbacks(struct TManager* self)
     //self->m_alsa_callbacks.set_nb_outputs = &set_nb_outputs;
     self->m_alsa_callbacks.get_nb_inputs = &get_nb_inputs;
     self->m_alsa_callbacks.get_nb_outputs = &get_nb_outputs;
+    self->m_alsa_callbacks.get_playout_delay = &get_playout_delay;
+    self->m_alsa_callbacks.get_capture_delay = &get_capture_delay;
     self->m_alsa_callbacks.start_interrupts = &start_interrupts;
     self->m_alsa_callbacks.stop_interrupts = &stop_interrupts;
     self->m_alsa_callbacks.notify_master_volume_change = &notify_master_volume_change;

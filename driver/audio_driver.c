@@ -191,9 +191,9 @@ static const struct snd_pcm_chmap_elem mr_alsa_audio_nadac_playback_ch_map[] = {
     { .channels = 6,
       .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR} }, // 5.1 smpte
     { .channels = 7,
-      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR, SNDRV_CHMAP_RC} }, // 6.1 smpte
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR, SNDRV_CHMAP_RC} }, // 6.1 smpte
     { .channels = 8,
-      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR, SNDRV_CHMAP_SL, SNDRV_CHMAP_SR} }, // 7.1 smpte
+      .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR, SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE, SNDRV_CHMAP_RL, SNDRV_CHMAP_RR, SNDRV_CHMAP_RLC, SNDRV_CHMAP_RRC} }, // 7.1 smpte
     { }
 };
 
@@ -568,18 +568,27 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
 {
     if(rawchip)
     {
+        uint32_t ring_buffer_size = MR_ALSA_RINGBUFFER_NB_FRAMES; // init to the max size possible
         uint32_t ptp_frame_size;
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
         spin_lock_irq(&chip->lock);
         chip->mr_alsa_audio_ops->get_interrupts_frame_size(chip->ravenna_peer, &ptp_frame_size);
         if(direction == 1 && chip->capture_substream != NULL)
         {
+            struct snd_pcm_runtime *runtime = chip->capture_substream->runtime;
+            ring_buffer_size = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
+            if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
+            {
+                printk(KERN_ERR "mr_alsa_audio_pcm_interrupt capture period_size*periods > MR_ALSA_RINGBUFFER_NB_FRAMES\n");
+                return -2;
+            }
+            
             if(chip->first_capture_interrupt)
                 chip->first_capture_interrupt = 0;
 
             chip->capture_buffer_pos += ptp_frame_size;
-            if(chip->capture_buffer_pos >= MR_ALSA_RINGBUFFER_NB_FRAMES)
-                chip->capture_buffer_pos -= MR_ALSA_RINGBUFFER_NB_FRAMES;
+            if(chip->capture_buffer_pos >= ring_buffer_size)
+                chip->capture_buffer_pos -= ring_buffer_size;
 
             /// Ravenna DSD always uses a rate of 352k with eventual zero padding to maintain a 32 bit alignment
             /// while DSD in ALSA uses a continuous 8, 16 or 32 bit aligned stream with at 352k, 176k or 88k
@@ -592,12 +601,20 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
         }
         else if(direction == 0 && chip->playback_substream != NULL)
         {
+            struct snd_pcm_runtime *runtime = chip->playback_substream->runtime;
+            ring_buffer_size = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
+            if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
+            {
+                printk(KERN_ERR "mr_alsa_audio_pcm_interrupt playback period_size*periods > MR_ALSA_RINGBUFFER_NB_FRAMES\n");
+                return -2;
+            }
+            
             if(chip->first_playback_interrupt)
                 chip->first_playback_interrupt = 0;
 
             chip->playback_buffer_pos += ptp_frame_size;
-            if(chip->playback_buffer_pos >= MR_ALSA_RINGBUFFER_NB_FRAMES)
-                chip->playback_buffer_pos -= MR_ALSA_RINGBUFFER_NB_FRAMES;
+            if(chip->playback_buffer_pos >= ring_buffer_size)
+                chip->playback_buffer_pos -= ring_buffer_size;
 
             /// Ravenna DSD always uses a rate of 352k with eventual zero padding to maintain a 32 bit alignment
             /// while DSD in ALSA uses a continuous 8, 16 or 32 bit aligned stream with at 352k, 176k or 88k
@@ -862,6 +879,8 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
             /// so respective ring buffers might have different scale and size
             chip->nb_playback_interrupts_per_period = ((runtime_dsd_mode != 0)? (MR_ALSA_PTP_FRAME_RATE_FOR_DSD / runtime->rate) : 1);
 
+            /// Fill the additional delay between the packet output and the sound eared
+            chip->mr_alsa_audio_ops->get_playout_delay(chip->ravenna_peer, &runtime->delay);
 
             // TODO: snd_pcm_format_set_silence(SNDRV_PCM_FORMAT_S24_3LE, chip->mr_alsa_audio_ops->, )
 
@@ -1740,7 +1759,7 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
     chip->mr_alsa_audio_ops->get_max_interrupts_frame_size(chip->ravenna_peer, &maxPTPFrameSize);
     if (r->min > 192000 && r->max <= 384000)
     {
-        t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / min(maxPTPFrameSize, (minPTPFrameSize * 8));
+        t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / min(maxPTPFrameSize, (minPTPFrameSize * 8)); // 48
         t.integer = 1;
        // printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
         ret = snd_interval_refine(pn, &t);
@@ -1763,7 +1782,7 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
         #endif
             0)))
             nbPeriods >>= 1;
-        t.min = t.max = nbPeriods;
+        t.min = t.max = nbPeriods; //24
         t.integer = 1;
         //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
         ret = snd_interval_refine(pn, &t);
@@ -1780,16 +1799,18 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
         #endif
             0)))
             nbPeriods >>= 2;
-        t.min = t.max = nbPeriods;
+        t.max = nbPeriods;
+        t.min = 1;
         t.integer = 1;
-        //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
+        // printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, nbPeriods);
         ret = snd_interval_refine(pn, &t);
     }
     else if (r->max < 64000)
     {
-        t.min = t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
+        t.max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
+        t.min = 1;
         t.integer = 1;
-        //printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.min);
+        // printk("mr_alsa_audio_hw_rule_period_nb_by_rate Period Nb interval for SR= [%u, %u] => %u\n", r->min, r->max, t.max);
         ret = snd_interval_refine(pn, &t);
     }
     //printk("mr_alsa_audio_hw_rule_period_nb_by_rate_and_format returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, pn->min, pn->max);
@@ -1872,6 +1893,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
         mr_alsa_audio_pcm_hardware_playback.periods_max = periods_max;
 
         runtime->hw = mr_alsa_audio_pcm_hardware_playback;
+
         // TODO
         /*if (chip->capture_substream == NULL)
             mr_alsa_audio_stop_audio(chip);*/

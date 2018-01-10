@@ -22,6 +22,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#define MTAL_IPC_PTPV2D 1
+
 /////////////////////////////////////////////////////////
 // Error
 typedef enum
@@ -46,15 +48,15 @@ typedef int32_t(*MTAL_IPC_IOCTL_CALLBACK)(void* cb_user, uint32_t  ui32MsgId, vo
 // remark: 
 //  if the same Local and Peer prefix are used by multiple process, callback works only with the latest process calling init
 EMTAL_IPC_Error MTAL_IPC_init(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle);
-//EMTAL_IPC_Error MTAL_IPC_init(int bPTPv2d, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user);
 EMTAL_IPC_Error MTAL_IPC_destroy(uintptr_t ptrHandle);
 // debug
 EMTAL_IPC_Error MTAL_IPC_set_display_elapsedtime_threshold(uintptr_t ptrHandle, uint32_t ui32threshold); // [us]. ~0 means disabled
 
 // PTPv2d only
 #ifdef MTAL_IPC_PTPV2D
-	EMTAL_IPC_Error MTAL_IPC_get_FIFO_fd(uintptr_t ptrHandle);
-	EMTAL_IPC_Error MTAL_IPC_process_FIFO(uintptr_t ptrHandle, int32_t *pi32MsgErr);
+	EMTAL_IPC_Error MTAL_IPC_init_PTPV2D(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle);
+	EMTAL_IPC_Error MTAL_IPC_get_FIFO_fd(uintptr_t ptrHandle, int * piFd);
+	EMTAL_IPC_Error MTAL_IPC_process_FIFO(uintptr_t ptrHandle, void* user, int * piRet);
 #endif
 
 ////////////////////////////////////////////////////////////////

@@ -75,13 +75,16 @@ struct TManager
 
     uint32_t m_NumberOfInputs;
     uint32_t m_NumberOfOutputs;
-	uint64_t m_RingBufferFrameSize;
+    uint64_t m_RingBufferFrameSize;
     uint32_t m_SampleRate;
     enum eAudioMode m_AudioMode;
 
     uint64_t m_TICFrameSizeAt1FS;
     uint32_t m_ui32FrameSize;
     uint32_t m_MaxFrameSize;
+
+    int32_t m_nPlayoutDelay;
+    int32_t m_nCaptureDelay;
 
     volatile bool m_bIsStarted;
     volatile bool m_bIORunning;
@@ -235,6 +238,8 @@ int get_sample_rate(void* user, uint32_t *rate);
 //int set_nb_outputs(void* user, uint32_t nb_channels);
 int get_nb_inputs(void* user, uint32_t *nb_Channels);
 int get_nb_outputs(void* user, uint32_t *nb_Channels);
+int get_playout_delay(void* user, snd_pcm_sframes_t *delay_in_sample);
+int get_capture_delay(void* user, snd_pcm_sframes_t *delay_in_sample);
 int start_interrupts(void* user);
 int stop_interrupts(void* user);
 int notify_master_volume_change(void* user, int direction, int32_t value);

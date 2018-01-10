@@ -51,7 +51,7 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
     ktime_t period;
     uint64_t next_wakeup;
 
-    //do
+    do
     {
         t_clock_timer(&next_wakeup);
         kt_now = hrtimer_cb_get_time(timer);
@@ -59,6 +59,7 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 		if (ktime_to_ns(kt_now) > next_wakeup)
 		{
+			printk(KERN_INFO "Timer won't sleep, clock_timer is recall instantly\n");
 			period = ktime_set(0, 0);
 		}
 		else if (ktime_to_ns(period) > max_period_allowed || ktime_to_ns(period) < min_period_allowed)
@@ -82,7 +83,7 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
             return HRTIMER_NORESTART;
         }
     }
-    //while (ktime_to_ns(period) < 0); // this able to be rarely true
+    while (ktime_to_ns(period) == 0); // this able to be rarely true
 
     ///ret_overrun = hrtimer_forward(timer, kt_now, period);
     ret_overrun = hrtimer_forward_now(timer, period);

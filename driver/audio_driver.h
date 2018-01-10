@@ -32,6 +32,8 @@
 #if !defined(__audio_driver_h__)
 #define __audio_driver_h__
 
+#include <sound/asound.h>
+
 #if	defined(__cplusplus)
 extern "C"
 {
@@ -68,6 +70,8 @@ struct alsa_ops
     int (*get_sample_rate)(void* ravenna_peer, uint32_t *rate); /// returns current Ravenna sample rate (actual PCM rate or actual DSD rate)
     int (*get_nb_inputs)(void* ravenna_peer, uint32_t *nb_channels);
     int (*get_nb_outputs)(void* ravenna_peer, uint32_t *nb_channels);
+    int (*get_playout_delay)(void* ravenna_peer, snd_pcm_sframes_t *delay_in_sample);
+    int (*get_capture_delay)(void* ravenna_peer, snd_pcm_sframes_t *delay_in_sample);
     int (*start_interrupts)(void* ravenna_peer); /// starts IO
     int (*stop_interrupts)(void* ravenna_peer); /// stops IO
 
