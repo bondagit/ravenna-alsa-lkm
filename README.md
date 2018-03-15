@@ -51,6 +51,7 @@ The following kernel config are required :
 * HIGH_RES_TIMERS
 * NETLINK
 * Kernel > 2.4 (3.18 for DSD)
+* Kernel < 4.13 (Netfilter issue to be solve)
 
 About the Kernel config, please ensure that at least scenario 2 described in the following doc is achieved
 https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt
