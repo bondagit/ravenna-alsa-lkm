@@ -11,8 +11,9 @@
 	extern "C" {
 	#endif
 		extern int g_bANSI_Enabled;
+		void rv_log_add_console();
 	#ifdef __cplusplus
-	}
+	}	
 	#endif
 #endif
 
