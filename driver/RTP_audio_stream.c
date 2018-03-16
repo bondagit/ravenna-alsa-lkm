@@ -30,7 +30,7 @@
 ****************************************************************************/
 
 #ifdef NT_DRIVER
-    #include "precomp.h"
+	#include "precomp.h"
 #elif defined(OSX_KEXT)
 #elif defined(__KERNEL__)
 	#include <linux/kernel.h>
@@ -49,15 +49,15 @@
 ////////////////////////////////////////////////////////////////////
 int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter)
 {
-    enum EAudioEngineSampleFormat nSampleFormat;
-    uint32_t ulChannelId;
-    unsigned short us;
+	enum EAudioEngineSampleFormat nSampleFormat;
+	uint32_t ulChannelId;
+	unsigned short us;
 
 	self->m_pManager = pManager;
 
 	if (self->m_bLivesInitialized)
 	{
-        MTAL_DP("Live already initialized\n");
+		MTAL_DP("Live already initialized\n");
 		return 0;
 	}
 
@@ -68,23 +68,23 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 		return 0;
 	}
 
-    pManager->get_audio_engine_sample_format(pManager->user, &nSampleFormat);
+	pManager->get_audio_engine_sample_format(pManager->user, &nSampleFormat);
 #if defined(NT_DRIVER) || defined(__KERNEL__) // floating point not supported in windows kernel; or at least not so easy and we don't needed it for the ASIO driver
-    if (nSampleFormat == AESF_FLOAT32)
-    {
-        MTAL_DP("CRTP_audio_stream::Init: 32 bit float sample audio data format not supported in kernel\n");
-        return 0;
-    }
+	if (nSampleFormat == AESF_FLOAT32)
+	{
+		MTAL_DP("CRTP_audio_stream::Init: 32 bit float sample audio data format not supported in kernel\n");
+		return 0;
+	}
 #endif
 
-    MTAL_DP("CRTP_audio_stream::Init: EAudioEngineSampleFormat = (%i)\n", nSampleFormat);
+	MTAL_DP("CRTP_audio_stream::Init: EAudioEngineSampleFormat = (%i)\n", nSampleFormat);
 	switch(nSampleFormat)
 	{
 
 		case AESF_FLOAT32:
 			self->m_usAudioEngineSampleWordLength = 4;
 			break;
-        case AESF_L32:
+		case AESF_L32:
 			self->m_usAudioEngineSampleWordLength = 4;
 			break;
 		case AESF_L24:
@@ -103,7 +103,7 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 			self->m_usAudioEngineSampleWordLength = 4;
 			break;
 		default:
-            MTAL_DP("CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
+			MTAL_DP("CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
 			return 0;
 	}
 
@@ -198,7 +198,7 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 				break;
 			case AESF_L16:
 			default:
-                MTAL_DP("2.CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
+				MTAL_DP("2.CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
 				return 0;
 			case AESF_DSDInt8MSB1:
 				if(strcmp(pRTP_stream_info->m_cCodec, "DSD64_32") == 0)
@@ -290,7 +290,8 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 				}
 				break;
 		#endif //!NT_DRIVER && !__KERNEL__
-            case AESF_L32:
+			case AESF_L32:
+
 				if(strcmp(pRTP_stream_info->m_cCodec, "L16") == 0)
 				{
 					self->m_pfnMTConvertInterleaveToMapped = &MTConvertBigEndianInt16ToMappedInt32DeInterleave;
@@ -322,7 +323,7 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 				break;
 			case AESF_L16:
 			default:
-                MTAL_DP("3.CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
+				MTAL_DP("3.CRTP_audio_stream::Init: Unknown EAudioEngineSampleFormat (%i)\n", nSampleFormat);
 				return 0;
 			case AESF_DSDInt8MSB1:
 				if(strcmp(pRTP_stream_info->m_cCodec, "DSD64_32") == 0)
@@ -367,7 +368,7 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 			}
 			else if(!pManager->update_live_in_audio_data_format(pManager->user, ulChannelId, pRTP_stream_info->m_cCodec))
 			{
-                MTAL_DP("CRTP_audio_stream::Init: update_live_in_audio_data_format FAILED %s\n", pRTP_stream_info->m_cCodec);
+				MTAL_DP("CRTP_audio_stream::Init: update_live_in_audio_data_format FAILED %s\n", pRTP_stream_info->m_cCodec);
 				return 0;
 			}
 		}
@@ -400,16 +401,16 @@ int Destroy(TRTP_audio_stream* self)
 	}
 	else
 	{
-        return 0;
+		return 0;
 	}
 
-    MTAL_DP("manager = %p, ", self->m_pManager);
-    //char mute_pattern = self->m_pManager->get_live_in_mute_pattern(self->m_pManager->user, 0);
-    //MTAL_DP("MUTE pattern %d\n", mute_pattern);
+	MTAL_DP("manager = %p, ", self->m_pManager);
+	//char mute_pattern = self->m_pManager->get_live_in_mute_pattern(self->m_pManager->user, 0);
+	//MTAL_DP("MUTE pattern %d\n", mute_pattern);
 
 	if(!pRTP_stream_info->m_bSource)
 	{ // Sink
-        unsigned short us;
+		unsigned short us;
 		for(us = 0; us < pRTP_stream_info->m_byNbOfChannels; us++)
 		{
 			//MTAL_DP("[%u] m_pvLivesInCircularBuffer[us] = 0x%x buffer length = %u wordlength = %u\n", us, m_pvLivesInCircularBuffer[us], pManager->get_live_jitter_buffer_length(pManager->user), m_usAudioEngineSampleWordLength);
@@ -429,6 +430,30 @@ int Destroy(TRTP_audio_stream* self)
 	return rtp_stream_destroy(&self->m_tRTPStream);
 }
 
+////////////////////////////////////////////////////////////////////
+// Note: protected by m_csSinkRTPStreams or m_csSourceRTPStreams spinlock
+int get_RTPStream_status(TRTP_audio_stream* self, TRTP_stream_status* pstream_status)
+{
+	TRTP_stream_info* pRTP_stream_info = &self->m_tRTPStream.m_RTP_stream_info;
+	
+	if (!pstream_status)
+	{
+		return 0;
+	}
+
+	if (pRTP_stream_info->m_bSource)
+	{
+		// no status for source yet
+		// f10b pstream_status->clear();
+		return 0;
+	}
+	else
+	{
+		*pstream_status = self->m_StreamStatus;
+		self->m_ui32StreamStatusResetCounter++;
+	}
+	return 1;
+}
 ////////////////////////////////////////////////////////////////////
 void GetStatsFromTIC(TRTPStreamStatsFromTIC* pRTPStreamStatsFromTIC)
 {
@@ -466,17 +491,19 @@ uint32_t GetStats_SinkJitter(TRTP_audio_stream* self)
 //		- the object is properly initialized
 //		- the number of channels is > 0
 //		- the packet is for this stream (good DestIP + DestPort)
+//
+// Note: protected by m_csSinkRTPStreams spinlock
 int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBase)
 {
-    uint8_t* pui8RTPPayloadData;
-    uint32_t ui32RTPPayloadLength;
-    uint32_t ui32CSRC_ExtensionLength = 0;
-    uint32_t ui32NbOfSamplesInThisPacket;
-    uint32_t ui32RTPTimeStamp;
-    uint32_t ui32RTPSAC;
+	uint8_t* pui8RTPPayloadData;
+	uint32_t ui32RTPPayloadLength;
+	uint32_t ui32CSRC_ExtensionLength = 0;
+	uint32_t ui32NbOfSamplesInThisPacket;
+	uint32_t ui32RTPTimeStamp;
+	uint32_t ui32RTPSAC;
 	uint64_t ui64GlobalSAC;
 	uint64_t ui64RTPSAC;
-    uint32_t ui32Offset;
+	uint32_t ui32Offset;
 	uint32_t ui32Len1;
 	uint32_t ui32Len2;
 
@@ -510,6 +537,9 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	}*/
 
 	MTAL_RtTraceEvent(RTTRACEEVENT_RTP_IN, (PVOID)(RT_TRACE_EVENT_SIGNAL_START | RT_TRACE_EVENT_COLOR_PINK), 0);
+
+	self->m_ui32RTPPacketCounter++;
+
 #ifdef DEBUG_CHECK
 	if(RTP_IS_PADDING(pRTPPacketBase->RTPHeader.byVersion)) // Padding
 	{
@@ -526,6 +556,8 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 #endif //DEBUG_CHECK
 	if(pRTPPacketBase->RTPHeader.byPayloadType != pRTP_stream_info->m_byPayloadType)
 	{
+		self->m_ui32WrongRTPPayloadTypeCounter++;
+
 		MTAL_DumpIPAddress(pRTP_stream_info->m_ui32DestIP, 0);
 		MTAL_DP(" %s: RTP packet with wrong PayloadType = 0x%x\n", pRTP_stream_info->m_cName, pRTPPacketBase->RTPHeader.byPayloadType);
 		MTAL_RtTraceEvent(RTTRACEEVENT_RTP_IN, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
@@ -545,6 +577,8 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 #endif
 		)
 	{
+		self->m_ui32WrongRTPSSRCCounter++;
+
 		// TODO: log error
 		if(self->m_usWrongSSRCMessageCounter == 0)
 		{
@@ -558,6 +592,8 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	// Sequence number check
 	if((unsigned short)(self->m_tRTPStream.m_usIncomingSeqNum + 1) != MTAL_SWAP16(pRTPPacketBase->RTPHeader.usSeqNum))
 	{
+		self->m_ui32WrongRTPSeqIdCounter++;
+
 		MTAL_DumpIPAddress(pRTP_stream_info->m_ui32DestIP, 0);
 		MTAL_DP(" RTP packet with wrong SeqNum = %d should be %d\n", MTAL_SWAP16(pRTPPacketBase->RTPHeader.usSeqNum), self->m_tRTPStream.m_usIncomingSeqNum + 1);
 	}
@@ -597,6 +633,8 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	// Time stamp check
 	if(ui32RTPTimeStamp != self->m_tRTPStream.m_ui32LastRTPSAC + self->m_tRTPStream.m_ui32LastRTPLengthInSamples)
 	{
+		self->m_ui32WrongRTPSACCounter++;
+
 		MTAL_DumpIPAddress(pRTP_stream_info->m_ui32DestIP, 0);
 		MTAL_DP(" %s: RTP packet with wrong SAC = %u should be %u, last size was: %u\n", pRTP_stream_info->m_cName, ui32RTPTimeStamp, self->m_tRTPStream.m_ui32LastRTPSAC + self->m_tRTPStream.m_ui32LastRTPLengthInSamples, self->m_tRTPStream.m_ui32LastRTPLengthInSamples);
 
@@ -676,7 +714,7 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	// TODO: if too late then drop
 	// TODO: if too early (more than get_live_jitter_buffer_length) then drop
 
-    ui32Offset = pManager->get_live_in_jitter_buffer_offset(pManager->user, ui64RTPSAC); // [smpl]
+	ui32Offset = pManager->get_live_in_jitter_buffer_offset(pManager->user, ui64RTPSAC); // [smpl]
 
 
 	ui32Len1 = min(pManager->get_live_jitter_buffer_length(pManager->user) - ui32Offset, ui32NbOfSamplesInThisPacket);
@@ -812,6 +850,15 @@ int SendRTPAudioPackets(TRTP_audio_stream* self)
 	uint32_t ui32Offset = pManager->get_live_out_jitter_buffer_offset(pManager->user, ui64CurrentSAC); // [smpl]
 
 
+
+	/*
+	// generate wrong stream to test RTP stream error detection
+	if ((ui64CurrentSAC / 48000) % 10 < 5)
+	{
+		//MTAL_DP("drop\n");
+		return true;
+	}*/
+
 #ifdef QSC_HACK
 	// QSC work-around; re-enable it for QSC support
 	ui64CurrentSAC += 100;
@@ -827,8 +874,8 @@ int SendRTPAudioPackets(TRTP_audio_stream* self)
 		MTAL_RtTraceEvent(RTTRACEEVENT_RTP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);
 		if(AcquireTransmitPacket(pEth_netfilter, &pHandle, &pvPacket, &ulPacketSize) && ulPacketSize >= ulMinPacketSize)
 		{
-            uint32_t ui32NbOfSamplesInThisPacket, ui32PacketSize, ui32Len1, ui32Len2;
-            TRTPPacketBase* pTRTPPacket = (TRTPPacketBase*)pvPacket;
+			uint32_t ui32NbOfSamplesInThisPacket, ui32PacketSize, ui32Len1, ui32Len2;
+			TRTPPacketBase* pTRTPPacket = (TRTPPacketBase*)pvPacket;
 			MTAL_RtTraceEvent(RTTRACEEVENT_RTP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 
 			// Copy the header
@@ -932,8 +979,8 @@ int SendRTPAudioPackets(TRTP_audio_stream* self)
 
 			ui32Offset += ui32NbOfSamplesInThisPacket;
 			if(ui32Offset >= pManager->get_live_jitter_buffer_length(pManager->user))
-                ui32Offset -= pManager->get_live_jitter_buffer_length(pManager->user);
-        }
+				ui32Offset -= pManager->get_live_jitter_buffer_length(pManager->user);
+		}
 		else
 		{
 			MTAL_RtTraceEvent(RTTRACEEVENT_RTP_OUT, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
@@ -960,31 +1007,38 @@ int SendRTPAudioPackets(TRTP_audio_stream* self)
 int IsLivesInMustBeMuted(TRTP_audio_stream* self)
 {
 	// check if the audio for the current (i.e. at GlobalSAC()) frame was filled.
+	//return 0;
 	return (signed)(self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - self->m_pManager->get_global_SAC(self->m_pManager->user)) < (signed)self->m_pManager->get_frame_size(self->m_pManager->user);
 }
 
 //////////////////////////////////////////////////////////////
+// Note: protected by m_csSinkRTPStreams or m_csSourceRTPStreams spinlock
 void PrepareBufferLives(TRTP_audio_stream* self)
 {
+	// sink status (used by m_StreamStatus)
+	bool bLivesInMuted = false;
+
 	TRTP_stream_info* pRTP_stream_info = &self->m_tRTPStream.m_RTP_stream_info;
 	rtp_audio_stream_ops* pManager = self->m_pManager;
 
 	// check if the current (i.e. at GlobalSAC()) audio frame of the sink must be muted
 	if(!pRTP_stream_info->m_bSource)
 	{ // Sink
+		MTAL_RtTraceEvent(RTTRACEEVENT_SINK_LIVE_MUTED, (PVOID)(RT_TRACE_EVENT_OCCURENCE), 0);
 		if(IsLivesInMustBeMuted(self))
 		{
-
 			uint32_t ui32Offset = pManager->get_live_in_jitter_buffer_offset(pManager->user, pManager->get_global_SAC(pManager->user));
+			bLivesInMuted = true;
 
 			if(self->m_ulLivesInDMCounter < pManager->get_live_jitter_buffer_length(pManager->user) / pManager->get_frame_size(pManager->user))
 			{
-                unsigned short us;
-                #ifndef WIN32
-                    MTAL_DP("sink %s: is muted at globalSAC = %llu\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user));
-                #else
-                    MTAL_DP("sink %s: is muted at globalSAC = %I64u\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user));
-                #endif
+				unsigned short us;
+				int64_t delta = self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user);
+				#ifndef WIN32
+					MTAL_DP("sink %s: is muted at globalSAC = %llu (delta = %lld)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), delta);
+				#else
+					MTAL_DP("sink %s: is muted at globalSAC = %I64u (delta = %I64)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), delta);
+				#endif
 				self->m_ulLivesInDMCounter++;
 
 				for(us = 0; us < pRTP_stream_info->m_byNbOfChannels; us++)
@@ -1005,6 +1059,53 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 		else
 		{
 			self->m_ulLivesInDMCounter = 0;
+		}
+	}
+	
+	// update m_StreamStatus
+	if (!pRTP_stream_info->m_bSource)
+	{
+		// Wrong RTP Seq id
+		bool bWrongRTPSeqId = self->m_ui32WrongRTPSeqIdCounter != self->m_ui32WrongRTPSeqIdLastCounter;
+		bool bSinkIsReceiving = self->m_ui32RTPPacketCounter != self->m_ui32RTPPacketLastCounter;
+		bool bWrontRTPSSRC = self->m_ui32WrongRTPSSRCCounter != self->m_ui32WrongRTPSSRCLastCounter;
+		bool bWrongRTPPayloadType = self->m_ui32WrongRTPPayloadTypeCounter != self->m_ui32WrongRTPPayloadTypeLastCounter;
+		bool bWrongRTPSAC = self->m_ui32WrongRTPSACCounter != self->m_ui32WrongRTPSACLastCounter;
+		
+		self->m_ui32WrongRTPSeqIdLastCounter = self->m_ui32WrongRTPSeqIdCounter;
+		self->m_ui32RTPPacketLastCounter = self->m_ui32RTPPacketCounter;
+		self->m_ui32WrongRTPSSRCLastCounter = self->m_ui32WrongRTPSSRCCounter;
+		self->m_ui32WrongRTPPayloadTypeLastCounter = self->m_ui32WrongRTPPayloadTypeCounter;
+		self->m_ui32WrongRTPSACLastCounter = self->m_ui32WrongRTPSACCounter;
+
+		// Reset?
+		if (self->m_ui32StreamStatusResetCounter != self->m_ui32StreamStatusLastResetCounter)
+		{
+			self->m_ui32StreamStatusLastResetCounter = self->m_ui32StreamStatusResetCounter;
+
+			self->m_StreamStatus.u.flags = 0;
+
+			self->m_StreamStatus.u.sink_receiving_RTP_packet = bSinkIsReceiving ? 1 : 0;
+			self->m_StreamStatus.u.sink_muted = bLivesInMuted ? 1 : 0;
+			self->m_StreamStatus.u.sink_RTP_seq_id_error = bWrongRTPSeqId ? 1 : 0;
+			self->m_StreamStatus.u.sink_RTP_SSRC_error = bWrontRTPSSRC ? 1 : 0;
+			self->m_StreamStatus.u.sink_RTP_PayloadType_error = bWrongRTPPayloadType ? 1 : 0;
+			self->m_StreamStatus.u.sink_RTP_SAC_error = bWrongRTPSAC ? 1 : 0;
+		}
+		else
+		{ // update error only
+			if (!bSinkIsReceiving)
+				self->m_StreamStatus.u.sink_receiving_RTP_packet = 0;
+			if (bLivesInMuted)
+				self->m_StreamStatus.u.sink_muted = 1;
+			if (bWrongRTPSeqId)
+				self->m_StreamStatus.u.sink_RTP_seq_id_error = 1;
+			if(bWrontRTPSSRC)
+				self->m_StreamStatus.u.sink_RTP_SSRC_error = 1;
+			if(bWrongRTPPayloadType)
+				self->m_StreamStatus.u.sink_RTP_PayloadType_error = 1;
+			if(bWrongRTPSAC)
+				self->m_StreamStatus.u.sink_RTP_SAC_error = 1;
 		}
 	}
 }

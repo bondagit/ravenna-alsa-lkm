@@ -107,6 +107,12 @@ void MTConvertMappedFloatToBigEndianInt24Interleave(void** ppfUninterleave, cons
 void MTConvertBigEndianInt24ToMappedFloatDeInterleave(void* pbyBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 #endif //!defined(NT_DRIVER)
 
+int MTConvertMappedInt32ToInt16LEInterleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16LittleEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+int MTConvertMappedInt32ToInt24LEInterleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16LittleEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16LittleEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+int MTConvertMappedInt32ToInt32LEInterleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16LittleEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+
+
 void MTConvertMappedInt24ToBigEndianInt16Interleave(void** ppi24Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16BigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
 void MTConvertBigEndianInt16ToMappedInt24DeInterleave(void* pi16BigEndianInterleave, void** ppi24Uninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 void MTConvertMappedInt32ToBigEndianInt16Interleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pi16BigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);

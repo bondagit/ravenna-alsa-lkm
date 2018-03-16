@@ -32,12 +32,14 @@
 
 #include "MTConvert.h"
 
-#ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
+#if !(defined(MTAL_LINUX) && defined(MTAL_KERNEL))
+    #ifndef max
+    #define max(a,b)            (((a) > (b)) ? (a) : (b))
+    #endif
 
-#ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+    #ifndef min
+    #define min(a,b)            (((a) < (b)) ? (a) : (b))
+    #endif
 #endif
 
 #define SWAP16(x) (((x >> 8) & 0x00ff) | (((x) << 8) & 0xff00))
@@ -117,13 +119,13 @@ typedef void (*INT24TOFLOAT)(TRIBYTE * pSrc, float * pDest, uint32_t dwLength);
 typedef void (*INT32TOFLOAT)(int32_t * pSrc, float * pDest, uint32_t dwLength);
 
 FLOATTOINT8 JmpTableFloatToInt8   = NotOptimized_ConvertFloatToInt8;
-FLOATTOINT16 JmpTableFloatToInt16 =	NotOptimized_ConvertFloatToInt16;
-FLOATTOINT24 JmpTableFloatToInt24 =	NotOptimized_ConvertFloatToInt24;
-FLOATTOINT32 JmpTableFloatToInt32 =	NotOptimized_ConvertFloatToInt32;
+FLOATTOINT16 JmpTableFloatToInt16 = NotOptimized_ConvertFloatToInt16;
+FLOATTOINT24 JmpTableFloatToInt24 = NotOptimized_ConvertFloatToInt24;
+FLOATTOINT32 JmpTableFloatToInt32 = NotOptimized_ConvertFloatToInt32;
 
-INT16TOFLOAT JmpTableInt16ToFloat =	NotOptimized_ConvertInt16ToFloat;
-INT24TOFLOAT JmpTableInt24ToFloat =	NotOptimized_ConvertInt24ToFloat;
-INT32TOFLOAT JmpTableInt32ToFloat =	NotOptimized_ConvertInt32ToFloat;
+INT16TOFLOAT JmpTableInt16ToFloat = NotOptimized_ConvertInt16ToFloat;
+INT24TOFLOAT JmpTableInt24ToFloat = NotOptimized_ConvertInt24ToFloat;
+INT32TOFLOAT JmpTableInt32ToFloat = NotOptimized_ConvertInt32ToFloat;
 
 
 
@@ -134,29 +136,29 @@ INT32TOFLOAT JmpTableInt32ToFloat =	NotOptimized_ConvertInt32ToFloat;
 ///////////////////////////////////////////////////////////////////////////////
 static uint32_t GetFeatures()
 {
-	/*uint32_t dwFeature;
-	_asm {
-		push eax
-		push ebx
-		push ecx
-		push edx
+    /*uint32_t dwFeature;
+    _asm {
+        push eax
+        push ebx
+        push ecx
+        push edx
 
-		// get the Standard bits
-		mov eax, 1
-		cpuid
-		mov dwFeature, edx
+        // get the Standard bits
+        mov eax, 1
+        cpuid
+        mov dwFeature, edx
 
-		pop edx
-		pop ecx
-		pop ebx
-		pop eax
-	}
-	return dwFeature;*/
-	int CPUInfo[4];
-	int InfoType = 1; // get the Standard bits
-	__cpuid(CPUInfo, InfoType);
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+    }
+    return dwFeature;*/
+    int CPUInfo[4];
+    int InfoType = 1; // get the Standard bits
+    __cpuid(CPUInfo, InfoType);
 
-	return CPUInfo[3];
+    return CPUInfo[3];
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -164,15 +166,17 @@ static uint32_t GetFeatures()
 #define _SSE_FEATURE_BIT 0x02000000
 #define _SSE2_FEATURE_BIT 0x04000000
 
+#elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+    #include <asm/uaccess.h>
 #endif
 
 void MTConvertInit() //Init_Converter()
 {
-	if(g_bInitialized)
-	{
-		return;
-	}
-	g_bInitialized = true;
+    if(g_bInitialized)
+    {
+        return;
+    }
+    g_bInitialized = true;
 
 #if defined(WIN32) && !defined(NT_DRIVER)
     #ifndef _AMD64_
@@ -204,35 +208,35 @@ void MTConvertInit() //Init_Converter()
         if(/*FIXME(dwFeature & _SSE2_FEATURE_BIT)*/FALSE)
         {
             // SSE2 instructions are supported
-    //		JmpTableFloatToInt8 = Optimized_ConvertFloatToInt8;
+    //      JmpTableFloatToInt8 = Optimized_ConvertFloatToInt8;
             JmpTableFloatToInt16 = SSE_ConvertFloatToInt16;
             JmpTableFloatToInt24 = SSE2_ConvertFloatToInt24;
-    //		JmpTableFloatToInt32 = NotOptimized_ConvertFloatToInt32;
+    //      JmpTableFloatToInt32 = NotOptimized_ConvertFloatToInt32;
             JmpTableFloatToInt32 = SSE2_ConvertFloatToInt32;
 
             JmpTableInt16ToFloat = SSE_ConvertInt16ToFloat;
             JmpTableInt24ToFloat = SSE2_ConvertInt24ToFloat;
-    //		JmpTableInt32ToFloat = NotOptimized_ConvertInt32ToFloat;
+    //      JmpTableInt32ToFloat = NotOptimized_ConvertInt32ToFloat;
             JmpTableInt32ToFloat = SSE2_ConvertInt32ToFloat;
 
         }
     #endif
 #endif
 
-	// Init m_abyReversedLookupTable
-	if(!g_bMTConvert_ReversedLookupTableInitialized)
-	{
-		uint16_t dw;
-		for(dw = 0; dw < 256; dw++)
-		{
-			uint8_t c = (uint8_t)dw;
-			c = (uint8_t)((c & 0x0F) << 4 | (c & 0xF0) >> 4);
-			c = (uint8_t)((c & 0x33) << 2 | (c & 0xCC) >> 2);
-			c = (uint8_t)((c & 0x55) << 1 | (c & 0xAA) >> 1);
-			g_aui8MTConvert_ReversedBitLookupTable[dw] = c;
-		}
-		g_bMTConvert_ReversedLookupTableInitialized = true;
-	}
+    // Init m_abyReversedLookupTable
+    if(!g_bMTConvert_ReversedLookupTableInitialized)
+    {
+        uint16_t dw;
+        for(dw = 0; dw < 256; dw++)
+        {
+            uint8_t c = (uint8_t)dw;
+            c = (uint8_t)((c & 0x0F) << 4 | (c & 0xF0) >> 4);
+            c = (uint8_t)((c & 0x33) << 2 | (c & 0xCC) >> 2);
+            c = (uint8_t)((c & 0x55) << 1 | (c & 0xAA) >> 1);
+            g_aui8MTConvert_ReversedBitLookupTable[dw] = c;
+        }
+        g_bMTConvert_ReversedLookupTableInitialized = true;
+    }
 }
 
 #if defined(WIN32) && !defined(NT_DRIVER)
@@ -241,35 +245,35 @@ void MTConvertInit() //Init_Converter()
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertReverseDSD64_32(uint32_t const* pui32Src, uint32_t* pui32Dest, uint32_t ui32Length)
 {
-	BYTE const* pbSrc = (BYTE const*)pui32Src;
-	for (unsigned int a = 0; a < ui32Length; a++)
-	{
-		pui32Dest[a] = g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]];
-		pbSrc -= 4;
-	}
+    BYTE const* pbSrc = (BYTE const*)pui32Src;
+    for (unsigned int a = 0; a < ui32Length; a++)
+    {
+        pui32Dest[a] = g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]];
+        pbSrc -= 4;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertReverseDSD128_32(uint32_t const* pui32Src, uint32_t* pui32Dest, uint32_t ui32Length)
 {
-	BYTE const* pbSrc = (BYTE const*)pui32Src;
-	for (unsigned int a = 0; a < ui32Length; a++)
-	{
-		pui32Dest[a] = (g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]] << 8) | g_aui8MTConvert_ReversedBitLookupTable[pbSrc[1]];
-		pbSrc -= 4;
-	}
+    BYTE const* pbSrc = (BYTE const*)pui32Src;
+    for (unsigned int a = 0; a < ui32Length; a++)
+    {
+        pui32Dest[a] = (g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]] << 8) | g_aui8MTConvert_ReversedBitLookupTable[pbSrc[1]];
+        pbSrc -= 4;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertReverseDSD256_32(uint32_t const* pui32Src, uint32_t* pui32Dest, uint32_t ui32Length)
 {
-	BYTE const* pbSrc = (BYTE const*)pui32Src;
-	for (unsigned int a = 0; a < ui32Length; a++)
-	{
-		pui32Dest[a] =	(g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]] << 24) |
-						(g_aui8MTConvert_ReversedBitLookupTable[pbSrc[1]] << 16) |
-						(g_aui8MTConvert_ReversedBitLookupTable[pbSrc[2]] << 8) |
-						g_aui8MTConvert_ReversedBitLookupTable[pbSrc[3]];
-		pbSrc -= 4;
-	}
+    BYTE const* pbSrc = (BYTE const*)pui32Src;
+    for (unsigned int a = 0; a < ui32Length; a++)
+    {
+        pui32Dest[a] =  (g_aui8MTConvert_ReversedBitLookupTable[pbSrc[0]] << 24) |
+                        (g_aui8MTConvert_ReversedBitLookupTable[pbSrc[1]] << 16) |
+                        (g_aui8MTConvert_ReversedBitLookupTable[pbSrc[2]] << 8) |
+                        g_aui8MTConvert_ReversedBitLookupTable[pbSrc[3]];
+        pbSrc -= 4;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -282,19 +286,19 @@ void MTConvertReverseDSD256_32(uint32_t const* pui32Src, uint32_t* pui32Dest, ui
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatToInt8(float *pSrc, int8_t *pDest, uint32_t dwLength)
 {
-	JmpTableFloatToInt8(pSrc, pDest, dwLength);
+    JmpTableFloatToInt8(pSrc, pDest, dwLength);
 }
 ///////////////////////////////////////////////////////////////////////////////
 void NotOptimized_ConvertFloatToInt8(float *pSrc, int8_t *pDest, uint32_t dwLength)
 {
-	float f0dB = (float)pow(2.0, 7.0);
-	float fPositiveMax = 1.0f - (float)pow(2.0, -7.0);
+    float f0dB = (float)pow(2.0, 7.0);
+    float fPositiveMax = 1.0f - (float)pow(2.0, -7.0);
 
-	for (ULONG i = 0; i < dwLength; i++)
-	{
-		*pSrc = min( fPositiveMax, max(*pSrc, -1.f));
-		*pDest++ = (int8_t)(*pSrc++ * f0dB);
-	}
+    for (ULONG i = 0; i < dwLength; i++)
+    {
+        *pSrc = min( fPositiveMax, max(*pSrc, -1.f));
+        *pDest++ = (int8_t)(*pSrc++ * f0dB);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -303,82 +307,82 @@ void NotOptimized_ConvertFloatToInt8(float *pSrc, int8_t *pDest, uint32_t dwLeng
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatToInt16(float *pSrc, int16_t *pDest, uint32_t dwLength)
 {
-	JmpTableFloatToInt16(pSrc, pDest, dwLength);
+    JmpTableFloatToInt16(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 ///////////////////////////////////////////////////////////////////////////////
 void SSE_ConvertFloatToInt16(float *pSrc, int16_t *pDest, uint32_t dwLength)
 {
-	__m128* pSrcFloat; // = (__m128*) pSrc;
-	__m64* pDestInt16; // = (__m64*) pDest;
+    __m128* pSrcFloat; // = (__m128*) pSrc;
+    __m64* pDestInt16; // = (__m64*) pDest;
 
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
-	uint32_t i;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
+    uint32_t i;
 
-	float f32768 = 32768.0f;
+    float f32768 = 32768.0f;
 
-	__m128 m128_0dB = _mm_load1_ps(&f32768);
+    __m128 m128_0dB = _mm_load1_ps(&f32768);
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 4byte(float) aligned
-	if(((INT_PTR)pSrc & 0x3))
-	{
-		//we are not able to get 16byte alignment
-		NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwLength);
-		return;
-	}
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 4byte(float) aligned
+    if(((INT_PTR)pSrc & 0x3))
+    {
+        //we are not able to get 16byte alignment
+        NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwLength);
+        return;
+    }
 
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (int16_t*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwLength);
-		return;
-	}
+        NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (int16_t*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertFloatToInt16(pSrc, pDest, dwLength);
+        return;
+    }
 
-	dwSamplesRemaining = dwLength & 0x3; // modulo
-	dwLoop = dwLength / 4;
-	pSrcFloat = (__m128*) pSrc;
-	pDestInt16 = (__m64*) pDest;
-	for(i = 0; i < dwLoop; i++)
-	{
-		*pSrcFloat = _mm_mul_ps(*pSrcFloat,m128_0dB);
-		*pDestInt16 = _mm_cvtps_pi16(*pSrcFloat);
-		pDestInt16++;
-		pSrcFloat++;
-	}
-	if (dwSamplesRemaining != 0)
-	{
-		NotOptimized_ConvertFloatToInt16((float*)pSrcFloat, (int16_t*)pDestInt16, dwSamplesRemaining);
-	}
-	_mm_empty();
+    dwSamplesRemaining = dwLength & 0x3; // modulo
+    dwLoop = dwLength / 4;
+    pSrcFloat = (__m128*) pSrc;
+    pDestInt16 = (__m64*) pDest;
+    for(i = 0; i < dwLoop; i++)
+    {
+        *pSrcFloat = _mm_mul_ps(*pSrcFloat,m128_0dB);
+        *pDestInt16 = _mm_cvtps_pi16(*pSrcFloat);
+        pDestInt16++;
+        pSrcFloat++;
+    }
+    if (dwSamplesRemaining != 0)
+    {
+        NotOptimized_ConvertFloatToInt16((float*)pSrcFloat, (int16_t*)pDestInt16, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
 void NotOptimized_ConvertFloatToInt16(float *pSrc, int16_t *pDest, uint32_t dwLength)
 {
-	ULONG i;
-	float f0dB = (float)pow(2.0, 15.0);
-	float fPositiveMax = 1.0f - (float)pow(2.0, -15.0);
+    ULONG i;
+    float f0dB = (float)pow(2.0, 15.0);
+    float fPositiveMax = 1.0f - (float)pow(2.0, -15.0);
 
-	for (i = 0; i < dwLength; i++)
-	{
-		float fTmp = min(fPositiveMax, max(*pSrc, -1.f));
-		pSrc++;
-		*pDest++ = (int16_t)(fTmp * f0dB);
-	}
+    for (i = 0; i < dwLength; i++)
+    {
+        float fTmp = min(fPositiveMax, max(*pSrc, -1.f));
+        pSrc++;
+        *pDest++ = (int16_t)(fTmp * f0dB);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -386,135 +390,135 @@ void NotOptimized_ConvertFloatToInt16(float *pSrc, int16_t *pDest, uint32_t dwLe
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatToInt24(float *pSrc, TRIBYTE *pDest, uint32_t dwLength)
 {
-	JmpTableFloatToInt24(pSrc, pDest, dwLength);
+    JmpTableFloatToInt24(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 ///////////////////////////////////////////////////////////////////////////////
 void SSE2_ConvertFloatToInt24(float *pSrc, TRIBYTE *pDest, uint32_t dwLength)
 {
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
 
-	float f8388608 = 8388608.0f;
+    float f8388608 = 8388608.0f;
 
-	__m128 m128_0dB = _mm_load1_ps(&f8388608);
+    __m128 m128_0dB = _mm_load1_ps(&f8388608);
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 4byte(float) aligned
-	if(((INT_PTR)pSrc & 0x3))
-	{
-		//we are not able to get 16byte alignment
-		NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwLength);
-		return;
-	}
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 4byte(float) aligned
+    if(((INT_PTR)pSrc & 0x3))
+    {
+        //we are not able to get 16byte alignment
+        NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwLength);
+        return;
+    }
 
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (TRIBYTE*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwLength);
-		return;
-	}
-	dwSamplesRemaining = dwLength & 0x3; // modulo 4
-	dwLoop = dwLength / 4;
+        NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (TRIBYTE*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwLength);
+        return;
+    }
+    dwSamplesRemaining = dwLength & 0x3; // modulo 4
+    dwLoop = dwLength / 4;
 
-	if(dwLoop)
-	{
-		_asm
-		{
-			push		eax
-			push		edx
-			push		ecx
-			push		esi
-			push		edi
+    if(dwLoop)
+    {
+        _asm
+        {
+            push        eax
+            push        edx
+            push        ecx
+            push        esi
+            push        edi
 
-			mov			esi, pSrc
-			mov			edi, pDest
-			mov			ecx, dwLoop
+            mov         esi, pSrc
+            mov         edi, pDest
+            mov         ecx, dwLoop
 
-			movaps		xmm1, m128_0dB
+            movaps      xmm1, m128_0dB
 
-	ConvertFloatToInt24_Loop:
-			movaps		xmm0, [esi]
-			add			esi, 16
-			prefetcht0	[esi]
-			mulps		xmm0, xmm1
-			cvtps2dq	xmm0, xmm0		;=> X3X2X1X0
+    ConvertFloatToInt24_Loop:
+            movaps      xmm0, [esi]
+            add         esi, 16
+            prefetcht0  [esi]
+            mulps       xmm0, xmm1
+            cvtps2dq    xmm0, xmm0      ;=> X3X2X1X0
 
-			movd		eax, xmm0
-			mov			[edi], ax
+            movd        eax, xmm0
+            mov         [edi], ax
 
-			pshufd		xmm0, xmm0, 0E5h	;=> X3X2X1X1
-			movd		edx, xmm0
+            pshufd      xmm0, xmm0, 0E5h    ;=> X3X2X1X1
+            movd        edx, xmm0
 
-			shr			eax, 16
-			and			eax, 0ffh
-			shl			edx, 8
-			or			eax, edx
-			mov			[edi+2], eax
+            shr         eax, 16
+            and         eax, 0ffh
+            shl         edx, 8
+            or          eax, edx
+            mov         [edi+2], eax
 
-			pshufd		xmm0, xmm0, 0E6h	; => X3X2X1X2
-			movd		eax, xmm0
-			mov			[edi+6], ax
+            pshufd      xmm0, xmm0, 0E6h    ; => X3X2X1X2
+            movd        eax, xmm0
+            mov         [edi+6], ax
 
-			pshufd		xmm0, xmm0, 0E7h	;=> X3X2X1X3
-			movd		edx, xmm0
+            pshufd      xmm0, xmm0, 0E7h    ;=> X3X2X1X3
+            movd        edx, xmm0
 
-			shr			eax, 16
-			and			eax, 0ffh
-			shl			edx, 8
-			or			eax, edx
-			mov			[edi+8], eax
-			add			edi, 12
+            shr         eax, 16
+            and         eax, 0ffh
+            shl         edx, 8
+            or          eax, edx
+            mov         [edi+8], eax
+            add         edi, 12
 
-			dec ecx
-			jne			ConvertFloatToInt24_Loop
+            dec ecx
+            jne         ConvertFloatToInt24_Loop
 
-			pop			edi
-			pop			esi
-			pop			ecx
-			pop			edx
-			pop			eax
-		}
-	}
-	if (dwSamplesRemaining != 0)
-	{
-		pSrc += (dwLength-dwSamplesRemaining);
-		pDest += (dwLength-dwSamplesRemaining);
-		NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwSamplesRemaining);
-	}
-	_mm_empty();
+            pop         edi
+            pop         esi
+            pop         ecx
+            pop         edx
+            pop         eax
+        }
+    }
+    if (dwSamplesRemaining != 0)
+    {
+        pSrc += (dwLength-dwSamplesRemaining);
+        pDest += (dwLength-dwSamplesRemaining);
+        NotOptimized_ConvertFloatToInt24(pSrc, pDest, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
 void NotOptimized_ConvertFloatToInt24(float *pSrc, TRIBYTE *pDest, uint32_t dwLength)
 {
-	float f0dB = (float)pow(2.0, 23.0);
-	float fPositiveMax = 1.0f - (float)pow(2.0, -23.0);
+    float f0dB = (float)pow(2.0, 23.0);
+    float fPositiveMax = 1.0f - (float)pow(2.0, -23.0);
 
-	for (ULONG i = 0; i < dwLength; i++ )
-	{
-		float fTmp = min(fPositiveMax, max(*pSrc, -1.0f));
-		long nTmp = (long)(fTmp * f0dB);
+    for (ULONG i = 0; i < dwLength; i++ )
+    {
+        float fTmp = min(fPositiveMax, max(*pSrc, -1.0f));
+        long nTmp = (long)(fTmp * f0dB);
 
-		TRIBYTE tbTmp;
-		tbTmp.w = (uint16_t)(nTmp & 0xFFFF);
-		tbTmp.b = (uint8_t)((nTmp & 0xFF0000) >> 16);
+        TRIBYTE tbTmp;
+        tbTmp.w = (uint16_t)(nTmp & 0xFFFF);
+        tbTmp.b = (uint8_t)((nTmp & 0xFF0000) >> 16);
 
-		pSrc++;
-		*pDest++ = tbTmp;
-	}
+        pSrc++;
+        *pDest++ = tbTmp;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -524,8 +528,8 @@ void NotOptimized_ConvertFloatToInt24(float *pSrc, TRIBYTE *pDest, uint32_t dwLe
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatTo32BitInt24(float *pSrc, int32_t *pDest, uint32_t dwLength)
 {
-	MTConvertFloatToInt32(pSrc, pDest, dwLength);
-	//TODO: put 0 in bits [7..0]
+    MTConvertFloatToInt32(pSrc, pDest, dwLength);
+    //TODO: put 0 in bits [7..0]
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -534,123 +538,123 @@ void MTConvertFloatTo32BitInt24(float *pSrc, int32_t *pDest, uint32_t dwLength)
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatToInt32(float *pSrc, int32_t *pDest, uint32_t dwLength)
 {
-	//NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
-	JmpTableFloatToInt32(pSrc, pDest, dwLength);
+    //NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
+    JmpTableFloatToInt32(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 ///////////////////////////////////////////////////////////////////////////////
 void SSE2_ConvertFloatToInt32(float *pSrc, int32_t *pDest, uint32_t dwLength)
 {
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
 
-	float f2147483648 = 2147483648.0f;
+    float f2147483648 = 2147483648.0f;
 
-	__m128 m128_0dB = _mm_load1_ps(&f2147483648);
+    __m128 m128_0dB = _mm_load1_ps(&f2147483648);
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 4byte(float) aligned
-	if(((INT_PTR)pSrc & 0x3))
-	{
-		//we are not able to get 16byte alignment
-		NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
-		return;
-	}
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 4byte(float) aligned
+    if(((INT_PTR)pSrc & 0x3))
+    {
+        //we are not able to get 16byte alignment
+        NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
+        return;
+    }
 
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (int32_t*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
-		return;
-	}
-	dwSamplesRemaining = dwLength & 0x3; // modulo 4
-	dwLoop = dwLength / 4;
+        NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (int32_t*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (float*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwLength);
+        return;
+    }
+    dwSamplesRemaining = dwLength & 0x3; // modulo 4
+    dwLoop = dwLength / 4;
 
-	if(dwLoop)
-	{
-		_asm
-		{
-			push		eax
-			push		ecx
-			push		esi
-			push		edi
+    if(dwLoop)
+    {
+        _asm
+        {
+            push        eax
+            push        ecx
+            push        esi
+            push        edi
 
-			mov			esi, pSrc
-			mov			edi, pDest
-			mov			ecx, dwLoop
+            mov         esi, pSrc
+            mov         edi, pDest
+            mov         ecx, dwLoop
 
-			movaps		xmm1, m128_0dB
+            movaps      xmm1, m128_0dB
 
-	ConvertFloatToInt32_Loop:
-			movaps		xmm0, [esi]
-			add			esi, 16
-			prefetcht0	[esi]
-			mulps		xmm0, xmm1
-			cvtps2dq	xmm0, xmm0		;=> X3X2X1X0
+    ConvertFloatToInt32_Loop:
+            movaps      xmm0, [esi]
+            add         esi, 16
+            prefetcht0  [esi]
+            mulps       xmm0, xmm1
+            cvtps2dq    xmm0, xmm0      ;=> X3X2X1X0
 
-			movd		eax, xmm0
-			mov			[edi], eax
-			pshufd		xmm0, xmm0, 0E5h	;=> X3X2X1X1
+            movd        eax, xmm0
+            mov         [edi], eax
+            pshufd      xmm0, xmm0, 0E5h    ;=> X3X2X1X1
 
-			movd		eax, xmm0
-			mov			[edi+4], eax
-			pshufd		xmm0, xmm0, 0E6h	;=> X3X2X1X1
+            movd        eax, xmm0
+            mov         [edi+4], eax
+            pshufd      xmm0, xmm0, 0E6h    ;=> X3X2X1X1
 
-			movd		eax, xmm0
-			mov			[edi+8], eax
-			pshufd		xmm0, xmm0, 0E7h	;=> X3X2X1X1
+            movd        eax, xmm0
+            mov         [edi+8], eax
+            pshufd      xmm0, xmm0, 0E7h    ;=> X3X2X1X1
 
-			movd		eax, xmm0
-			mov			[edi+0Ch], eax
+            movd        eax, xmm0
+            mov         [edi+0Ch], eax
 
-			add			edi, 16
+            add         edi, 16
 
-			dec ecx
-			jne			ConvertFloatToInt32_Loop
+            dec ecx
+            jne         ConvertFloatToInt32_Loop
 
-			pop			edi
-			pop			esi
-			pop			ecx
-			pop			eax
-		}
-	}
-	if (dwSamplesRemaining != 0)
-	{
-		pSrc += (dwLength-dwSamplesRemaining);
-		pDest += (dwLength-dwSamplesRemaining);
-		NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwSamplesRemaining);
-	}
-	_mm_empty();
+            pop         edi
+            pop         esi
+            pop         ecx
+            pop         eax
+        }
+    }
+    if (dwSamplesRemaining != 0)
+    {
+        pSrc += (dwLength-dwSamplesRemaining);
+        pDest += (dwLength-dwSamplesRemaining);
+        NotOptimized_ConvertFloatToInt32(pSrc, pDest, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
 void NotOptimized_ConvertFloatToInt32(float *pSrc, int32_t *pDest, uint32_t dwLength)
 {
-	volatile float f0dB = 2147483648.0f;
-	volatile float fPositiveMax;
-	 *(unsigned int*)&fPositiveMax = 0x3F7FFFFF; // hex representation of 1.0f - powf(2.0f, -31.0f);
-												 // to avoid unwanted float rounding to nearest which (1.0f in this case)
-												 // and would cause overflow to MININT32 when casting to int32 for input values
-												 // over 1.0f, hence big glitch instead of normal limiting
+    volatile float f0dB = 2147483648.0f;
+    volatile float fPositiveMax;
+     *(unsigned int*)&fPositiveMax = 0x3F7FFFFF; // hex representation of 1.0f - powf(2.0f, -31.0f);
+                                                 // to avoid unwanted float rounding to nearest which (1.0f in this case)
+                                                 // and would cause overflow to MININT32 when casting to int32 for input values
+                                                 // over 1.0f, hence big glitch instead of normal limiting
 
-	for (ULONG i = 0; i < dwLength; i++)
-	{
-		float fTmp = min(fPositiveMax, max(*pSrc, -1.f));
-		pSrc++;
-		*pDest++ = (int32_t)(fTmp * f0dB);
-	}
+    for (ULONG i = 0; i < dwLength; i++)
+    {
+        float fTmp = min(fPositiveMax, max(*pSrc, -1.f));
+        pSrc++;
+        *pDest++ = (int32_t)(fTmp * f0dB);
+    }
 }
 
 
@@ -659,16 +663,16 @@ void NotOptimized_ConvertFloatToInt32(float *pSrc, int32_t *pDest, uint32_t dwLe
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertFloatToInt32_24r(float *pSrc, int32_t *pDest, uint32_t dwLength)
 {
-	float f0dB = (float)pow(2.0, 23.0);
-	float fPositiveMax = 1.0f - (float)pow(2.0, -23.0);
+    float f0dB = (float)pow(2.0, 23.0);
+    float fPositiveMax = 1.0f - (float)pow(2.0, -23.0);
 
-	for (ULONG i = 0; i < dwLength; i++)
-	{
-		float fTmp = min(fPositiveMax, max(*pSrc, -1.0f));
+    for (ULONG i = 0; i < dwLength; i++)
+    {
+        float fTmp = min(fPositiveMax, max(*pSrc, -1.0f));
 
-		pSrc++;
-		*pDest++ = (int32_t)(fTmp * f0dB);
-	}
+        pSrc++;
+        *pDest++ = (int32_t)(fTmp * f0dB);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -680,81 +684,81 @@ void MTConvertFloatToInt32_24r(float *pSrc, int32_t *pDest, uint32_t dwLength)
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertInt16ToFloat(int16_t * pSrc, float * pDest, uint32_t dwLength)
 {
-	JmpTableInt16ToFloat(pSrc, pDest, dwLength);
+    JmpTableInt16ToFloat(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 void SSE_ConvertInt16ToFloat(int16_t *pSrc, float *pDest, uint32_t dwLength)
 {
-	__m128* pDestFloat; // = (__m128*) pDest;
-	__m64* pSrcInt16; // = (__m64*) pSrc;
+    __m128* pDestFloat; // = (__m128*) pDest;
+    __m64* pSrcInt16; // = (__m64*) pSrc;
 
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
-	uint32_t i;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
+    uint32_t i;
 
-	float f1 = 1.0f;
-	float f32768 = 32768.0f;
+    float f1 = 1.0f;
+    float f32768 = 32768.0f;
 
-	__m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f32768));
+    __m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f32768));
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 2byte(int16_t) aligned
-	if((INT_PTR)pSrc & 0x1)
-	{
-		// we are not able to align to 16byte
-		NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwLength);
-		return;
-	}
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 2byte(int16_t) aligned
+    if((INT_PTR)pSrc & 0x1)
+    {
+        // we are not able to align to 16byte
+        NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwLength);
+        return;
+    }
 
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (int16_t*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwLength);
-		return;
-	}
+        NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (int16_t*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwLength);
+        return;
+    }
 
-	dwSamplesRemaining = dwLength & 0x3; // modulo
-	dwLoop = dwLength / 4;
+    dwSamplesRemaining = dwLength & 0x3; // modulo
+    dwLoop = dwLength / 4;
 
-	pDestFloat = (__m128*) pDest;
-	pSrcInt16 = (__m64*) pSrc;
-	for(i = 0; i < dwLoop; i++)
-	{
-		*pDestFloat = _mm_cvtpi16_ps(*pSrcInt16);
-		*pDestFloat = _mm_mul_ps(*pDestFloat,m128_0dB);
-		pSrcInt16++;
-		pDestFloat++;
-	}
-	if (dwSamplesRemaining != 0)
-	{
-		pDest = (float*)pDestFloat;
-		pSrc = (int16_t*)pSrcInt16;
-		NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwSamplesRemaining);
-	}
-	_mm_empty();
+    pDestFloat = (__m128*) pDest;
+    pSrcInt16 = (__m64*) pSrc;
+    for(i = 0; i < dwLoop; i++)
+    {
+        *pDestFloat = _mm_cvtpi16_ps(*pSrcInt16);
+        *pDestFloat = _mm_mul_ps(*pDestFloat,m128_0dB);
+        pSrcInt16++;
+        pDestFloat++;
+    }
+    if (dwSamplesRemaining != 0)
+    {
+        pDest = (float*)pDestFloat;
+        pSrc = (int16_t*)pSrcInt16;
+        NotOptimized_ConvertInt16ToFloat(pSrc, pDest, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 void NotOptimized_ConvertInt16ToFloat(int16_t * pSrc, float * pDest, uint32_t dwLength)
 {
-	ULONG i;
-	float fInv0dB = 1.f / 32768.0f;
+    ULONG i;
+    float fInv0dB = 1.f / 32768.0f;
 
-	for (i = 0; i < dwLength; i++)
-	{
-		*(pDest++) = ((float)*(pSrc++)) * fInv0dB;
-	}
+    for (i = 0; i < dwLength; i++)
+    {
+        *(pDest++) = ((float)*(pSrc++)) * fInv0dB;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -763,115 +767,115 @@ void NotOptimized_ConvertInt16ToFloat(int16_t * pSrc, float * pDest, uint32_t dw
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertInt24ToFloat(TRIBYTE * pSrc, float * pDest, uint32_t dwLength)
 {
-	JmpTableInt24ToFloat(pSrc, pDest, dwLength);
+    JmpTableInt24ToFloat(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 void SSE2_ConvertInt24ToFloat(TRIBYTE* pSrc, float * pDest, uint32_t dwLength)
 {
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
 
-	float f1 = 1.0f;
-	float f8388608 = 8388608.0f;
+    float f1 = 1.0f;
+    float f8388608 = 8388608.0f;
 
-	__m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f8388608));
+    __m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f8388608));
 
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 4byte(float) aligned
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 4byte(float) aligned
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (TRIBYTE*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwLength);
-		return;
-	}
-	dwSamplesRemaining = dwLength & 0x3; // modulo 4
-	dwLoop = dwLength / 4;
+        NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (TRIBYTE*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwLength);
+        return;
+    }
+    dwSamplesRemaining = dwLength & 0x3; // modulo 4
+    dwLoop = dwLength / 4;
 
-		_asm
-		{
-			push		eax
-			push		edx
-			push		ecx
-			push		esi
-			push		edi
+        _asm
+        {
+            push        eax
+            push        edx
+            push        ecx
+            push        esi
+            push        edi
 
-			mov			ecx,dwLoop
-			mov			esi, pSrc			; source pointer
-			mov			edi, pDest		; destination pointer
-			movaps		xmm1,xmmword ptr [m128_0dB]
+            mov         ecx,dwLoop
+            mov         esi, pSrc           ; source pointer
+            mov         edi, pDest      ; destination pointer
+            movaps      xmm1,xmmword ptr [m128_0dB]
 
 ConvertInt24ToFloat_Loop:
 
-			pinsrw		xmm0, word ptr [esi], 0
-			movsx edx,byte ptr [esi + 2]
-			pinsrw		xmm0, edx, 1
+            pinsrw      xmm0, word ptr [esi], 0
+            movsx edx,byte ptr [esi + 2]
+            pinsrw      xmm0, edx, 1
 
-			pinsrw		xmm0, word ptr [esi + 3], 2
-			movsx edx,byte ptr [esi + 5]
-			pinsrw		xmm0, edx, 3
+            pinsrw      xmm0, word ptr [esi + 3], 2
+            movsx edx,byte ptr [esi + 5]
+            pinsrw      xmm0, edx, 3
 
-			pinsrw		xmm0, word ptr [esi + 6], 4
-			movsx edx,byte ptr [esi + 8]
-			pinsrw		xmm0, edx, 5
+            pinsrw      xmm0, word ptr [esi + 6], 4
+            movsx edx,byte ptr [esi + 8]
+            pinsrw      xmm0, edx, 5
 
-			pinsrw		xmm0, word ptr [esi + 9], 6
-			movsx edx,byte ptr [esi + 0Bh]
-			pinsrw		xmm0, edx, 7
+            pinsrw      xmm0, word ptr [esi + 9], 6
+            movsx edx,byte ptr [esi + 0Bh]
+            pinsrw      xmm0, edx, 7
 
-			add			esi,12
-			prefetcht0	[esi]
+            add         esi,12
+            prefetcht0  [esi]
 
-			cvtdq2ps	xmm0,xmm0
-			mulps		xmm0,xmm1
-			movaps		xmmword ptr [edi],xmm0
+            cvtdq2ps    xmm0,xmm0
+            mulps       xmm0,xmm1
+            movaps      xmmword ptr [edi],xmm0
 
-			add			edi,16
+            add         edi,16
 
-			dec ecx
-			jne			ConvertInt24ToFloat_Loop
+            dec ecx
+            jne         ConvertInt24ToFloat_Loop
 
-			pop			edi
-			pop			esi
-			pop			ecx
-			pop			edx
-			pop			eax
-		}
-	if (dwSamplesRemaining != 0)
-	{
-		pSrc += (dwLength-dwSamplesRemaining);
-		pDest += (dwLength-dwSamplesRemaining);
-		NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwSamplesRemaining);
-	}
-	_mm_empty();
+            pop         edi
+            pop         esi
+            pop         ecx
+            pop         edx
+            pop         eax
+        }
+    if (dwSamplesRemaining != 0)
+    {
+        pSrc += (dwLength-dwSamplesRemaining);
+        pDest += (dwLength-dwSamplesRemaining);
+        NotOptimized_ConvertInt24ToFloat(pSrc, pDest, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 void NotOptimized_ConvertInt24ToFloat(TRIBYTE* pSrc, float * pDest, uint32_t dwLength)
 {
-	ULONG i;
-	float fInv0dB = 1.f / 8388608.0f;
+    ULONG i;
+    float fInv0dB = 1.f / 8388608.0f;
 
-	for (i = 0; i < dwLength; i++)
-	{
-		uint16_t nLow = (uint16_t)pSrc->w;
-		int16_t nHigh = (int8_t)pSrc->b; // has to be int8_t, to be signed (uint8_t is unsigned)
-		int32_t nData = nLow | ((nHigh) << 16);
-		pSrc++;
+    for (i = 0; i < dwLength; i++)
+    {
+        uint16_t nLow = (uint16_t)pSrc->w;
+        int16_t nHigh = (int8_t)pSrc->b; // has to be int8_t, to be signed (uint8_t is unsigned)
+        int32_t nData = nLow | ((nHigh) << 16);
+        pSrc++;
 
-		*(pDest++) = ((float)nData) * fInv0dB;
-	}
+        *(pDest++) = ((float)nData) * fInv0dB;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -880,7 +884,7 @@ void NotOptimized_ConvertInt24ToFloat(TRIBYTE* pSrc, float * pDest, uint32_t dwL
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvert32BitInt24ToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength)
 {
-	MTConvertInt32ToFloat(pSrc, pDest, dwLength);
+    MTConvertInt32ToFloat(pSrc, pDest, dwLength);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -889,126 +893,126 @@ void MTConvert32BitInt24ToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength)
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertInt32ToFloat(int32_t * pSrc, float * pDest, uint32_t dwLength)
 {
-	JmpTableInt32ToFloat(pSrc, pDest, dwLength);
+    JmpTableInt32ToFloat(pSrc, pDest, dwLength);
 }
 
 #ifndef _AMD64_
 ///////////////////////////////////////////////////////////////////////////////
 void SSE2_ConvertInt32ToFloat(int32_t* pSrc, float * pDest, uint32_t dwLength)
 {
-	uint32_t dwSamplesRemaining;
-	uint32_t dwLoop;
+    uint32_t dwSamplesRemaining;
+    uint32_t dwLoop;
 
-	float f1 = 1.0f;
-	float f2147483648 = 2147483648.0f;
+    float f1 = 1.0f;
+    float f2147483648 = 2147483648.0f;
 
-	__m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f2147483648));
+    __m128 m128_0dB = _mm_div_ps(_mm_load1_ps(&f1),_mm_load1_ps(&f2147483648));
 
 
-	//Source pointer has to be 16byte aligned
-	//We first check if we are 4byte(int32_t) aligned
-	if(((INT_PTR)pSrc & 0x3))
-	{
-		//we are not able to get 16byte alignment
-		NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwLength);
-		return;
-	}
+    //Source pointer has to be 16byte aligned
+    //We first check if we are 4byte(int32_t) aligned
+    if(((INT_PTR)pSrc & 0x3))
+    {
+        //we are not able to get 16byte alignment
+        NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwLength);
+        return;
+    }
 
-	if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
-	{
-		uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
-		dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
+    if((DWORD_PTR)pSrc & 0xF) // not aligned on a multiple of 0xF (= 4 * float)
+    {
+        uint32_t dwSrcSamplesNotAligned = (16 - ((DWORD_PTR)pSrc & 0xF)) >> 2;
+        dwSrcSamplesNotAligned = min(dwSrcSamplesNotAligned, dwLength);
 
-		NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
-		dwLength -= dwSrcSamplesNotAligned;
-		pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
-		pSrc = (int32_t*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
-	}
-	if((INT_PTR)pDest & 0xF)
-	{
-		// Src pointer is aligned but destination is not, so we cannot use SSE instructions
-		NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwLength);
-		return;
-	}
+        NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwSrcSamplesNotAligned);
+        dwLength -= dwSrcSamplesNotAligned;
+        pDest = (float*)((INT_PTR)pDest + dwSrcSamplesNotAligned*sizeof(*pDest));
+        pSrc = (int32_t*)((INT_PTR)pSrc + dwSrcSamplesNotAligned*sizeof(*pSrc));
+    }
+    if((INT_PTR)pDest & 0xF)
+    {
+        // Src pointer is aligned but destination is not, so we cannot use SSE instructions
+        NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwLength);
+        return;
+    }
 
-	dwSamplesRemaining = dwLength & 0x3; // modulo 4
-	dwLoop = dwLength / 4;
+    dwSamplesRemaining = dwLength & 0x3; // modulo 4
+    dwLoop = dwLength / 4;
 
-		_asm
-		{
-			push		eax
-			push		ecx
-			push		esi
-			push		edi
+        _asm
+        {
+            push        eax
+            push        ecx
+            push        esi
+            push        edi
 
-			mov			ecx,dwLoop
-			mov			esi, pSrc			; source pointer
-			mov			edi, pDest		; destination pointer
-			movaps		xmm1,xmmword ptr [m128_0dB]
+            mov         ecx,dwLoop
+            mov         esi, pSrc           ; source pointer
+            mov         edi, pDest      ; destination pointer
+            movaps      xmm1,xmmword ptr [m128_0dB]
 
 ConvertInt32ToFloat_Loop:
 
-			pinsrw		xmm0, word ptr [esi], 0
-			pinsrw		xmm0, word ptr [esi + 2], 1
+            pinsrw      xmm0, word ptr [esi], 0
+            pinsrw      xmm0, word ptr [esi + 2], 1
 
-			pinsrw		xmm0, word ptr [esi + 4], 2
-			pinsrw		xmm0, word ptr [esi + 6], 3
+            pinsrw      xmm0, word ptr [esi + 4], 2
+            pinsrw      xmm0, word ptr [esi + 6], 3
 
-			pinsrw		xmm0, word ptr [esi + 8], 4
-			pinsrw		xmm0, word ptr [esi + 0Ah], 5
+            pinsrw      xmm0, word ptr [esi + 8], 4
+            pinsrw      xmm0, word ptr [esi + 0Ah], 5
 
-			pinsrw		xmm0, word ptr [esi + 0Ch], 6
-			pinsrw		xmm0, word ptr [esi + 0Eh], 7
+            pinsrw      xmm0, word ptr [esi + 0Ch], 6
+            pinsrw      xmm0, word ptr [esi + 0Eh], 7
 
-			add			esi,16
-			prefetcht0	[esi]
+            add         esi,16
+            prefetcht0  [esi]
 
-			cvtdq2ps	xmm0,xmm0
-			mulps		xmm0,xmm1
-			movaps		xmmword ptr [edi],xmm0
+            cvtdq2ps    xmm0,xmm0
+            mulps       xmm0,xmm1
+            movaps      xmmword ptr [edi],xmm0
 
-			add			edi,16
+            add         edi,16
 
-			dec ecx
-			jne			ConvertInt32ToFloat_Loop
+            dec ecx
+            jne         ConvertInt32ToFloat_Loop
 
-			pop			edi
-			pop			esi
-			pop			ecx
-			pop			eax
-		}
-	if (dwSamplesRemaining != 0)
-	{
-		pSrc += (dwLength-dwSamplesRemaining);
-		pDest += (dwLength-dwSamplesRemaining);
-		NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwSamplesRemaining);
-	}
-	_mm_empty();
+            pop         edi
+            pop         esi
+            pop         ecx
+            pop         eax
+        }
+    if (dwSamplesRemaining != 0)
+    {
+        pSrc += (dwLength-dwSamplesRemaining);
+        pDest += (dwLength-dwSamplesRemaining);
+        NotOptimized_ConvertInt32ToFloat(pSrc, pDest, dwSamplesRemaining);
+    }
+    _mm_empty();
 }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
 void NotOptimized_ConvertInt32ToFloat(int32_t * pSrc, float * pDest, uint32_t dwLength)
 {
-	ULONG i;
-	float fInv0dB = (float)(1. / pow(2.0, 31.0));
+    ULONG i;
+    float fInv0dB = (float)(1. / pow(2.0, 31.0));
 
-	for (i = 0; i < dwLength; i++)
-	{
-		*(pDest++) = ((float)*(pSrc++)) * fInv0dB;
-	}
+    for (i = 0; i < dwLength; i++)
+    {
+        *(pDest++) = ((float)*(pSrc++)) * fInv0dB;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertInt32_24rToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength)
 {
-	ULONG i;
-	float fInv0dB = (float)(1. / pow(2.0, 31.0));
+    ULONG i;
+    float fInv0dB = (float)(1. / pow(2.0, 31.0));
 
-	for (i = 0; i < dwLength; i++)
-	{
-		*(pDest++) = ((float)(*(pSrc++) << 8)) * fInv0dB;
-	}
+    for (i = 0; i < dwLength; i++)
+    {
+        *(pDest++) = ((float)(*(pSrc++) << 8)) * fInv0dB;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1017,65 +1021,65 @@ void MTConvertInt32_24rToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength)
 /*///////////////////////////////////////////////////////////////////////////////
 void MTConvertInterleave(float* pfUninterleave, float* pfInterleave, uint32_t dwNbOfChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	//ASSERT(pfUninterleave);
-	//ASSERT(pfInterleave);
+    uint32_t dwSample, dwChannel;
+    //ASSERT(pfUninterleave);
+    //ASSERT(pfInterleave);
 
-	for(dwSample = 0; dwSample < dwFrameSize; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			*pfInterleave++ = pfUninterleave[dwSample + dwChannel * dwFrameSize];
-		}
-	}
+    for(dwSample = 0; dwSample < dwFrameSize; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            *pfInterleave++ = pfUninterleave[dwSample + dwChannel * dwFrameSize];
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertDeInterleave(float* pfInterleave, float* pfUninterleave, uint32_t dwNbOfChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	//ASSERT(pfUninterleave);
-	//ASSERT(pfInterleave);
+    uint32_t dwSample, dwChannel;
+    //ASSERT(pfUninterleave);
+    //ASSERT(pfInterleave);
 
-	for(dwSample = 0; dwSample < dwFrameSize; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			pfUninterleave[dwSample + dwChannel * dwFrameSize] = *pfInterleave++;
-		}
-	}
+    for(dwSample = 0; dwSample < dwFrameSize; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            pfUninterleave[dwSample + dwChannel * dwFrameSize] = *pfInterleave++;
+        }
+    }
 }*/
 
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertInterleave(float* pfUninterleave, float* pfInterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	//ASSERT(pfUninterleave);
-	//ASSERT(pfInterleave);
+    uint32_t dwSample, dwChannel;
+    //ASSERT(pfUninterleave);
+    //ASSERT(pfInterleave);
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			*pfInterleave++ = pfUninterleave[dwSample + dwChannel * dwFrameSize];
-		}
-	}
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            *pfInterleave++ = pfUninterleave[dwSample + dwChannel * dwFrameSize];
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void MTConvertDeInterleave(float* pfInterleave, float* pfUninterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	//ASSERT(pfUninterleave);
-	//ASSERT(pfInterleave);
+    uint32_t dwSample, dwChannel;
+    //ASSERT(pfUninterleave);
+    //ASSERT(pfInterleave);
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			pfUninterleave[dwSample + dwChannel * dwFrameSize] = *pfInterleave++;
-		}
-	}
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            pfUninterleave[dwSample + dwChannel * dwFrameSize] = *pfInterleave++;
+        }
+    }
 }
 #endif //WIN32 && !NT_DRIVER
 
@@ -1090,20 +1094,20 @@ void MTConvertDeInterleave(float* pfInterleave, float* pfUninterleave, uint32_t 
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertFloatToBigEndianInt16Interleave(float* pfUninterleave, int16_t* pi16BigEndianInterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	static const float f0dB = 32768.0f;
-	static const float fPositiveMax = 32768.0f - 1.0f;
+    uint32_t dwSample, dwChannel;
+    static const float f0dB = 32768.0f;
+    static const float fPositiveMax = 32768.0f - 1.0f;
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			int16_t i16Sample = (int16_t)min(fPositiveMax, max(pfUninterleave[dwSample + dwChannel * dwFrameSize] * f0dB, -f0dB));
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            int16_t i16Sample = (int16_t)min(fPositiveMax, max(pfUninterleave[dwSample + dwChannel * dwFrameSize] * f0dB, -f0dB));
 
-			*pi16BigEndianInterleave = SWAP16(i16Sample);
-			pi16BigEndianInterleave++;
-		}
-	}
+            *pi16BigEndianInterleave = SWAP16(i16Sample);
+            pi16BigEndianInterleave++;
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1111,20 +1115,20 @@ void MTConvertFloatToBigEndianInt16Interleave(float* pfUninterleave, int16_t* pi
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianInt16ToFloatDeInterleave(int16_t* pi16BigEndianInterleave, float* pfUninterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	//ASSERT(pi16BigEndianInterleave);
-	//ASSERT(pfUninterleave);
+    uint32_t dwSample, dwChannel;
+    //ASSERT(pi16BigEndianInterleave);
+    //ASSERT(pfUninterleave);
 
-	static const float fInv0dB = 1.f / 32768.0f;
+    static const float fInv0dB = 1.f / 32768.0f;
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			pfUninterleave[dwSample + dwChannel * dwFrameSize] = ((float)(int16_t)SWAP16(*pi16BigEndianInterleave)) * fInv0dB;	// !!!SWAP16 is a MACRO so we mustn't increament pointer here
-			pi16BigEndianInterleave++;
-		}
-	}
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            pfUninterleave[dwSample + dwChannel * dwFrameSize] = ((float)(int16_t)SWAP16(*pi16BigEndianInterleave)) * fInv0dB;  // !!!SWAP16 is a MACRO so we mustn't increament pointer here
+            pi16BigEndianInterleave++;
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1132,23 +1136,23 @@ void MTConvertBigEndianInt16ToFloatDeInterleave(int16_t* pi16BigEndianInterleave
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertFloatToBigEndianInt24Interleave(float* pfUninterleave, uint8_t* pbyBigEndianInterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	static const float f0dB = 8388608.0f;
-	static const float fPositiveMax = 8388608.0f - 1.0f;
+    uint32_t dwSample, dwChannel;
+    static const float f0dB = 8388608.0f;
+    static const float fPositiveMax = 8388608.0f - 1.0f;
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			int32_t nTmp = (int32_t)min(fPositiveMax, max(pfUninterleave[dwSample + dwChannel * dwFrameSize] * f0dB, -f0dB));
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            int32_t nTmp = (int32_t)min(fPositiveMax, max(pfUninterleave[dwSample + dwChannel * dwFrameSize] * f0dB, -f0dB));
 
-			// put it in big endian order
-			pbyBigEndianInterleave[0] = (nTmp >> 16) & 0xFF;
-			pbyBigEndianInterleave[1] = (nTmp >> 8) & 0xFF;
-			pbyBigEndianInterleave[2] = nTmp & 0xFF;
-			pbyBigEndianInterleave += 3;
-		}
-	}
+            // put it in big endian order
+            pbyBigEndianInterleave[0] = (nTmp >> 16) & 0xFF;
+            pbyBigEndianInterleave[1] = (nTmp >> 8) & 0xFF;
+            pbyBigEndianInterleave[2] = nTmp & 0xFF;
+            pbyBigEndianInterleave += 3;
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1156,21 +1160,21 @@ void MTConvertFloatToBigEndianInt24Interleave(float* pfUninterleave, uint8_t* pb
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianInt24ToFloatDeInterleave(uint8_t* pbyBigEndianInterleave, float* pfUninterleave, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels, uint32_t dwFrameSize)
 {
-	uint32_t dwSample, dwChannel;
-	static const float fInv0dB = 1.f / 8388608.0f;
+    uint32_t dwSample, dwChannel;
+    static const float fInv0dB = 1.f / 8388608.0f;
 
-	for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			int16_t nHigh = (int8_t)pbyBigEndianInterleave[0]; // has to be int8_t, to be signed (uint8_t is unsigned)
-			int32_t nData = (nHigh << 16) | pbyBigEndianInterleave[1] << 8 | pbyBigEndianInterleave[2];
-			pbyBigEndianInterleave += 3;
+    for(dwSample = 0; dwSample < dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            int16_t nHigh = (int8_t)pbyBigEndianInterleave[0]; // has to be int8_t, to be signed (uint8_t is unsigned)
+            int32_t nData = (nHigh << 16) | pbyBigEndianInterleave[1] << 8 | pbyBigEndianInterleave[2];
+            pbyBigEndianInterleave += 3;
 
 
-			pfUninterleave[dwSample + dwChannel * dwFrameSize] = ((float)nData) * fInv0dB;
-		}
-	}
+            pfUninterleave[dwSample + dwChannel * dwFrameSize] = ((float)nData) * fInv0dB;
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1190,23 +1194,23 @@ void MTConvertBigEndianInt24ToFloatDeInterleave(uint8_t* pbyBigEndianInterleave,
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedFloatToBigEndianInt16Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	int16_t* pi16BigEndianInterleave = (int16_t*)pvBigEndianInterleave;
-	static const float f0dB = 32768.f;
-	static const float fPositiveMax = f0dB - 1.f;
+    uint32_t dwSample, dwChannel;
+    int16_t* pi16BigEndianInterleave = (int16_t*)pvBigEndianInterleave;
+    static const float f0dB = 32768.f;
+    static const float fPositiveMax = f0dB - 1.f;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				int16_t i16Sample = (int16_t)min(fPositiveMax, max(((float**)ppfUninterleave)[dwChannel][dwSample] * f0dB, -f0dB));
-				*pi16BigEndianInterleave = SWAP16(i16Sample);	// !!!SWAP16 is a MACRO so we mustn't do any operation
-				pi16BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                int16_t i16Sample = (int16_t)min(fPositiveMax, max(((float**)ppfUninterleave)[dwChannel][dwSample] * f0dB, -f0dB));
+                *pi16BigEndianInterleave = SWAP16(i16Sample);   // !!!SWAP16 is a MACRO so we mustn't do any operation
+                pi16BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1214,21 +1218,21 @@ void MTConvertMappedFloatToBigEndianInt16Interleave(void** ppfUninterleave, cons
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianInt16ToMappedFloatDeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	int16_t* pi16BigEndianInterleave = (int16_t*)pvBigEndianInterleave;
-	static const float fInv0dB = 1.f / 32768.0f;
+    uint32_t dwSample, dwChannel;
+    int16_t* pi16BigEndianInterleave = (int16_t*)pvBigEndianInterleave;
+    static const float fInv0dB = 1.f / 32768.0f;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((float**)ppfUninterleave)[dwChannel][dwSample] = ((float)(int16_t)SWAP16(*pi16BigEndianInterleave)) * fInv0dB;	// !!!SWAP16 is a MACRO so we mustn't increament pointer here
-				pi16BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((float**)ppfUninterleave)[dwChannel][dwSample] = ((float)(int16_t)SWAP16(*pi16BigEndianInterleave)) * fInv0dB; // !!!SWAP16 is a MACRO so we mustn't increament pointer here
+                pi16BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1236,27 +1240,27 @@ void MTConvertBigEndianInt16ToMappedFloatDeInterleave(void* pvBigEndianInterleav
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedFloatToBigEndianInt24Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
-	static const float f0dB = 8388608.0f;
-	static const float fPositiveMax = 8388608.0f - 1.0f;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    static const float f0dB = 8388608.0f;
+    static const float fPositiveMax = 8388608.0f - 1.0f;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				int32_t nTmp = (int32_t)min(fPositiveMax, max(((float**)ppfUninterleave)[dwChannel][dwSample] * f0dB, -f0dB));
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                int32_t nTmp = (int32_t)min(fPositiveMax, max(((float**)ppfUninterleave)[dwChannel][dwSample] * f0dB, -f0dB));
 
-				// put it in big endian order
-				pbyBigEndianInterleave[0] = (nTmp >> 16) & 0xFF;
-				pbyBigEndianInterleave[1] = (nTmp >> 8) & 0xFF;
-				pbyBigEndianInterleave[2] = nTmp & 0xFF;
-				pbyBigEndianInterleave += 3;
-			}
-		}
-	}
+                // put it in big endian order
+                pbyBigEndianInterleave[0] = (nTmp >> 16) & 0xFF;
+                pbyBigEndianInterleave[1] = (nTmp >> 8) & 0xFF;
+                pbyBigEndianInterleave[2] = nTmp & 0xFF;
+                pbyBigEndianInterleave += 3;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1264,24 +1268,24 @@ void MTConvertMappedFloatToBigEndianInt24Interleave(void** ppfUninterleave, cons
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianInt24ToMappedFloatDeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
-	static const float fInv0dB = 1.f / 8388608.0f;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    static const float fInv0dB = 1.f / 8388608.0f;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				int16_t nHigh = (int8_t)pbyBigEndianInterleave[0]; // has to be int8_t, to be signed (uint8_t is unsigned)
-				int32_t nData = (nHigh << 16) | pbyBigEndianInterleave[1] << 8 | pbyBigEndianInterleave[2];
-				pbyBigEndianInterleave += 3;
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                int16_t nHigh = (int8_t)pbyBigEndianInterleave[0]; // has to be int8_t, to be signed (uint8_t is unsigned)
+                int32_t nData = (nHigh << 16) | pbyBigEndianInterleave[1] << 8 | pbyBigEndianInterleave[2];
+                pbyBigEndianInterleave += 3;
 
-				((float**)ppfUninterleave)[dwChannel][dwSample] = ((float)nData) * fInv0dB;
-			}
-		}
-	}
+                ((float**)ppfUninterleave)[dwChannel][dwSample] = ((float)nData) * fInv0dB;
+            }
+        }
+    }
 }
 
 #endif //!defined(NT_DRIVER)
@@ -1291,10 +1295,267 @@ void MTConvertBigEndianInt24ToMappedFloatDeInterleave(void* pvBigEndianInterleav
 
 
 
+int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t offset_input_buf, 
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
+{
+    int ret = 0;
+    int ret_pu;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
+    const unsigned int stride_in = 4;
+    unsigned int in_pos = offset_input_buf * stride_in;
 
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[1];
+                    out[1] = in[0];
+                    out += 2;
+                #endif
+            }
+        }
+        else
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[2];
+                    out[1] = in[3];
+                    out += 2;
+                #endif
+            }
+        }
+        in_pos += stride_in;
+    }
+    return ret;
+}
 
+int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t offset_input_buf,
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
+{
+    int ret = 0;
+    int ret_pu;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
+    const unsigned int stride_in = 4;
+    unsigned int in_pos = offset_input_buf * stride_in;
 
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[2];
+                    out[1] = in[1];
+                    out[2] = in[0];
+                    out += 3;
+                #endif
+            }
+        }
+        else
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[1];
+                    out[1] = in[2];
+                    out[2] = in[3];
+                    out += 3;
+                #endif
+            }
+        }
+        in_pos += stride_in;
+    }
+    return ret;
+}
 
+int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint32_t offset_input_buf,
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
+{
+    int ret = 0;
+    int ret_pu;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
+    const unsigned int stride_in = 4;
+    unsigned int in_pos = offset_input_buf * stride_in;
+
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    char zero = 0x00;
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[2];
+                    out[1] = in[1];
+                    out[2] = in[0];
+                    out[3] = 0x00;
+                    out += 4;
+                #endif
+            }
+        }
+        else
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    char zero = 0x00;
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[1];
+                    out[1] = in[2];
+                    out[2] = in[3];
+                    out[3] = 0x00;
+                    out += 4;
+                #endif
+            }
+        }
+        in_pos += stride_in;
+    }
+    return ret;
+}
+
+int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t offset_input_buf,
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
+{
+    int ret = 0;
+    int ret_pu;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
+    const unsigned int stride_in = 4;
+    unsigned int in_pos = offset_input_buf * stride_in;
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
+        {
+            
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[3];
+                    out[1] = in[2];
+                    out[2] = in[1];
+                    out[3] = in[0];
+                    out += 4;
+                #endif
+            }
+        }
+        else
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
+                    __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                    __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                    ret |= ret_pu;
+                    out++;
+                #else
+                    out[0] = in[0];
+                    out[1] = in[1];
+                    out[2] = in[2];
+                    out[3] = in[3];
+                    out += 4;
+                #endif
+            }
+        }
+        in_pos += stride_in;
+    }
+    return ret;
+}
 
 
 
@@ -1313,13 +1574,13 @@ void MTConvertMappedInt24ToBigEndianInt16Interleave(void** input_buffer,
                                                     const uint32_t nb_channels,
                                                     const uint32_t nb_samples_in)
 {
-	uint32_t i, ch;
-	uint8_t* out = (uint8_t*)output_buffer;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 3;
     unsigned int in_pos = offset_input_buf * stride_in;
-	for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-	{
-	    if(Arch_is_big_endian())
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
         {
             for(ch = 0; ch < nb_channels; ++ch)
             {
@@ -1329,8 +1590,8 @@ void MTConvertMappedInt24ToBigEndianInt16Interleave(void** input_buffer,
                 out += 2;
             }
         }
-		else
-		{
+        else
+        {
             for(ch = 0; ch < nb_channels; ++ch)
             {
                 const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
@@ -1338,9 +1599,9 @@ void MTConvertMappedInt24ToBigEndianInt16Interleave(void** input_buffer,
                 out[1] = in[1];
                 out += 2;
             }
-		}
-		in_pos += stride_in;
-	}
+        }
+        in_pos += stride_in;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1348,22 +1609,22 @@ void MTConvertMappedInt24ToBigEndianInt16Interleave(void** input_buffer,
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianInt16ToMappedInt24DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((TRIBYTE**)ppfUninterleave)[dwChannel][dwSample].w = pbyBigEndianInterleave[1] << 8;
-				((TRIBYTE**)ppfUninterleave)[dwChannel][dwSample].b = pbyBigEndianInterleave[0];
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((TRIBYTE**)ppfUninterleave)[dwChannel][dwSample].w = pbyBigEndianInterleave[1] << 8;
+                ((TRIBYTE**)ppfUninterleave)[dwChannel][dwSample].b = pbyBigEndianInterleave[0];
 
-				pbyBigEndianInterleave += 2;
-			}
-		}
-	}
+                pbyBigEndianInterleave += 2;
+            }
+        }
+    }
 }
 
 
@@ -1377,13 +1638,13 @@ void MTConvertMappedInt32ToBigEndianInt16Interleave(void** input_buffer,
                                                     const uint32_t nb_channels,
                                                     const uint32_t nb_samples_in)
 {
-	uint32_t i, ch;
-	uint8_t* out = (uint8_t*)output_buffer;
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
     unsigned int in_pos = offset_input_buf * stride_in;
-	for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-	{
-	    if(Arch_is_big_endian())
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
         {
             for(ch = 0; ch < nb_channels; ++ch)
             {
@@ -1393,8 +1654,8 @@ void MTConvertMappedInt32ToBigEndianInt16Interleave(void** input_buffer,
                 out += 2;
             }
         }
-		else
-		{
+        else
+        {
             for(ch = 0; ch < nb_channels; ++ch)
             {
                 const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
@@ -1402,9 +1663,9 @@ void MTConvertMappedInt32ToBigEndianInt16Interleave(void** input_buffer,
                 out[1] = in[2];
                 out += 2;
             }
-		}
-		in_pos += stride_in;
-	}
+        }
+        in_pos += stride_in;
+    }
 }
 
 
@@ -1467,7 +1728,7 @@ void MTConvertMappedInt24ToBigEndianInt24Interleave(void** input_buffer,
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 3;
     unsigned int in_pos = offset_input_buf * stride_in;
-    for(i = 0; i < nb_samples_in; ++i)
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
     {
         if(Arch_is_big_endian())
         {
@@ -1552,7 +1813,7 @@ void MTConvertMappedInt32ToBigEndianInt24Interleave(void** input_buffer,
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
     unsigned int in_pos = offset_input_buf * stride_in;
-    for(i = 0; i < nb_samples_in; ++i)
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
     {
         if(Arch_is_big_endian())
         {
@@ -1616,10 +1877,10 @@ void MTConvertBigEndianInt24ToMappedInt32DeInterleave(  void* input_buffer,
         {
             for(i = 0; i < nb_samples; ++i)
             {
-                out[0] = in[2];
-                out[1] = in[1];
-                out[2] = in[0];
-                out[3] = 0;
+                out[0] = 0;
+                out[1] = in[2];
+                out[2] = in[1];
+                out[3] = in[0];
 
                 in += stride_in;
                 out += stride_out;
@@ -1631,22 +1892,22 @@ void MTConvertBigEndianInt24ToMappedInt32DeInterleave(  void* input_buffer,
 
 /*void MTConvertBigEndianInt24ToMappedInt32DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((int32_t**)ppfUninterleave)[dwChannel][dwSample] = pbyBigEndianInterleave[2] << 24;
-				((int32_t**)ppfUninterleave)[dwChannel][dwSample] |= pbyBigEndianInterleave[1] << 16;
-				((int32_t**)ppfUninterleave)[dwChannel][dwSample] |= pbyBigEndianInterleave[0] << 8;
-				pbyBigEndianInterleave += 3;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((int32_t**)ppfUninterleave)[dwChannel][dwSample] = pbyBigEndianInterleave[2] << 24;
+                ((int32_t**)ppfUninterleave)[dwChannel][dwSample] |= pbyBigEndianInterleave[1] << 16;
+                ((int32_t**)ppfUninterleave)[dwChannel][dwSample] |= pbyBigEndianInterleave[0] << 8;
+                pbyBigEndianInterleave += 3;
+            }
+        }
+    }
 }*/
 
 
@@ -1671,20 +1932,20 @@ void MTConvertBigEndianInt24ToMappedInt32DeInterleave(  void* input_buffer,
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedFloatToBigEndianDSD64Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pbyBigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				*pbyBigEndianInterleave = ((uint8_t*)&((float**)ppfUninterleave)[dwChannel][dwSample])[0];
-				pbyBigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                *pbyBigEndianInterleave = ((uint8_t*)&((float**)ppfUninterleave)[dwChannel][dwSample])[0];
+                pbyBigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1692,20 +1953,20 @@ void MTConvertMappedFloatToBigEndianDSD64Interleave(void** ppfUninterleave, cons
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianDSD64ToMappedFloatDeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint8_t* pi8BigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint8_t* pi8BigEndianInterleave = (uint8_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pi8BigEndianInterleave;
-				pi8BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pi8BigEndianInterleave;
+                pi8BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 
@@ -1717,20 +1978,20 @@ void MTConvertBigEndianDSD64ToMappedFloatDeInterleave(void* pvBigEndianInterleav
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedFloatToBigEndianDSD128Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				*pui16BigEndianInterleave = ((uint16_t*)&((float**)ppfUninterleave)[dwChannel][dwSample])[0];
-				pui16BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                *pui16BigEndianInterleave = ((uint16_t*)&((float**)ppfUninterleave)[dwChannel][dwSample])[0];
+                pui16BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1738,20 +1999,20 @@ void MTConvertMappedFloatToBigEndianDSD128Interleave(void** ppfUninterleave, con
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianDSD128ToMappedFloatDeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pui16BigEndianInterleave;
-				pui16BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pui16BigEndianInterleave;
+                pui16BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 
@@ -1761,20 +2022,20 @@ void MTConvertBigEndianDSD128ToMappedFloatDeInterleave(void* pvBigEndianInterlea
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedFloatToBigEndianDSD256Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				*pui32BigEndianInterleave = ((uint32_t**)ppfUninterleave)[dwChannel][dwSample];
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                *pui32BigEndianInterleave = ((uint32_t**)ppfUninterleave)[dwChannel][dwSample];
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1782,20 +2043,20 @@ void MTConvertMappedFloatToBigEndianDSD256Interleave(void** ppfUninterleave, con
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianDSD256ToMappedFloatDeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pui32BigEndianInterleave;
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((uint32_t**)ppfUninterleave)[dwChannel][dwSample] = *pui32BigEndianInterleave;
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 
@@ -1809,21 +2070,21 @@ void MTConvertBigEndianDSD256ToMappedFloatDeInterleave(void* pvBigEndianInterlea
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedInt8ToBigEndianDSD64_32Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				//((uint8_t*)pui32BigEndianInterleave)[0] = ((uint8_t**)ppfUninterleave)[dwChannel][dwSample]; // fill only the byte[0]; three remaining bytes are untouch
-				*pui32BigEndianInterleave = ((uint8_t**)ppfUninterleave)[dwChannel][dwSample]; // DSD byte -> byte[0] and three remaing bytes to zero
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                //((uint8_t*)pui32BigEndianInterleave)[0] = ((uint8_t**)ppfUninterleave)[dwChannel][dwSample]; // fill only the byte[0]; three remaining bytes are untouch
+                *pui32BigEndianInterleave = ((uint8_t**)ppfUninterleave)[dwChannel][dwSample]; // DSD byte -> byte[0] and three remaing bytes to zero
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1831,20 +2092,20 @@ void MTConvertMappedInt8ToBigEndianDSD64_32Interleave(void** ppfUninterleave, co
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianDSD64_32ToMappedInt8DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((uint8_t**)ppfUninterleave)[dwChannel][dwSample] = ((uint8_t*)pui32BigEndianInterleave)[0];
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((uint8_t**)ppfUninterleave)[dwChannel][dwSample] = ((uint8_t*)pui32BigEndianInterleave)[0];
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 
@@ -1853,21 +2114,21 @@ void MTConvertBigEndianDSD64_32ToMappedInt8DeInterleave(void* pvBigEndianInterle
 // i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
 void MTConvertMappedInt16ToBigEndianDSD128_32Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				//((uint16_t*)pui32BigEndianInterleave)[0] = ((uint16_t**)ppfUninterleave)[dwChannel][dwSample]; // fill only byte[1-0]; two remaining bytes are untouch
-				*pui32BigEndianInterleave = ((uint16_t**)ppfUninterleave)[dwChannel][dwSample]; // DSD bytse -> byte[1-0] and two remaing bytes to zero
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                //((uint16_t*)pui32BigEndianInterleave)[0] = ((uint16_t**)ppfUninterleave)[dwChannel][dwSample]; // fill only byte[1-0]; two remaining bytes are untouch
+                *pui32BigEndianInterleave = ((uint16_t**)ppfUninterleave)[dwChannel][dwSample]; // DSD bytse -> byte[1-0] and two remaing bytes to zero
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1875,20 +2136,20 @@ void MTConvertMappedInt16ToBigEndianDSD128_32Interleave(void** ppfUninterleave, 
 // i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
 void MTConvertBigEndianDSD128_32ToMappedInt16DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
 {
-	uint32_t dwSample, dwChannel;
-	uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
+    uint32_t dwSample, dwChannel;
+    uint32_t* pui32BigEndianInterleave = (uint32_t*)pvBigEndianInterleave;
 
-	for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
-	{
-		for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
-		{
-			if(ppfUninterleave[dwChannel])
-			{
-				((uint16_t**)ppfUninterleave)[dwChannel][dwSample] = ((uint16_t*)pui32BigEndianInterleave)[0];
-				pui32BigEndianInterleave++;
-			}
-		}
-	}
+    for(dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+    {
+        for(dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+        {
+            if(ppfUninterleave[dwChannel])
+            {
+                ((uint16_t**)ppfUninterleave)[dwChannel][dwSample] = ((uint16_t*)pui32BigEndianInterleave)[0];
+                pui32BigEndianInterleave++;
+            }
+        }
+    }
 }
 
 

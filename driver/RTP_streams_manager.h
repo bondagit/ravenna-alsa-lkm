@@ -117,14 +117,9 @@ typedef struct {
 } TRTP_streams_manager;
 
 
-#if	defined(__cplusplus)
-extern "C"
-{
-#endif // defined(__cplusplus) f10b pourra etre retire  +extern quand le port C sera termine
-
 //////////////////////////////////////////////////////////////
-extern int init_(TRTP_streams_manager* self, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter);
-extern void destroy_(TRTP_streams_manager* self);
+int init_(TRTP_streams_manager* self, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter);
+void destroy_(TRTP_streams_manager* self);
 
 #ifdef NT_DRIVER
 	EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize, int bDispatchLevel);
@@ -132,31 +127,32 @@ extern void destroy_(TRTP_streams_manager* self);
 	EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize);
 #endif //NT_DRIVER
 
-extern int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo, uint64_t* phRTPStream);
-extern int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream);
-extern void remove_all_RTP_streams(TRTP_streams_manager* self);
-extern int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_name* pRTP_stream_update_name);
+int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo, uint64_t* phRTPStream);
+int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream);
+void remove_all_RTP_streams(TRTP_streams_manager* self);
+int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_name* pRTP_stream_update_name);
+int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_stream_status* pstream_status);
 
-extern uint8_t GetNumberOfSources(TRTP_streams_manager* self);
-extern uint8_t GetNumberOfSinks(TRTP_streams_manager* self);
+uint8_t GetNumberOfSources(TRTP_streams_manager* self);
+uint8_t GetNumberOfSinks(TRTP_streams_manager* self);
 
 //int GetSinkStats(uint8_t ui8StreamIdx, TRTPStreamStats* pRTPStreamStats);
-extern int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamStatsFromTIC* pRTPStreamStatsFromTIC);
-extern int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTime);
-extern int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter);
+int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamStatsFromTIC* pRTPStreamStatsFromTIC);
+int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTime);
+int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter);
 
 //f10bint GetLastProcessedSinkFromTIC(TRTP_streams_manager* self, TLastProcessedRTPDeltaFromTIC* pLastProcessedRTPDeltaFromTIC);
 //f10bint GetLastSentSourceFromTIC(TRTP_streams_manager* self, TLastSentRTPDeltaFromTIC* pLastSentRTPDeltaFromTIC);
 
 // Process
 // following methods must be call by the AudioEngine thread
-extern void prepare_buffer_lives(TRTP_streams_manager* self);
-extern void frame_process_begin(TRTP_streams_manager* self);
-extern void frame_process_end(TRTP_streams_manager* self);
+void prepare_buffer_lives(TRTP_streams_manager* self);
+void frame_process_begin(TRTP_streams_manager* self);
+void frame_process_end(TRTP_streams_manager* self);
 #ifdef UNDER_RTSS
 	friend class CRTPStreamsOutgoingThread;
 #endif
-extern void send_outgoing_packets(TRTP_streams_manager* self);
+void send_outgoing_packets(TRTP_streams_manager* self);
 
 
 
@@ -167,6 +163,4 @@ public:
 	HRESULT	GetLiveOutInfo(TRTP_streams_manager* self, DWORD dwIndexAt1FS, TRTXLiveInfo* pRTXLiveInfo) const;
 #endif //UNDER_RTSS
 
-#if	defined(__cplusplus)
-}
-#endif	// defined(__cplusplus)
+
