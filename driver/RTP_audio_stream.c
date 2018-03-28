@@ -449,7 +449,7 @@ int get_RTPStream_status(TRTP_audio_stream* self, TRTP_stream_status* pstream_st
 	}
 	else
 	{
-		*pstream_status = self->m_StreamStatus;
+		memcpy((void*)pstream_status, (void*)&self->m_StreamStatus.u, sizeof(TRTP_stream_status));
 		self->m_ui32StreamStatusResetCounter++;
 	}
 	return 1;
@@ -1084,7 +1084,6 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 			self->m_ui32StreamStatusLastResetCounter = self->m_ui32StreamStatusResetCounter;
 
 			self->m_StreamStatus.u.flags = 0;
-
 			self->m_StreamStatus.u.sink_receiving_RTP_packet = bSinkIsReceiving ? 1 : 0;
 			self->m_StreamStatus.u.sink_muted = bLivesInMuted ? 1 : 0;
 			self->m_StreamStatus.u.sink_RTP_seq_id_error = bWrongRTPSeqId ? 1 : 0;
@@ -1094,8 +1093,8 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 		}
 		else
 		{ // update error only
-			if (!bSinkIsReceiving)
-				self->m_StreamStatus.u.sink_receiving_RTP_packet = 0;
+			if (bSinkIsReceiving)
+				self->m_StreamStatus.u.sink_receiving_RTP_packet = 1;
 			if (bLivesInMuted)
 				self->m_StreamStatus.u.sink_muted = 1;
 			if (bWrongRTPSeqId)
