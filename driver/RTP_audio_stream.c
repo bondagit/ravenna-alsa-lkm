@@ -1094,8 +1094,8 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 		}
 		else
 		{ // update error only
-			if (!bSinkIsReceiving)
-				self->m_StreamStatus.u.sink_receiving_RTP_packet = 0;
+			if (bSinkIsReceiving)
+				self->m_StreamStatus.u.sink_receiving_RTP_packet = 1;
 			if (bLivesInMuted)
 				self->m_StreamStatus.u.sink_muted = 1;
 			if (bWrongRTPSeqId)
