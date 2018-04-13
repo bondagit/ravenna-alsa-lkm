@@ -517,7 +517,8 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 			// Audio TIC
 
 			// Syntonization
-			self->m_dTIC_CurrentPeriod = (self->m_dTIC_BasePeriod * self->m_ui64DeltaT2) / (ui64DeltaT1); // [ps]
+			//self->m_dTIC_CurrentPeriod = (self->m_dTIC_BasePeriod * self->m_ui64DeltaT2) / (ui64DeltaT1); // [ps]
+			self->m_dTIC_CurrentPeriod = self->m_dTIC_BasePeriod; // [ps]
 			//MTAL_DP("self->m_dTIC_Period = %f	[ns]\n", (float)self->m_dTIC_Period);
 			//MTAL_DP("Ratio: %f\n", (double)self->m_ui64DeltaT2 / (double)ui64DeltaT1);
 
@@ -590,10 +591,9 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
                 //dProportional /= 500000000000;
                 dProportional /= 5000000; // implicitly converted i32DeltaTICFrame into [ps] 
 
-
                 // compute leaky integrator
                 self->m_dTIC_IGR = ((self->m_dTIC_IGR + dProportional) * 95) / 100; // [ps]
-                                                                        //MTAL_DP("Delta PTPFrameTime = %i [100ns] dProportional = %f [ns] self->m_dTIC_IGR = %f [ns]\n", i32DeltaTICFrame, (float)dProportional, (float)self->m_dTIC_IGR);
+                //MTAL_DP("Delta PTPFrameTime = %i [100ns] dProportional = %f [ns] self->m_dTIC_IGR = %f [ns]\n", i32DeltaTICFrame, (float)dProportional, (float)self->m_dTIC_IGR);
                 self->m_dTIC_IGR = max(min(self->m_dTIC_IGR, 4000000LL), -4000000LL);// integral part is bound to +/- 4us which corresponds to +/- 400ns in the formula below
 
                 //MTAL_DP("self->m_dTIC_IGR = %lld [ns]\n", self->m_dTIC_IGR);
@@ -601,21 +601,20 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
                 //MTAL_DP("dProportional = %lld [ns]\n", dProportional);
                 //MTAL_DP("self->m_dTIC_CurrentPeriod = %lld [ps]\n", self->m_dTIC_CurrentPeriod);
 
-                                                                     // Proportional + integral part
-                dPhaseAdj = dProportional + self->m_dTIC_IGR / 10; // we allow the integral part to correct up to +/- 150us for the coming half a second or +/- 300ppm
+                // Proportional + integral part
+                dPhaseAdj = /*dProportional + */self->m_dTIC_IGR / 10; // we allow the integral part to correct up to +/- 150us for the coming half a second or +/- 300ppm
 
-                                                                     // limitor
+                // limitor
                 dPhaseAdj = max(min(dPhaseAdj, 4000000LL), -4000000LL); // we allow the total correction up to +/- 1500us for the coming half a second or +/- 3000ppm
 
                 self->m_dTIC_CurrentPeriod += dPhaseAdj * 1000; // [ps]
-
 
                 //MTAL_DP("self->m_dTIC_IGR = %lld [ns]\n", self->m_dTIC_IGR);
                 //MTAL_DP("dPhaseAdj = %lld [ns]\n", dPhaseAdj);
                 //MTAL_DP("dProportional = %lld [ns]\n", dProportional);
                 //MTAL_DP("self->m_dTIC_CurrentPeriod = %lld [ps]\n", self->m_dTIC_CurrentPeriod);
 
-                                                          // Lock detection
+                // Lock detection
                 if (abs(dPhaseAdj) < 800000 && self->m_usTICLockCounter > 0)
                 {
                     self->m_usTICLockCounter--;

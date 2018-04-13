@@ -706,8 +706,6 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 
 	ui64RTPSAC += pRTP_stream_info->m_ui32PlayOutDelay;
 
-	self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC = ui64RTPSAC + ui32NbOfSamplesInThisPacket;
-
 #if defined(_MSC_VER)
 #pragma message("TODO: check if the RTP packet is in time")
 #endif
@@ -816,6 +814,7 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	}
 #endif //DEBUG_CHECK
 
+	self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC = ui64RTPSAC + ui32NbOfSamplesInThisPacket;
 	return 1;
 }
 
