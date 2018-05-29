@@ -2228,8 +2228,14 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+    .copy_user = mr_alsa_audio_pcm_playback_copy,
+    //.copy_kernel = mr_alsa_audio_pcm_playback_copy,
+    .fill_silence = mr_alsa_audio_pcm_playback_silence,
+#else
     .copy =     mr_alsa_audio_pcm_playback_copy,
     .silence =  mr_alsa_audio_pcm_playback_silence,
+#endif
     .page =     snd_pcm_lib_get_vmalloc_page,
     .mmap =     snd_pcm_lib_mmap_vmalloc,
 };
@@ -2244,7 +2250,12 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+    .copy_user = mr_alsa_audio_pcm_capture_copy,
+    //.copy_kernel = mr_alsa_audio_pcm_capture_copy,
+#else
     .copy =     mr_alsa_audio_pcm_capture_copy, //mr_alsa_audio_pcm_capture_copy,
+#endif
     .silence =  NULL, //mr_alsa_audio_pcm_silence,
     .page =     snd_pcm_lib_get_vmalloc_page,
     .mmap =     snd_pcm_lib_mmap_vmalloc,
