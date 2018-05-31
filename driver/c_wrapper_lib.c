@@ -60,8 +60,8 @@ int CW_netfilter_register_hook(void* hook_func, void* hook_struct)
     nfho->hooknum = NF_INET_PRE_ROUTING;    //called right after packet recieved, first hook in Netfilter
     nfho->pf = NFPROTO_IPV4;                //IPV4 packets
     nfho->priority = NF_IP_PRI_FIRST;       //set to highest priority over all other hook functions
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
-    nf_register_hook(&init_net, nfho); //register hook
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+    nf_register_net_hook(&init_net, nfho); //register hook
 #else
     nf_register_hook(nfho);
 #endif
@@ -72,8 +72,8 @@ int CW_netfilter_register_hook(void* hook_func, void* hook_struct)
 int CW_netfilter_unregister_hook(void* hook_struct)
 {
     struct nf_hook_ops* nfho = (struct nf_hook_ops*)hook_struct;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
-    nf_unregister_hook(&init_net, nfho); //cleanup – unregister hook
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+    nf_unregister_net_hook(&init_net, nfho); //cleanup – unregister hook
 #else
     nf_unregister_hook(nfho);
 #endif  
