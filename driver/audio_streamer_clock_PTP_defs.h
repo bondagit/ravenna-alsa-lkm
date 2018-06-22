@@ -64,6 +64,14 @@ typedef struct
 	uint32_t	ui32TICMaxDelta;
 } TTICStats;
 
+#define NB_TIMER_LATENCY_RANGES 10
+typedef struct
+{
+    uint8_t     ui8NumberOfTimerLatencies;
+    uint32_t    aui32TimerLatencyRanges[NB_TIMER_LATENCY_RANGES]; // ]n-1.n] in [us]
+    uint64_t	aui64TimerLatencyOccurences[NB_TIMER_LATENCY_RANGES];
+} TTICOSStats;
+
 ///////////////////////////
 typedef enum
 {
