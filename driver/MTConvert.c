@@ -168,6 +168,9 @@ static uint32_t GetFeatures()
 
 #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     #include <asm/uaccess.h>
+    #include <asm/processor.h>
+    #include <linux/thread_info.h>
+    #include <linux/sched.h>
 #endif
 
 void MTConvertInit() //Init_Converter()

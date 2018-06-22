@@ -11,7 +11,7 @@ KSRC = /lib/modules/$(shell uname -r)/build/
 SRC = $(shell pwd)
 
 modules:
-	$(MAKE) -C $(KSRC) M=$(PWD) modules
+	$(MAKE) -C $(KSRC) M=$(SRC) modules
 
 modules_install:
 	$(MAKE) -C $(KSRC) M=$(SRC) modules_install
