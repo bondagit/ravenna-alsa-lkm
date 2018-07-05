@@ -67,7 +67,7 @@ ALSA lib superior or equal to 1.0.29 for DSD support
 
 ```
 #!makefile
-git clone https://AlsaIntegrator@bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git .
+git clone -b capture https://AlsaIntegrator@bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git .
 cd driver
 make
 sudo insmod MergingRavennaALSA.ko
