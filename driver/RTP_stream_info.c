@@ -291,3 +291,14 @@ uint32_t get_routing(TRTP_stream_info* rtp_stream_info, uint32_t ui32StreamChann
 		return (uint32_t)(~0);
 	return rtp_stream_info->m_aui32Routing[ui32StreamChannelId];
 }
+
+////////////////////////////////////////////////////////////////////
+bool check_equivalence(TRTP_stream_info* rtp_stream_info_A, TRTP_stream_info* rtp_stream_info_B)
+{
+    //return false;
+	if (rtp_stream_info_A->m_ui32DestIP == rtp_stream_info_B->m_ui32DestIP &&
+		rtp_stream_info_A->m_usDestPort == rtp_stream_info_B->m_usDestPort &&
+		rtp_stream_info_A->m_byPayloadType == rtp_stream_info_B->m_byPayloadType )
+			return true;
+	return false;
+}

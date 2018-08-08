@@ -68,7 +68,7 @@ void recv_msg_from_user_land(struct sk_buff *skb)
         {
             if (daemon_pid_ != -1)
             {
-                printk(KERN_ERR "New ALSA Daemon PID detected. Mutliple daemon or unexpected daemon death occured (new=%d, old=%d)\n", pid, daemon_pid_);
+                printk(KERN_WARNING "New ALSA Daemon PID detected. Mutliple daemon or unexpected daemon death occured (new=%d, old=%d)\n", pid, daemon_pid_);
             }
         }
         daemon_pid_ = pid;

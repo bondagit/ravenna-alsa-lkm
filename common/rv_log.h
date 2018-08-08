@@ -47,11 +47,8 @@
 #define LOG_NOTICE      5       /* normal but significant condition */
 #define LOG_INFO        6       /* informational */
 #define LOG_DEBUG       7       /* debug-level messages */
-#ifndef OSX
 #define LOG_TRACE		8
-#else
-#define LOG_TRACE		7   // there are only 3bit for priorities [0-7]
-#endif
+
 
 #define RV_LOG_BLACK(x)		{printf("\033[30m\033[1m");	printf x; printf("\033[0m");}
 #define RV_LOG_RED(x)		{printf("\033[31m\033[1m");	printf x; printf("\033[0m");}
@@ -71,7 +68,7 @@
 #define LOG4C_PRIORITY_NOTICE	LOG_NOTICE	/** notice */	
 #define LOG4C_PRIORITY_INFO		LOG_INFO	/** info */	    
 #define LOG4C_PRIORITY_DEBUG	LOG_DEBUG	/** debug */	
-#define LOG4C_PRIORITY_TRACE	LOG_TRACE	/** trace */	
+#define LOG4C_PRIORITY_TRACE	LOG_TRACE	/** trace */
 #define LOG4C_PRIORITY_NOTSET	9			/** notset */	
 #define LOG4C_PRIORITY_UNKNOWN	10			/** unknown */
 
@@ -138,12 +135,17 @@
 //#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     #include <syslog.h>
+    // Note: we are minimize log_level before calling syslog because there is only 3 bits for priority
     #define rv_log(log_level, ...)  \
     {\
-        char cBuffer[512]; \
-        snprintf(cBuffer, 512, "In %s, line %i: ", __FILE_NAME__, __LINE__);\
-        snprintf(cBuffer + strlen(cBuffer), 512 - strlen(cBuffer), __VA_ARGS__);\
-        syslog(log_level, "%s", cBuffer);\
+        int log_level_tmp = log_level > 7 ? 7 : log_level;\
+        if(log_level <= LOG_MAX_LEVEL)\
+        {\
+            char cBuffer[512]; \
+            snprintf(cBuffer, 512, "In %s, line %i: ", __FILE_NAME__, __LINE__);\
+            snprintf(cBuffer + strlen(cBuffer), 512 - strlen(cBuffer), __VA_ARGS__);\
+            syslog(log_level, "%s", cBuffer);\
+        }\
     }
     /*    if(log_level <= LOG_MAX_LEVEL) {\
             printf("In %s, line %i: ", __FILE_NAME__, __LINE__); \
@@ -152,6 +154,7 @@
     }*/
     #define log4c_log(device_category, log_level, ...)\
     {\
+        int log_level_tmp = log_level > 7 ? 7 : log_level;\
         if(log_level <= LOG_MAX_LEVEL) {\
             char cBuffer[512];\
             snprintf(cBuffer, 512, "[%s] In %s, line %i: ", TOSTRING(device_category), __FILE_NAME__, __LINE__);\

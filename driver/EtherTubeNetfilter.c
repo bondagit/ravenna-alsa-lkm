@@ -266,12 +266,12 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
         {
             return 1;
         }
-        // roonOS provide an empty string ! to be addressed
-        /*if (strcmp(ifname, ifname_used_) != 0)
+        // roonOS provides an empty string !
+        if (strlen(ifname) != 0 && strcmp(ifname, self->ifname_used_) != 0)
         {
-            MTAL_DP_INFO("2: %s, %s\n", ifname, ifname_used_);
+            //MTAL_DP_INFO("2: %s, %s\n", ifname, ifname_used_);
             return 1;
-        }*/
+        }
         if (packet == NULL)
         {
             MTAL_DP_INFO("rx_packet case 3");

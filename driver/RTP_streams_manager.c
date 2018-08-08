@@ -152,6 +152,20 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
 	{
 		return 0;
 	}
+    
+    // check if a similar stream already exists
+    for (i = 0; i < MAX_SOURCE_STREAMS*2; i++)
+    {
+        if (!IsFree(&self->m_apRTPSourceStreams[i]) && IsActive(&self->m_apRTPSourceStreams[i]))
+        {
+            if (check_equivalence(pRTPStreamInfo, &self->m_apRTPSourceStreams[i].m_RTPAudioStream.m_tRTPStream.m_RTP_stream_info))
+            {
+                MTAL_DP("CRTP_streams_manager::AddRTPStream: Remove a similar existing stream\n");
+                remove_RTP_stream_(self, (uint64_t)&self->m_apRTPSourceStreams[i].m_RTPAudioStream);
+            }
+        }
+    }
+    
 	if(pRTPStreamInfo->m_bSource)
 	{   // SOURCE
         int ret = 0;
@@ -178,6 +192,7 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
 			MTAL_DP("CRTP_streams_manager::AddRTPStream: No empty slot\n");
 			break;
 		}
+
         if(!Create(&pUsableRTPStreamHandler->m_RTPAudioStream, pRTPStreamInfo, self->m_pManager, self->m_pEth_netfilter))
 		{
 			MTAL_DP("CRTP_streams_manager::AddRTPStream: Failed to init RTPStream\n");
@@ -312,13 +327,14 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
                         {
                             Release(&self->m_apRTPSourceStreams[i]);
                             ret = 1;
+                            break;
                         }
                         MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream is not active\n");
                         break;
                     }
                 }
-
-                MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sources collection\n");
+                if (ret == 0)
+                    MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sources collection\n");
                 break;
             }
         }
@@ -360,13 +376,14 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
 						{
 							Release(&self->m_apRTPSinkStreams[i]);
 							ret = 1;
+							break;
 						}
 						MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream is not active\n");
 						break;
 					}
 				}
-
-				MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sinks collection\n");
+				if (ret == 0)
+					MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sinks collection\n");
 				break;
 			}
 		}
