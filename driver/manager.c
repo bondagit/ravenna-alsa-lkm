@@ -572,7 +572,12 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
             break;
         }
         case MT_ALSA_Msg_Reset:
+        {
+            MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_Reset..\n");
+            remove_all_RTP_streams(&self->m_RTP_streams_manager);
+            msg_reply.errCode = 0;
             break;
+        }
         case MT_ALSA_Msg_Start:
         {
             MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_Start..\n");

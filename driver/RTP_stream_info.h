@@ -132,7 +132,6 @@ int set_codec(TRTP_stream_info* rtp_stream_info, const char* cCodec);
 unsigned char get_codec_word_lenght(const char* cCodec);
 int set_routing(TRTP_stream_info* rtp_stream_info, uint32_t ui32StreamChannelId, uint32_t ui32PhysicalChannelId);
 uint32_t get_routing(TRTP_stream_info* rtp_stream_info, uint32_t ui32StreamChannelId);
-bool check_equivalence(TRTP_stream_info* rtp_stream_info_A, TRTP_stream_info* rtp_stream_info_B);
 
 ////////////////////////////////////////////////////////////////////
 typedef struct
@@ -272,10 +271,6 @@ public:
 	}
 	uint32_t GetRouting(uint32_t ui32StreamChannelId) const {
 		return get_routing((TRTP_stream_info*)this, ui32StreamChannelId);
-	}
-
-	bool IsEquivalent(TRTP_stream_info* rtp_stream_info) const {
-		return check_equivalence((TRTP_stream_info*)this, rtp_stream_info);
 	}
 };
 
