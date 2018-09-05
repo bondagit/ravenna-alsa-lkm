@@ -6,7 +6,7 @@ This package provides an ALSA driver to enable RAVENNA and AES67 audio over IP p
 
 TODO Version
 
-More information about Merging Technologies, RAVENNA and AES67 can be found on : [http://www.merging.com/products/pyramix/ravenna](http://www.merging.com/products/pyramix/ravenna)
+More information about Merging Technologies, RAVENNA and AES67 can be found on : [here](https://www.merging.com/highlights/audio-networking#audio-networking)
 
 ## Architecture ##
 The RAVENNA ALSA implementation is splitted into 2 parts:
