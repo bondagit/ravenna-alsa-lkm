@@ -6,7 +6,7 @@ This package provides an ALSA driver to enable RAVENNA and AES67 audio over IP p
 
 TODO Version
 
-More information about Merging Technologies, RAVENNA and AES67 can be found on : [http://www.merging.com/products/pyramix/ravenna](http://www.merging.com/products/pyramix/ravenna)
+More information about Merging Technologies, RAVENNA and AES67 can be found on : [here](https://www.merging.com/highlights/audio-networking#audio-networking)
 
 ## Architecture ##
 The RAVENNA ALSA implementation is splitted into 2 parts:
@@ -62,6 +62,12 @@ CONFIG_HZ=1000
 ### ALSA ###
 ALSA lib superior or equal to 1.0.29 for DSD support
 
+## Setup ##
+
+### Hardware (pro audio only) ###
+* A PTP master device (this driver do not act as a PTP master). E.g. Horus/Hapi
+* A switch supporting multicast traffic (RFC 1112), multicast forwarding, IGMPv2 (RFC 2236), IGMP snooping (RFC 4541)
+* A AD/DA AES67 or RAVENNA device. E.g. Horus/Hapi
 
 ## Compilation ##
 
