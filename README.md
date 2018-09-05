@@ -62,6 +62,12 @@ CONFIG_HZ=1000
 ### ALSA ###
 ALSA lib superior or equal to 1.0.29 for DSD support
 
+## Setup ##
+
+### Hardware (pro audio only) ###
+* A PTP master device (this driver do not act as a PTP master). E.g. Horus/Hapi
+* A switch supporting multicast traffic (RFC 1112), multicast forwarding, IGMPv2 (RFC 2236), IGMP snooping (RFC 4541)
+* A AD/DA AES67 or RAVENNA device. E.g. Horus/Hapi
 
 ## Compilation ##
 
