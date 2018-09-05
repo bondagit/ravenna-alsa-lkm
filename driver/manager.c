@@ -865,19 +865,48 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
         }
         case MT_ALSA_Msg_Update_RTPStream_Name:
             break;
-        case MT_ALSA_Msg_GetPTPInfo:
+        case MT_ALSA_Msg_SetPTPConfig:
         {
-            //MTAL_DP_INFO("Get PTP Info\n");
+            if (msg_rcv->dataSize != sizeof(TPTPConfig))
+            {
+                MTAL_DP_ERR("Set PTP config invalid data size\n");
+                msg_reply.errCode = -315;
+            }
+            else
+            {
+                TPTPConfig* ptpConfig = (TPTPConfig*)msg_rcv->data;
+                SetPTPConfig(&self->m_PTP, ptpConfig);
+                msg_reply.errCode = 0;
+            }
+            break;
+        }
+        case MT_ALSA_Msg_GetPTPConfig:
+        {
+            //MTAL_DP_INFO("Get PTP Config\n");
 
-            TPTPInfo ptpInfo;
-            GetPTPInfo(&self->m_PTP, &ptpInfo);
+            TPTPConfig ptpConfig;
+            GetPTPConfig(&self->m_PTP, &ptpConfig);
 
             msg_reply.errCode = 0;
-            msg_reply.dataSize = sizeof(TPTPInfo);
-            msg_reply.data = &ptpInfo;
+            msg_reply.dataSize = sizeof(TPTPConfig);
+            msg_reply.data = &ptpConfig;
 
             CW_netlink_send_reply_to_user_land(&msg_reply);
-            return; // because ptpInfo is out of the scope if send reply at the end of the function
+            return; // because ptpConfig is out of the scope if send reply at the end of the function
+        }
+        case MT_ALSA_Msg_GetPTPStatus:
+        {
+            //MTAL_DP_INFO("Get PTP Status\n");
+
+            TPTPStatus ptpStatus;
+            GetPTPStatus(&self->m_PTP, &ptpStatus);
+
+            msg_reply.errCode = 0;
+            msg_reply.dataSize = sizeof(TPTPStatus);
+            msg_reply.data = &ptpStatus;
+
+            CW_netlink_send_reply_to_user_land(&msg_reply);
+            return; // because ptpStatus is out of the scope if send reply at the end of the function
         }
         case MT_ALSA_Msg_SetMasterOutputVolume:
             if (msg_rcv->dataSize != sizeof(int32_t))

@@ -96,7 +96,7 @@ typedef struct
     uint64_t m_ui64DeltaT2; //[100us]
 
     uint16_t m_wLastDelayReqSequenceId;
-    TPTPV2MsgDelayReqPacket	m_PTPV2MsgDelayReqPacket;
+    TPTPV2MsgDelayReqPacket m_PTPV2MsgDelayReqPacket;
 
     // PTP WatchDog
     uint64_t m_ui64LastWatchDogTime;
@@ -106,21 +106,33 @@ typedef struct
     uint8_t m_ui8PTPClockDomain;
 
     /*
-    CMTAL_PerfMonMinMax<float>		m_pmmmPTPStatRatio;
-    CMTAL_PerfMonMinMax<uint32_t>	m_pmmmPTPStatSyncInterval;
-    CMTAL_PerfMonMinMax<uint32_t>	m_pmmmPTPStatFollowInterval;
-    CMTAL_PerfMonMinMax<int32_t>	m_pmmmPTPStatDeltaTICFrame;
-    CMTAL_PerfMonInterval			m_pmiTICInterval;
+    CMTAL_PerfMonMinMax<float>      m_pmmmPTPStatRatio;
+    CMTAL_PerfMonMinMax<uint32_t>   m_pmmmPTPStatSyncInterval;
+    CMTAL_PerfMonMinMax<uint32_t>   m_pmmmPTPStatFollowInterval;
+    CMTAL_PerfMonMinMax<int32_t>    m_pmmmPTPStatDeltaTICFrame;
+    CMTAL_PerfMonInterval           m_pmiTICInterval;
     */
 
     void* m_csSAC_Time_Lock;
     //CMTAL_CriticalSection m_csSAC_Time_Lock;
+    
+    //######################################################
+    TPTPConfig m_PTPConfig;
+    uint32_t m_ui32PTPConfigChangedCounter;
+    uint32_t m_ui32LastPTPConfigChangedCounter;
+    
+    TV2MsgAnnounce m_PTPMaster_Announce;
+    uint64_t m_ui64PTPMaster_AnnounceTime;
+    
+    uint64_t m_ui64PTPMaster_ClockIdentity;
+    uint64_t m_ui64PTPMaster_GMID;
+    //######################################################
 
 } TClock_PTP;
 
 
 
-#if	defined(__cplusplus)
+#if defined(__cplusplus)
 extern "C"
 {
 #endif // defined(__cplusplus) f10b pourra etre retire  +extern quand le port C sera termine
@@ -143,7 +155,10 @@ extern "C"
 
  EPTPLockStatus GetLockStatus(TClock_PTP* self);
 
- void GetPTPInfo(TClock_PTP* self, TPTPInfo* TPTPInfo);
+ void SetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig);
+ void GetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig);
+ 
+ void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus);
 //extern void GetPTPStats(TClock_PTP* self, TPTPStats* pPTPStats);
 //extern void GetTICStats(TClock_PTP* self, TTICStats* pTICStats);
 
@@ -151,6 +166,10 @@ extern "C"
  uint64_t get_ptp_global_time(TClock_PTP* self);
 
  void ResetPTPLock(TClock_PTP* self, bool bUseMutex);
+ 
+ //######################################################
+ void ResetPTPMaster(TClock_PTP* self);
+ //######################################################
 
  void ProcessT1(TClock_PTP* self, uint64_t ui64T1); // from Sync or Follow_up
 
@@ -170,6 +189,6 @@ extern "C"
 //static void dumpv2timerepresentation(tv2timerepresentation* porigintimestamp);
 
 
-#if	defined(__cplusplus)
+#if defined(__cplusplus)
 }
-#endif	// defined(__cplusplus)
+#endif  // defined(__cplusplus)

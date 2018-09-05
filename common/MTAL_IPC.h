@@ -11,7 +11,7 @@
 *  Modification   : 
 *  Known problems : None
 * 
-*  Copyright (c) 1993-2017 Merging Technologies S.A., All rights reserved
+*  Copyright 1993-2018 Merging Technologies S.A., All Rights Reserved - CONFIDENTIAL -
 ****************************************************************************/
 
 #pragma once

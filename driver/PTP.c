@@ -52,6 +52,9 @@
 #define PS_2_REF_UNIT 100000000 // ps is the PTP unit
 #define NS_2_REF_UNIT 100000 // ns is the linux time unit
 
+// PTP Domain
+#define PTPMASTER_ANNOUNCE_TIMEOUT	50000000 // [100ns]
+
 
 //////////////////////////////////////////////////////////////
 void get_ptp_global_times(TClock_PTP* self, uint64_t* pui64GlobalSAC, uint64_t* pui64GlobalTime, uint64_t* pui64GlobalPerformanceCounter) // get the time and the SAC atomically
@@ -232,6 +235,12 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_op
     self->m_csSAC_Time_Lock = (void*)kmalloc(sizeof(spinlock_t), GFP_ATOMIC/*GFP_KERNEL*/);
     memset(self->m_csSAC_Time_Lock, 0, sizeof(spinlock_t));
     spin_lock_init((spinlock_t*)self->m_csSAC_Time_Lock);
+    
+    //######################################################
+    memset(&self->m_PTPConfig, 0, sizeof(TPTPConfig));
+    self->m_ui32PTPConfigChangedCounter = self->m_ui32LastPTPConfigChangedCounter = 0;
+    ResetPTPMaster(self);
+    //######################################################
 
 	return true;
 }
@@ -315,9 +324,71 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				return DR_PACKET_NOT_USED;
 			}
 
-			memcpy(&self->m_ui64PTP_GMID, pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity, 8);
-			self->m_ui8PTPClockDomain = pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber;
-			//MTAL_DP("self->m_ui64PTP_GMID = %llx\n", self->m_ui64PTP_GMID);
+            //######################################################
+            {
+                uint64_t ui64_CurrentClockIdentity = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgHeader.SourcePortId.byClockIdentity;
+                
+                // is PTPConfig has changed?
+                if (self->m_ui32PTPConfigChangedCounter != self->m_ui32LastPTPConfigChangedCounter)
+                { // restart election
+                    self->m_ui32LastPTPConfigChangedCounter = self->m_ui32PTPConfigChangedCounter;
+                    
+                    MTAL_DP("PTPConfig has changed -> restart election\n");
+                    
+                    ResetPTPLock(self, true);
+                    ResetPTPMaster(self);
+                }
+                
+                // Is elected PTPMaster's domain still match wanted domain?
+                if (ui64_CurrentClockIdentity == self->m_ui64PTPMaster_ClockIdentity
+                    && pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
+                { // restart election
+                    MTAL_DP("PTP Master domain no longer matches wanted domain -> restart election\n");
+                    ResetPTPLock(self, true);
+                    ResetPTPMaster(self);
+                }
+                
+                if (pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber == self->m_PTPConfig.ui8Domain)
+                {
+                    bool bElectThisPTPMaster = false;
+                    uint64_t ui64CurrentTime;
+                    get_clock_time(&ui64CurrentTime);
+                    ui64CurrentTime /= 100; // [100ns]
+                    
+                    // very simple PTPMaster election
+                    // 1. no PTPMaster elected then use the first one
+                    // 2. if no long receive announce from this PTPMaster then use the first one
+                    
+                    if (self->m_ui64PTPMaster_ClockIdentity == 0)
+                    { // never receive any announce or election restarted from scratch
+                        bElectThisPTPMaster = true;
+                    }
+                    if (self->m_ui64PTPMaster_AnnounceTime != 0 && ui64CurrentTime - self->m_ui64PTPMaster_AnnounceTime > PTPMASTER_ANNOUNCE_TIMEOUT)
+                    { // too long time we didn't receive the announce -> restart election
+                        MTAL_DP("PTP Master announce timeout\n");
+                        bElectThisPTPMaster = true;
+                    }
+                    
+                    if(bElectThisPTPMaster)
+                    { // use this PTP Master
+                        MTAL_DP("Use this PTP Master\n");
+                        ResetPTPLock(self, true);
+                        ResetPTPMaster(self);
+                        
+                        memcpy(&self->m_PTPMaster_Announce, &pPTPV2MsgAnnouncePacket->V2MsgAnnounce, sizeof(TV2MsgAnnounce));
+                        self->m_ui64PTPMaster_GMID = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity;
+                        self->m_ui64PTPMaster_ClockIdentity = ui64_CurrentClockIdentity;
+                    }
+                    
+                    // Is elected PTPMaster?
+                    if (ui64_CurrentClockIdentity == self->m_ui64PTPMaster_ClockIdentity)
+                    { // save announce time
+                        self->m_ui64PTPMaster_AnnounceTime = ui64CurrentTime;
+                    }
+                }
+            }
+            //######################################################
+            
 			break;
 		}
 		case PTP_SYNC_MESSAGE:
@@ -335,6 +406,15 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				return DR_PACKET_NOT_USED;
 			}
 			//DumpV2TimeRepresentation(&pPTPV2MsgSyncPacket->V2MsgSync.OriginTimestamp);
+            
+            //######################################################
+            // Check PTP Clock identity
+            if (*(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
+            { // ignore this packet
+                //MTAL_DP("PTP sync packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
+                return DR_RTP_PACKET_USED;
+            }
+            //######################################################
 
 			get_clock_time(&ui64T2); // retrieve the packet arrival time (RTX clock domain).
 			ui64T2 /= NS_2_REF_UNIT; // [100ns]
@@ -402,6 +482,15 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			}
 			///MTAL_DP("PTP_FOLLOWUP_MESSAGE\n");
 			//DumpV2TimeRepresentation(&pPTPV2MsgFollowUpPacket->V2MsgFollowUp.PreciseOriginTimestamp);
+            
+            //######################################################
+            // Check PTP Clock identity
+            if (*(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
+            { // ignore this packet
+                //MTAL_DP("PTP follow_up packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
+                return DR_RTP_PACKET_USED;
+            }
+            //######################################################
             {
                 uint64_t ui64T1 = GetSeconds(pPTPV2MsgFollowUpPacket->V2MsgFollowUp.PreciseOriginTimestamp.bySeconds) * 1000000000 + (int32_t)MTAL_SWAP32(pPTPV2MsgFollowUpPacket->V2MsgFollowUp.PreciseOriginTimestamp.i32Nanoseconds); // [ns]
                 // Correction field
@@ -441,6 +530,17 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 	}
 	return DR_PTP_PACKET_USED;
 }
+
+//######################################################
+void ResetPTPMaster(TClock_PTP* self)
+{
+    MTAL_DP("ResetPTPMaster\n");
+    memset(&self->m_PTPMaster_Announce, 0, sizeof(TV2MsgAnnounce));
+    self->m_ui64PTPMaster_AnnounceTime = 0;
+    self->m_ui64PTPMaster_ClockIdentity = 0;
+    self->m_ui64PTPMaster_GMID = 0;
+}
+//######################################################
 
 ///////////////////////////////////////////////////////////////////////////////
 // from Sync or Follow_up
@@ -1026,17 +1126,41 @@ EPTPLockStatus GetLockStatus(TClock_PTP* self)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void GetPTPInfo(TClock_PTP* self, TPTPInfo* pPTPInfo)
+void SetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig)
 {
-	if (!pPTPInfo)
-	{
-		return;
-	}
+    if (!pPTPConfig)
+    {
+        return;
+    }
+    if (self->m_PTPConfig.ui8Domain != pPTPConfig->ui8Domain
+        || self->m_PTPConfig.ui8DSCP != pPTPConfig->ui8DSCP)
+    {
+        self->m_PTPConfig = *pPTPConfig;
+        self->m_ui32PTPConfigChangedCounter++;
+        
+        MTAL_DP("PTPConfig: domain = %u, DSCP = %u\n", self->m_PTPConfig.ui8Domain, self->m_PTPConfig.ui8DSCP);
+    }
+}
 
-	memset(pPTPInfo, 0, sizeof(TPTPInfo));
+///////////////////////////////////////////////////////////////////////////////
+void GetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig)
+{
+    if (!pPTPConfig)
+    {
+        return;
+    }
+    *pPTPConfig = self->m_PTPConfig;
+}
 
-	pPTPInfo->ui64GMID = self->m_ui64PTP_GMID;
-	pPTPInfo->ui8ClockDomain = self->m_ui8PTPClockDomain;
+///////////////////////////////////////////////////////////////////////////////
+void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus)
+{
+    if (!pPTPStatus)
+    {
+        return;
+    }
+    memset(pPTPStatus, 0, sizeof(TPTPStatus));
+    pPTPStatus->ui64GMID = self->m_ui64PTPMaster_GMID;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

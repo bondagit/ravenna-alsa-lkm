@@ -37,9 +37,15 @@
 
 typedef struct
 {
+	uint8_t		ui8Domain;
+	uint8_t		ui8DSCP;
+} TPTPConfig;
+
+typedef struct
+{	
 	uint64_t	ui64GMID;
-	uint8_t		ui8ClockDomain;
-} TPTPInfo;
+	uint32_t	ui32Jitter;	
+} TPTPStatus;
 
 typedef struct
 {

@@ -59,7 +59,7 @@ enum MT_ALSA_msg_id
     MT_ALSA_Msg_Add_RTPStream,            //    U2K One input: RTPStreamInfo, one output: hHandle
     MT_ALSA_Msg_Remove_RTPStream,         //    U2K One input: hHandle
     MT_ALSA_Msg_Update_RTPStream_Name,    //    U2K One input: CRTP_stream_update_name
-    MT_ALSA_Msg_GetPTPInfo,               //    U2K One output: TPTPInfo
+    MT_ALSA_Msg_GetPTPInfo,               //    U2K One output: TPTPInfo (obsolete)
     MT_ALSA_Msg_Hello,                    //    U2K K2U No arguments
     MT_ALSA_Msg_Bye,                      //    U2K K2U No arguments
     MT_ALSA_Msg_Ping,                     //    U2K K2U No arguments
@@ -69,7 +69,10 @@ enum MT_ALSA_msg_id
     MT_ALSA_Msg_GetMasterOutputSwitch,    //    K2U NADAC only : one output: int32_t value (0 or 1)
     MT_ALSA_Msg_SetPlayoutDelay,          //    U2K one input: the delay in sample as a 32 bit signed integer
     MT_ALSA_Msg_SetCaptureDelay,          //    U2K one input: the delay in sample as a 32 bit signed integer
-    MT_ALSA_Msg_GetRTPStreamStatus        //    U2K One input: hHandle, one output: the RTP stream status struct
+    MT_ALSA_Msg_GetRTPStreamStatus,       //    U2K One input: hHandle, one output: the RTP stream status struct
+    MT_ALSA_Msg_SetPTPConfig,             //    U2K One input: TPTPConfig
+    MT_ALSA_Msg_GetPTPConfig,             //    U2K One output: TPTPConfig
+    MT_ALSA_Msg_GetPTPStatus              //    U2K One output: TPTPStatus
 };
 
 struct MT_ALSA_msg
