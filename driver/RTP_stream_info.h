@@ -115,6 +115,7 @@ typedef struct {
 		};
 		unsigned int flags;
 	} u;
+	int sink_min_time; //  min packet arrival time
 } TRTP_stream_status;
 
 #pragma pack(pop)
@@ -277,24 +278,26 @@ public:
 class CRTP_stream_status: protected TRTP_stream_status
 {
 public:
-	CRTP_stream_status() { u.flags = 0; }
+	CRTP_stream_status() { u.flags = 0; sink_min_time = 0; }
 	CRTP_stream_status(TRTP_stream_status const & stream_status) { u.flags = stream_status.u.flags; }
 
-	void clear() { u.flags = 0; }
+	void clear() { u.flags = 0; sink_min_time = 0;
+	}
 
 	bool operator==(const CRTP_stream_status & other) const
 	{
-		return u.flags == other.u.flags;
+		return u.flags == other.u.flags && sink_min_time == other.sink_min_time;
 	}
 
 	bool operator!=(const CRTP_stream_status & other) const
 	{
-		return u.flags != other.u.flags;
+		return u.flags != other.u.flags || sink_min_time != other.sink_min_time;
 	}
 
 	CRTP_stream_status & operator=(const CRTP_stream_status & other)
 	{
 		u.flags = other.u.flags;
+		sink_min_time = other.sink_min_time;
 		return *this;
 	}
 
@@ -320,6 +323,9 @@ public:
 
 	void set_sink_RTP_SAC_error(bool bValue) { u.sink_RTP_SAC_error = bValue ? 1 : 0; }
 	bool is_sink_RTP_SAC_error() const { return u.sink_RTP_SAC_error == 1; }
+
+	void set_sink_min_time(int iMinTime) { sink_min_time = iMinTime; }
+	int get_sink_min_time() const { return sink_min_time; }
 
 protected:
 	//TRTP_stream_status m_stream_status;

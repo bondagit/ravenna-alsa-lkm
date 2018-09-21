@@ -31,9 +31,14 @@
 
 #pragma once
 
-
-
 #pragma pack(push, 1)
+///////////////////////////
+typedef enum
+{
+    PTPLS_UNLOCKED	= 0,
+    PTPLS_LOCKING	= 1,
+    PTPLS_LOCKED	= 2
+} EPTPLockStatus;
 
 typedef struct
 {
@@ -42,9 +47,10 @@ typedef struct
 } TPTPConfig;
 
 typedef struct
-{	
+{
+	EPTPLockStatus nPTPLockStatus;
 	uint64_t	ui64GMID;
-	uint32_t	ui32Jitter;	
+	uint32_t	ui32Jitter;
 } TPTPStatus;
 
 typedef struct
@@ -78,13 +84,7 @@ typedef struct
     uint64_t	aui64TimerLatencyOccurences[NB_TIMER_LATENCY_RANGES];
 } TTICOSStats;
 
-///////////////////////////
-typedef enum
-{
-	PTPLS_UNLOCKED	= 0,
-	PTPLS_LOCKING	= 1,
-	PTPLS_LOCKED	= 2
-} EPTPLockStatus;
+
 
 ///////////////////////////
 typedef enum
@@ -99,5 +99,3 @@ typedef enum
 } EPTPTimeCodeFrameType;
 
 #pragma pack(pop)
-
-
