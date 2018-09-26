@@ -1352,11 +1352,10 @@ void AudioFrameTIC(void* user)
         prevLockStatus = lockStatus;
     }
 
+    prepare_buffer_lives(&self->m_RTP_streams_manager);
+    
     if (self->m_bIORunning && lockStatus == PTPLS_LOCKED)
     {
-        /// retrieves live inputs
-        prepare_buffer_lives(&self->m_RTP_streams_manager);
-
         #ifdef MTTRANSPARENCY_CHECK
         {
             uint32_t ui32Channel = MTTRANSPARENCY_CHECK_CHANNEL_IDX;
