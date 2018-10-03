@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// Copyright 1993-2017 Merging Technologies S.A., All Rights Reserved
+// Copyright 1993-2018 Merging Technologies S.A., All Rights Reserved - CONFIDENTIAL -
 ///////////////////////////////////////////////////////////////////////////////
 #ifdef WIN32
 	#pragma warning(disable : 4996)
@@ -24,9 +24,10 @@
 #include "rv_log.h"
 #include "MTAL_IPC.h"
 
-
+//#define USE_SYNCWORD 1
 
 #define DEFAULT_DISPLAY_ELAPSEDTIME_THRESHOLD ~0 // means disabled
+#define LOG_AFTER_N_RETRIES 1000
 
 #ifdef __linux__ 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,9 +50,13 @@
 	#define ANSWER_FIFO_PREFIX "/tmp/MTAL_IPC_Answer"
 #endif
 
+#define MSGBLOCK_SYNC_WORD	"Ab$5FGh&^HG&456\0"
 #define MAX_CONTROLLER_BUFFER_SIZE	2048
 typedef struct
 {
+#ifdef USE_SYNCWORD
+	char strSyncWord[16];
+#endif
 	uint32_t ui32MsgSize;
 	uint32_t ui32MsgSeqId;
 	uint32_t ui32MsgId;
@@ -102,8 +107,69 @@ static int create_thread(TMTAL_IPC_Instance* pTMTAL_IPC_Instance);
 static void destroy_thread(TMTAL_IPC_Instance* pTMTAL_IPC_Instance);
 static void* thread_proc(void *pParam);
 
+////////////////////////////////////////////////////////////////
+static void DumpMsgBlock(MTAL_IPC_MsgBlockBase* pMTAL_IPC_MsgBlockBase)
+{
+	if (!pMTAL_IPC_MsgBlockBase)
+		return;
+#ifdef USE_SYNCWORD
+	rv_log(LOG_DEBUG, "MTAL_IPC_MsgBlockBase(%p): [%s] Id: %u, SeqId: %u, Size: %u, Result: %i\n",
+		pMTAL_IPC_MsgBlockBase,
+		pMTAL_IPC_MsgBlockBase->strSyncWord,
+		pMTAL_IPC_MsgBlockBase->ui32MsgId,
+		pMTAL_IPC_MsgBlockBase->ui32MsgSeqId,
+		pMTAL_IPC_MsgBlockBase->ui32MsgSize,
+		pMTAL_IPC_MsgBlockBase->i32Result);
+#else
+	rv_log(LOG_DEBUG, "MTAL_IPC_MsgBlockBase(%p): Id: %u, SeqId: %u, Size: %u, Result: %i\n",
+		pMTAL_IPC_MsgBlockBase,
+		pMTAL_IPC_MsgBlockBase->ui32MsgId,
+		pMTAL_IPC_MsgBlockBase->ui32MsgSeqId,
+		pMTAL_IPC_MsgBlockBase->ui32MsgSize,
+		pMTAL_IPC_MsgBlockBase->i32Result);
+#endif
+}
 
+////////////////////////////////////////////////////////////////
+static void DumpMemory(void* pBuffer, uint32_t ui32BufferSize)
+{
+	rv_log(LOG_INFO, "pBuffer = %p, size = %u\n", pBuffer, ui32BufferSize);
+	uint32_t ui = 0;
+	if (ui32BufferSize > 256) ui32BufferSize = 256;
+	for (ui = 0; ui < ui32BufferSize; ui += 16)
+	{
+		char hexDump[16 * 4];
+		memset(hexDump, 0, sizeof(hexDump));
+		uint32_t ui2;
+		for (ui2 = 0; ui2 < 16; ++ui2)
+		{
+			char hex[10] = { 0 };
+			sprintf(hex, "%02x ", ((char*)pBuffer)[ui + ui2]);
+			strcat(hexDump, hex);
+		}
 
+		char charDump[16 * 2];
+		memset(charDump, 0, sizeof(charDump));		
+		for (ui2 = 0; ui2 < 16; ++ui2)
+		{
+			char hex[2] = { 0 };
+			char c = ((char*)pBuffer)[ui + ui2];
+			if (c < 32) c = '-';
+			sprintf(hex, "%c", c);
+			strcat(charDump, hex);
+		}
+
+		rv_log(LOG_DEBUG, "0x%04x: %s  %s\n", ui, hexDump, charDump);
+	}
+}
+
+////////////////////////////////////////////////////////////////
+#ifdef USE_SYNCWORD
+static int IsMsgBlockValid(MTAL_IPC_MsgBlockBase* pMTAL_IPC_MsgBlockBase)
+{
+	return memcmp(pMTAL_IPC_MsgBlockBase->strSyncWord, MSGBLOCK_SYNC_WORD, sizeof(pMTAL_IPC_MsgBlockBase->strSyncWord));
+}
+#endif
 ////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error MTAL_IPC_init(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle)
 {
@@ -408,18 +474,12 @@ static EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, 
 ////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void const * pvInBuffer, uint32_t ui32InBufferSize, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t *pi32MsgErr)
 {
-	if (ui32InBufferSize > MAX_CONTROLLER_BUFFER_SIZE || ui32InBufferSize > MAX_CONTROLLER_BUFFER_SIZE)
+	if (ui32InBufferSize > MAX_CONTROLLER_BUFFER_SIZE || (pui32OutBufferSize && *pui32OutBufferSize > MAX_CONTROLLER_BUFFER_SIZE))
 	{
 		rv_log(LOG_ERR, "error: buffer size error\n");
 		return MIE_INVALID_BUFFER_SIZE;
 	}
 
-	////////////////////////////////////////////////////////////////
-	if (ui32MsgId == 9) // MT_PTPV2D_IPC_MSG__SET_FREQ_ADJ
-	{
-		rv_log(LOG_NOTICE, "MTAL_IPC_SendIOCTL(ui32MsgId:%u, ui32InBufferSize:%u)\n", ui32MsgId, ui32InBufferSize);
-	}
-    
     TMTAL_IPC_Instance* pTMTAL_IPC_Instance = (TMTAL_IPC_Instance*)ptrHandle;
 	uint32_t ui32StartTime = get_current_time(); // [us]
 	if (pTMTAL_IPC_Instance->ui32DisplayElapsedTimeThreshold != (unsigned)~0)
@@ -435,6 +495,9 @@ EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void
 			MTAL_IPC_MsgBlock MTAL_IPC_MsgBlock_tmp;
 
 			MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTAL_IPC_MsgBlockBase) + ui32InBufferSize;
+			#ifdef USE_SYNCWORD
+				memcpy(MTAL_IPC_MsgBlock_tmp.base.strSyncWord, MSGBLOCK_SYNC_WORD, sizeof(MTAL_IPC_MsgBlock_tmp.base.strSyncWord));
+			#endif
 			MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId = ++pTMTAL_IPC_Instance->s_ui32MsgSeqId;
 			MTAL_IPC_MsgBlock_tmp.base.ui32MsgId = ui32MsgId;
 			MTAL_IPC_MsgBlock_tmp.base.i32Result = 0;
@@ -443,11 +506,6 @@ EMTAL_IPC_Error MTAL_IPC_SendIOCTL(uintptr_t ptrHandle, uint32_t ui32MsgId, void
 				memcpy(&MTAL_IPC_MsgBlock_tmp.pui8Buffer, pvInBuffer, ui32InBufferSize);
 			}
 
-			////////////////////////////////////////////////////////////////
-			if (ui32MsgId == 9) // MT_PTPV2D_IPC_MSG__SET_FREQ_ADJ
-			{
-				rv_log(LOG_NOTICE, "MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize=%u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize);
-			}
 
 			ssize_t bytes_to_write = MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize;
 			iRet = send_buffer_to_fifo(pTMTAL_IPC_Instance->s_peer_server_fd, (uint8_t*)&MTAL_IPC_MsgBlock_tmp, bytes_to_write);
@@ -559,7 +617,7 @@ EMTAL_IPC_Error send_buffer_to_fifo(int fd, uint8_t* pBuffer, uint32_t ui32Buffe
 	ssize_t bytes_written = write(fd, pBuffer, ui32BufferSize);
 	if (bytes_written != ui32BufferSize) 
 	{
-		rv_log(LOG_ERR, "send_answer:write(%i) error: EBADF = %u, %u\n", fd, EBADF, errno);
+		rv_log(LOG_ERR, "send_answer:write(%i) error: EBADF = %u, %u;  written: %lu should be %u\n", fd, EBADF, errno, bytes_written, ui32BufferSize);
 		iRet = MIE_FAIL;
 	}
 	return iRet;
@@ -569,72 +627,128 @@ EMTAL_IPC_Error send_buffer_to_fifo(int fd, uint8_t* pBuffer, uint32_t ui32Buffe
 // return latest message in the fifo.
 EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t* pi32MsgErr)
 {
-	uint8_t pui8Buffer[sizeof(MTAL_IPC_MsgBlock )];
-
 	uint32_t ui32MaxRetryDuration = 500000; // [us]
 	uint32_t ui32StartTime = get_current_time(); // [us]
-		
+
+	int iMsgCounter = 0;
 	int iRetryCounter = 0;
 	do
 	{
 		if (netSelect(fd_client, 0, 100000) > 0)
 		{
-			ssize_t bytes_read = read(fd_client, pui8Buffer, sizeof(pui8Buffer));
-			if (bytes_read <= 0)
+			do
 			{
-				rv_log(LOG_ERR, "failed to read from fifo: bytes read: %u errno: %u\n", (unsigned int)bytes_read, errno);
-			}
-			////rv_log(LOG_DEBUG, "bytes_read = %i\n", bytes_read);
+				MTAL_IPC_MsgBlock MTAL_IPC_MsgBlock_tmp;
+				ssize_t bytes_read;
 
-			if (bytes_read > 0 && (unsigned)bytes_read < sizeof(MTAL_IPC_MsgBlockBase))
-			{
-				rv_log(LOG_ERR, "read too less bytes from fifo bytes read: %u errno: %u\n", (unsigned int)bytes_read, errno);
-				return MIE_FAIL;
-			}
-
-			MTAL_IPC_MsgBlockBase* pMTAL_IPC_MsgBlockBase = (MTAL_IPC_MsgBlockBase*)pui8Buffer;
-			int32_t i32RemainingBytes = bytes_read;
-			while ((unsigned)i32RemainingBytes >= sizeof(MTAL_IPC_MsgBlockBase))
-			{
-				uint32_t ui32MsgSize = pMTAL_IPC_MsgBlockBase->ui32MsgSize;
-
-				//rv_log(LOG_DEBUG, "SeqId = %u, %u\n", pMTAL_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
-				if (pMTAL_IPC_MsgBlockBase->ui32MsgSeqId != ui32SeqId)
+				// get the message base
+				bytes_read = read(fd_client, &MTAL_IPC_MsgBlock_tmp, sizeof(MTAL_IPC_MsgBlockBase));
+				if ((bytes_read == -1 && (errno == EINTR || errno == EAGAIN))
+					|| bytes_read == 0)
 				{
-					rv_log(LOG_ERR, "Answer doesn't match our message SeqId = %u, %u\n", pMTAL_IPC_MsgBlockBase->ui32MsgSeqId, ui32SeqId);
+					break;
+				}
+				else if (bytes_read < 0)
+				{
+					rv_log(LOG_ERR, "read error: errno = %i\n", errno);
+					return MIE_FAIL;
+				}
+				else if ((unsigned)bytes_read < sizeof(MTAL_IPC_MsgBlockBase))
+				{
+					// wrong message
+					rv_log(LOG_ERR, "wrong message size: %u expected >= %lu", (unsigned int)bytes_read, sizeof(MTAL_IPC_MsgBlockBase));
+					return MIE_FAIL;
+				}
+
+
+				// get the message buffer
+				if (MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize > sizeof(MTAL_IPC_MsgBlockBase))
+				{
+					ssize_t bytes_read2 = read(fd_client, &MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
+					if (bytes_read2 < 0)
+					{
+						rv_log(LOG_ERR, "2. read error: errno = %i\n", errno);
+						return MIE_FAIL;
+					}
+					else if ((unsigned)bytes_read2 < MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase))
+					{
+						// wrong message
+						rv_log(LOG_ERR, "2. wrong message size: %u expected >= %lu", (unsigned int)bytes_read2, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
+						return MIE_FAIL;
+					}
+
+					bytes_read += bytes_read2;
+				}
+
+
+				uint32_t ui32MsgSize = MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize;
+
+				if (iRetryCounter > LOG_AFTER_N_RETRIES)
+				{
+					rv_log(LOG_DEBUG, "[%i] bytes_read = %zd\n", iRetryCounter, bytes_read);
+					rv_log(LOG_NOTICE, "[%i] SeqId = answer.%u, request.%u; ui32MsgId = %u, ui32MsgSize = %u\n", iMsgCounter, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId, ui32SeqId, MTAL_IPC_MsgBlock_tmp.base.ui32MsgId, ui32MsgSize);
+				}
+				
+				#ifdef USE_SYNCWORD
+					if (IsMsgBlockValid(&MTAL_IPC_MsgBlock_tmp.base) != 0)
+					{
+						rv_log(LOG_ERR, "not a MsgBlock\n");
+						rv_log(LOG_ERR, "SeqId = %u, %u; ui32MsgId = %u, ui32MsgSize = %u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId, ui32SeqId, MTAL_IPC_MsgBlock_tmp.base.ui32MsgId, ui32MsgSize);
+						DumpMsgBlock(&MTAL_IPC_MsgBlock_tmp.base);
+						DumpMemory(&MTAL_IPC_MsgBlock_tmp.base, ui32MsgSize);
+						exit(-5);
+					}
+				#endif
+				if (MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId != ui32SeqId)
+				{
+					rv_log(LOG_ERR, "Answer doesn't match our message SeqId = %u, %u; ui32MsgId = %u, ui32MsgSize = %u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId, ui32SeqId, MTAL_IPC_MsgBlock_tmp.base.ui32MsgId, ui32MsgSize);
+					DumpMsgBlock(&MTAL_IPC_MsgBlock_tmp.base);
 				}
 				else
 				{
 					if (pvOutBuffer && pui32OutBufferSize)
 					{
-						*pui32OutBufferSize = ui32MsgSize < *pui32OutBufferSize ? ui32MsgSize : *pui32OutBufferSize;
-						memcpy(pvOutBuffer, (uint8_t*)pMTAL_IPC_MsgBlockBase + sizeof(MTAL_IPC_MsgBlockBase), *pui32OutBufferSize);
+						uint32_t ui32BufferSize = ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase);
+						if (ui32BufferSize != *pui32OutBufferSize)
+						{
+							rv_log(LOG_ERR, "output buffer size doesn't match: msg buffer size = %u when ui32OutBufferSize = %u\n", ui32BufferSize, *pui32OutBufferSize);
+							return MIE_INVALID_BUFFER_SIZE;
+						}						
+						memcpy(pvOutBuffer, MTAL_IPC_MsgBlock_tmp.pui8Buffer, *pui32OutBufferSize);
 					}
-					if (pMTAL_IPC_MsgBlockBase->i32Result < 0)
+
+					/*if (MTAL_IPC_MsgBlock_tmp.base.i32Result < 0)
 					{
-						rv_log(LOG_WARNING, "pMTAL_IPC_MsgBlockBase->iResult = %i\n", pMTAL_IPC_MsgBlockBase->i32Result);
-					}
+						rv_log(LOG_WARNING, "ui32MsgId = %u, MTAL_IPC_MsgBlock_tmp.base.iResult = %i\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgId, MTAL_IPC_MsgBlock_tmp.base.i32Result);
+					}*/
 					//display_elapse_time("read_answer_from_fifo", ui32StartTime);
 					if (pi32MsgErr)
 					{
-						*pi32MsgErr = pMTAL_IPC_MsgBlockBase->i32Result;
+						*pi32MsgErr = MTAL_IPC_MsgBlock_tmp.base.i32Result;
 					}
 					return MIE_SUCCESS;
 				}
 
-				pMTAL_IPC_MsgBlockBase = (MTAL_IPC_MsgBlockBase*)((uint8_t*)pMTAL_IPC_MsgBlockBase + ui32MsgSize);
-				i32RemainingBytes -= ui32MsgSize;
-			}
-		}		
-		
+				iMsgCounter++;
+			} while (1);
+		}
+		else
+		{
+			if (iRetryCounter > LOG_AFTER_N_RETRIES)
+			{
+				rv_log(LOG_DEBUG, "[%i] netSelect timeout\n", iRetryCounter);
+			}			
+		}
+
 		uint32_t ui32ElapseTime = get_elapse_time(ui32StartTime); // [us];
 		if (ui32ElapseTime > ui32MaxRetryDuration)
 		{
-			rv_log(LOG_ERR, "read_answer_from_fifo error: maximum retry time reached\n");
+			rv_log(LOG_ERR, "read_answer_from_fifo error: maximum retry time reached. ui32ElapseTime = %u > ui32MaxRetryDuration = %u\n", ui32ElapseTime, ui32MaxRetryDuration);
 			break;
-		}
-		
-		rv_log(LOG_WARNING, "retry %u, %u [us]\n", ++iRetryCounter, ui32ElapseTime);
+		}	
+
+		++iRetryCounter;
+		rv_log(LOG_WARNING, "retry %u, %u [us]\n", iRetryCounter, ui32ElapseTime);
 	} while (1);
 	return MIE_TIMEOUT;
 }
@@ -704,9 +818,9 @@ static int process_message_from_fifo(TMTAL_IPC_Instance* pTMTAL_IPC_Instance, in
 		uint8_t pui8OutBuffer[MAX_CONTROLLER_BUFFER_SIZE];
 		uint32_t ui32OutBufferSize = sizeof(pui8OutBuffer);
 		MTAL_IPC_MsgBlock_tmp.base.i32Result = pTMTAL_IPC_Instance->s_callback(pTMTAL_IPC_Instance->s_callback_user,
-			MTAL_IPC_MsgBlock_tmp.base.ui32MsgId,
-			MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase),
-			pui8OutBuffer, &ui32OutBufferSize);
+																				MTAL_IPC_MsgBlock_tmp.base.ui32MsgId,
+																				MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase),
+																				pui8OutBuffer, &ui32OutBufferSize);
 		MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize = sizeof(MTAL_IPC_MsgBlockBase) + ui32OutBufferSize;
 		memcpy(MTAL_IPC_MsgBlock_tmp.pui8Buffer, pui8OutBuffer, ui32OutBufferSize);
 
@@ -805,15 +919,14 @@ static void display_elapse_time(char* pcText, uint32_t ui32StartTime) // [us]
 	}
 	rv_log(LOG_DEBUG, "Duration %s: %u [us]\n", pcText, get_elapse_time(ui32StartTime));
 }
-#else
+#elif !defined(WIN32)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// WIN32/OSX must be implemented
+// OSX must be implemented
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 ////////////////////////////////////////////////////////////////
 EMTAL_IPC_Error MTAL_IPC_init(uint32_t ui32LocalServerPrefix, uint32_t ui32PeerServerPrefix, MTAL_IPC_IOCTL_CALLBACK cb, void* cb_user, uintptr_t* pptrHandle)
 {

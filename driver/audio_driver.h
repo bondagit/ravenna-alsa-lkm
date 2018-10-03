@@ -51,7 +51,7 @@ struct ravenna_mgr_ops
     void (*lock_capture_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
     void (*unlock_capture_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
     int (*pcm_interrupt)(void *mr_alsa_audio_chip, int direction);/// direction: 0 for playback, 1 for capture. One interrupt per Ravenna TIC
-    uint32_t (*get_capture_buffer_offset)(void *mr_alsa_audio_chip);/// returns current offset in samples (channel independent) for Ravenna Ring Buffer
+    //uint32_t (*get_capture_buffer_offset)(void *mr_alsa_audio_chip);/// returns current offset in samples (channel independent) for Ravenna Ring Buffer
     uint32_t (*get_playback_buffer_offset)(void *mr_alsa_audio_chip);/// returns current offset (channel independent) in samples for Ravenna Ring Buffer
     int (*notify_master_volume_change)(void* mr_alsa_audio_chip, int direction, int32_t value); /// direction: 0 for playback, 1 for capture. value: from -99 to 0
 	int (*notify_master_switch_change)(void* mr_alsa_audio_chip, int direction, int32_t value); /// direction: 0 for playback, 1 for capture. value: 0 for mute, 1 for enable
@@ -62,6 +62,8 @@ struct ravenna_mgr_ops
 struct alsa_ops
 {
     int (*register_alsa_driver)(void* ravenna_peer, const struct ravenna_mgr_ops *ops, void *alsa_chip_pointer);/// to be called at driver init to allow communication between driver and Ravenna context
+    int (*get_input_jitter_buffer_offset)(void* ravenna_peer, uint32_t *offset);
+    int (*get_output_jitter_buffer_offset)(void* ravenna_peer, uint32_t *offset);
     int (*get_min_interrupts_frame_size)(void* ravenna_peer, uint32_t *framesize); /// returns min Ravenna Frame Size in samples (channel independent)
     int (*get_max_interrupts_frame_size)(void* ravenna_peer, uint32_t *framesize); /// returns max Ravenna Frame Size (hardware dependent) in samples (channel independent)
     int (*get_interrupts_frame_size)(void* ravenna_peer, uint32_t *framesize); /// returns current Ravenna Frame Size in samples (channel independent)

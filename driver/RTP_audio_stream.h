@@ -46,7 +46,7 @@
 	#include "IODevicesDefsPrivate.h"
 #endif //UNDER_RTSS
 
-#define DEBUG_CHECK					1
+#define DEBUG_CHECK 1
 
 // Init with memset to 0
 typedef struct
@@ -70,6 +70,22 @@ typedef struct
 	// Messages Counter
 	unsigned short m_usWrongSSRCMessageCounter;
 
+	// Stream  status
+	TRTP_stream_status m_StreamStatus; // protected by m_csSinkRTPStreams or m_csSourceRTPStreams spinlock
+	uint32_t m_ui32StreamStatusResetCounter;
+	uint32_t m_ui32StreamStatusLastResetCounter;
+	// used for sink stream status
+	uint32_t m_ui32WrongRTPSeqIdCounter;
+	uint32_t m_ui32WrongRTPSeqIdLastCounter;
+	uint32_t m_ui32WrongRTPSSRCCounter;
+	uint32_t m_ui32WrongRTPSSRCLastCounter;
+	uint32_t m_ui32WrongRTPPayloadTypeCounter;
+	uint32_t m_ui32WrongRTPPayloadTypeLastCounter;
+	uint32_t m_ui32WrongRTPSACCounter;
+	uint32_t m_ui32WrongRTPSACLastCounter;
+	uint32_t m_ui32RTPPacketCounter;
+	uint32_t m_ui32RTPPacketLastCounter;
+
 	MTCONVERT_MAPPED_TO_INTERLEAVE_PROTOTYPE m_pfnMTConvertMappedToInterleave;
 	MTCONVERT_INTERLEAVE__TO_MAPPED_PROTOTYPE m_pfnMTConvertInterleaveToMapped;
 
@@ -80,6 +96,8 @@ typedef struct
 
 int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter);
 int Destroy(TRTP_audio_stream* self);
+
+int get_RTPStream_status(TRTP_audio_stream* self, TRTP_stream_status* pstream_status);
 
 void GetStatsFromTIC(TRTPStreamStatsFromTIC* pRTPStreamStatsFromTIC);
 void GetStats_SinkAheadTime(TRTP_audio_stream* self, TSinkAheadTime* pSinkAheadTime);

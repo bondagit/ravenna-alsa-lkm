@@ -1,13 +1,13 @@
 /****************************************************************************
 *
 *  Module Name    : MergingRAVENNACommon.h
-*  Version        : 
+*  Version        :
 *
 *  Abstract       : RAVENNA/AES67 ALSA LKM
 *
 *  Written by     : van Kempen Bertrand, Baume Florian, Beguec Frederic
 *  Date           : 15/03/2016
-*  Modified by    : 
+*  Modified by    :
 *  Date           :
 *  Modification   :
 *  Known problems : None
@@ -186,4 +186,3 @@ namespace MergingRAVENNACommon
 }
 
 #endif // __cplusplus
-

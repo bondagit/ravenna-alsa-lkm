@@ -1,7 +1,7 @@
 /****************************************************************************
 *
 *  Module Name    : manager.c
-*  Version        : 
+*  Version        :
 *
 *  Abstract       : RAVENNA/AES67 ALSA LKM
 *
@@ -43,7 +43,7 @@
     #define DebugMsg(x)
 #endif // defined(DEBUG) || defined(_DEBUG)
 
-    #define MTLOOPBACK_CHANNEL_IDX 0
+#define MTLOOPBACK_CHANNEL_IDX 63
 
 
 #ifdef MT_TONE_TEST
@@ -178,7 +178,7 @@ bool init(struct TManager* self, int* errorCode)
         err = -EINVAL;
         goto Failure;
     }
-    
+
     if(!init_(&self->m_RTP_streams_manager, Get_C_Callbacks(self), &self->m_EthernetFilter))
     {
         MTAL_DP("CManager::init: self->m_RTP_streams_manager.init() failed\n");
@@ -227,7 +227,6 @@ void destroy(struct TManager* self)
     FreeStatusBuffer(self);
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////
 bool start(struct TManager* self)
 {
@@ -268,14 +267,13 @@ bool startIO(struct TManager* self)
         return false;
     MTAL_DP("MergingRAVENNAAudioDriver::startIO\n");
 
-
     MuteInputBuffer(self);
 
-#if defined(MT_TONE_TEST)
+    #if defined(MT_TONE_TEST)
     self->m_tone_test_phase = 0;
-#elif defined(MT_RAMP_TEST)
+    #elif defined(MT_RAMP_TEST)
     self->m_ramp_test_phase = -8388608; // -2^23
-#endif // MT_TONE_TEST
+    #endif // MT_TONE_TEST
 
     // NAD-351: must be done after mute
     self->m_bIORunning = true;
@@ -510,6 +508,7 @@ bool IsStarted(struct TManager* self)
 {
     return self->m_bIsStarted;
 }
+
 //////////////////////////////////////////////////////////////////////////////////
 bool IsIOStarted(struct TManager* self)
 {
@@ -521,14 +520,15 @@ int EtherTubeRxPacket(struct TManager* self, void* packet, int packet_size, cons
 {
     return rx_packet(&self->m_EthernetFilter, packet, packet_size, ifname);
 }
+
 //////////////////////////////////////////////////////////////////////////////////
 void EtherTubeHookFct(struct TManager* self, void* hook_fct, void* hook_struct)
 {
     netfilter_hook_fct(&self->m_EthernetFilter, hook_fct, hook_struct);
 }
 
-// Messaging with userland (use netlink)
 //////////////////////////////////////////////////////////////////////////////////
+// Messaging with userland (use netlink)
 void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
 {
     uint32_t ravenna_rate = IsDSDRate(self->m_SampleRate)? 352800 : self->m_SampleRate;
@@ -546,8 +546,38 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
 
     switch (msg_rcv->id)
     {
-        case MT_ALSA_Msg_Reset:
+        case MT_ALSA_Msg_GetRTPStreamStatus:
+        {
+            if (msg_rcv->dataSize != sizeof(uint64_t))
+            {
+                MTAL_DP_ERR("Get stream status invalid data size\n");
+                msg_reply.errCode = -315;
+            }
+            else
+            {
+                TRTP_stream_status stream_status;
+                uint64_t* rtp_stream_handle_ptr = (uint64_t*)msg_rcv->data;
+                if (!get_RTPStream_status_(&self->m_RTP_streams_manager, *rtp_stream_handle_ptr, &stream_status))
+                    msg_reply.errCode = -401;
+                else
+                    msg_reply.errCode = 0;
+                
+                msg_reply.errCode = 0;
+                msg_reply.dataSize = sizeof(TRTP_stream_status);
+                msg_reply.data = &stream_status;
+
+                CW_netlink_send_reply_to_user_land(&msg_reply);
+                return; // because stream_status is out of the scope if send reply at the end of the function
+            }
             break;
+        }
+        case MT_ALSA_Msg_Reset:
+        {
+            MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_Reset..\n");
+            remove_all_RTP_streams(&self->m_RTP_streams_manager);
+            msg_reply.errCode = 0;
+            break;
+        }
         case MT_ALSA_Msg_Start:
         {
             MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_Start..\n");
@@ -835,19 +865,48 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
         }
         case MT_ALSA_Msg_Update_RTPStream_Name:
             break;
-        case MT_ALSA_Msg_GetPTPInfo:
+        case MT_ALSA_Msg_SetPTPConfig:
         {
-            //MTAL_DP_INFO("Get PTP Info\n");
+            if (msg_rcv->dataSize != sizeof(TPTPConfig))
+            {
+                MTAL_DP_ERR("Set PTP config invalid data size\n");
+                msg_reply.errCode = -315;
+            }
+            else
+            {
+                TPTPConfig* ptpConfig = (TPTPConfig*)msg_rcv->data;
+                SetPTPConfig(&self->m_PTP, ptpConfig);
+                msg_reply.errCode = 0;
+            }
+            break;
+        }
+        case MT_ALSA_Msg_GetPTPConfig:
+        {
+            //MTAL_DP_INFO("Get PTP Config\n");
 
-            TPTPInfo ptpInfo;
-            GetPTPInfo(&self->m_PTP, &ptpInfo);
+            TPTPConfig ptpConfig;
+            GetPTPConfig(&self->m_PTP, &ptpConfig);
 
             msg_reply.errCode = 0;
-            msg_reply.dataSize = sizeof(TPTPInfo);
-            msg_reply.data = &ptpInfo;
+            msg_reply.dataSize = sizeof(TPTPConfig);
+            msg_reply.data = &ptpConfig;
 
             CW_netlink_send_reply_to_user_land(&msg_reply);
-            return; // because stream_handle is outof the scope if send reply at the end of the function
+            return; // because ptpConfig is out of the scope if send reply at the end of the function
+        }
+        case MT_ALSA_Msg_GetPTPStatus:
+        {
+            //MTAL_DP_INFO("Get PTP Status\n");
+
+            TPTPStatus ptpStatus;
+            GetPTPStatus(&self->m_PTP, &ptpStatus);
+
+            msg_reply.errCode = 0;
+            msg_reply.dataSize = sizeof(TPTPStatus);
+            msg_reply.data = &ptpStatus;
+
+            CW_netlink_send_reply_to_user_land(&msg_reply);
+            return; // because ptpStatus is out of the scope if send reply at the end of the function
         }
         case MT_ALSA_Msg_SetMasterOutputVolume:
             if (msg_rcv->dataSize != sizeof(int32_t))
@@ -915,8 +974,8 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
     CW_netlink_send_reply_to_user_land(&msg_reply);
 }
 
-// Statistics
 //////////////////////////////////////////////////////////////////////////////////
+// Statistics
 bool GetHALToTICDelta(struct TManager* self, THALToTICDelta* pHALToTICDelta)
 {
     if(!pHALToTICDelta)
@@ -1042,7 +1101,7 @@ uint32_t GetMaxTICFrameSize(struct TManager* self)
 void* GetStatusBuffer(struct TManager* self)
 {
     return (void*)self->m_pStatusBuffer;
-};
+}
 
 //////////////////////////////////////////////////////////////////////////////////
 void LockStatusBuffer(struct TManager* self) {}
@@ -1053,10 +1112,8 @@ void UnLockStatusBuffer(struct TManager* self) {}
 //////////////////////////////////////////////////////////////////////////////////
 uint32_t GetIPAddress(void* user)
 {
-    //struct TManager* self = (struct TManager*)user;
     return 0; // TODO
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////
 // CEtherTubeAdviseSink
@@ -1079,20 +1136,14 @@ EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t pa
     }
     // OK, it's an UDP packet
 
-    /*MTAL_DumpIPV4Header(&pUDPPacketBase->IPV4Header);
-     MTAL_DumpUDPHeader(&pUDPPacketBase->UDPHeader);
-     MTAL_DP("packetsize %u\n", packetsize);*/
+    //MTAL_DumpIPV4Header(&pUDPPacketBase->IPV4Header);
+    //MTAL_DumpUDPHeader(&pUDPPacketBase->UDPHeader);
+    //MTAL_DP("packetsize %u\n", packetsize);
 
     nDispatchResult = process_PTP_packet(&self->m_PTP, pUDPPacketBase, packetsize);
     if(nDispatchResult == DR_PACKET_NOT_USED)
     {
-        //f10b nDispatchResult = process_UDP_packet(&self->m_RTP_streams_manager, pUDPPacketBase, packetsize);
-    }
-
-   // MTAL_DP("ui32DestIP 0x%x\n", MTAL_SWAP32(pUDPPacketBase->IPV4Header.ui32DestIP));
-    if(MTAL_SWAP32(pUDPPacketBase->IPV4Header.ui32DestIP) ==  0xEF035d26)
-    {
-        //AudioFrameTIC();
+        nDispatchResult = process_UDP_packet(&self->m_RTP_streams_manager, pUDPPacketBase, packetsize);
     }
     return nDispatchResult;
 }
@@ -1163,9 +1214,9 @@ char get_audio_engine_sample_bytelength(void* user)
     }
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////
-void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)       // Note: buffer type is retrieved through get_audio_engine_sample_format
+// Note: buffer type is retrieved through get_audio_engine_sample_format
+void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
     unsigned char* inputBuffer = nullptr;
@@ -1174,6 +1225,7 @@ void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)       // Note:
     inputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_capture_buffer(self->m_pALSAChip));
     if(inputBuffer == nullptr || ulChannelId >= self->m_NumberOfInputs)
     {
+        MTAL_DP_ERR("CManager::get_live_in_jitter_buffer() failed: retrieving channel #%u buffer jitter buffer \n", ulChannelId + 1);
         return NULL;
     }
     inputBuffer += ulChannelId * bufferLength * get_audio_engine_sample_bytelength(self);
@@ -1182,9 +1234,9 @@ void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)       // Note:
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId)  // Note: buffer type is retrieved through get_audio_engine_sample_format
+// Note: buffer type is retrieved through get_audio_engine_sample_format
+void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId)
 {
-    // TODO retrieve through alsa driver callbacks
     struct TManager* self = (struct TManager*)user;
     unsigned char* outputBuffer = nullptr;
     uint32_t bufferLength = self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
@@ -1210,40 +1262,19 @@ uint32_t get_live_jitter_buffer_length(void* user)
 //////////////////////////////////////////////////////////////////////////////////
 uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64CurrentSAC)
 {
-    /// BUG: not working at the moment
-    /// TODO: store GlobalSAC on each start_interrupts() to apply correct offset between provided SAC and get_capture_buffer_offset()
-
     struct TManager* self = (struct TManager*)user;
-    uint32_t offset = self->m_alsa_driver_frontend->get_capture_buffer_offset(self->m_pALSAChip);
-    const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
 
-    return 0; //f10b the code below does not work.. I prefer to return 0
-
-    #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST)
-    return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
+    #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
+        return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
     #else
-    if(ui64CurrentSAC > get_global_SAC(self))
-    {
-        MTAL_DP("CManager::get_live_in_jitter_buffer_offset() wrong SAC request (SAC = %llu)\n", ui64CurrentSAC);
-        return 0;
-    }
-    if(sacOffset > 0)
-    {
-        MTAL_DP("CManager::get_live_in_jitter_buffer_offset() not the SAC of previous TIC (sacOffset = %u)\n", sacOffset);
-        if(sacOffset <= offset)
-            offset -= sacOffset;
-        else
-            offset += get_live_jitter_buffer_length(self) - sacOffset;
-    }
-    //MTAL_DP("CManager::get_live_in_jitter_buffer_offset() returned %u\n", offset);
-    return offset;
+        uint32_t live_in_jitter_buffer_length = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
+        return (uint32_t)(ui64CurrentSAC % live_in_jitter_buffer_length);
     #endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 int pdate_live_in_audio_data_format(void* user, uint32_t ulChannelId, char const * pszCodec)
 {
-    //struct TManager* self = (struct TManager*)user;
     return 1;
 }
 
@@ -1258,35 +1289,35 @@ unsigned char get_live_in_mute_pattern(void* user, uint32_t ulChannelId)
 uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64CurrentSAC)
 {
     struct TManager* self = (struct TManager*)user;
-    uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
-    const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
 
-    #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST)
-    return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
+    #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
+        return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
     #else
-    if(ui64CurrentSAC > get_global_SAC(self))
-    {
-        MTAL_DP("CManager::get_live_out_jitter_buffer_offset() wrong SAC request (SAC = %llu)\n", ui64CurrentSAC);
-        return 0;
-    }
-    if(sacOffset > 0)
-    {
-        MTAL_DP("get_global_SAC(self)=%llu get_frame_size(self)=%llu ui64CurrentSAC=%llu\n", get_global_SAC(self), get_frame_size(self), ui64CurrentSAC);
-        MTAL_DP("CManager::get_live_out_jitter_buffer_offset() not the SAC of previous TIC (sacOffset = %u)\n", sacOffset);
-        if(sacOffset <= offset)
-            offset -= sacOffset;
-        else
-            offset += get_live_jitter_buffer_length(self) - sacOffset;
-    }
-    //MTAL_DP("CManager::get_live_out_jitter_buffer_offset() returned %u (sacOffset = %u)\n", offset, sacOffset);
-    return offset;
+        uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
+        const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
+
+        if(ui64CurrentSAC > get_global_SAC(self))
+        {
+            MTAL_DP("CManager::get_live_out_jitter_buffer_offset() wrong SAC request (SAC = %llu)\n", ui64CurrentSAC);
+            return 0;
+        }
+        if(sacOffset > 0) // f10b In reallity this var is always equal to zero.
+        {
+            MTAL_DP("get_global_SAC(self)=%llu get_frame_size(self)=%llu ui64CurrentSAC=%llu\n", get_global_SAC(self), get_frame_size(self), ui64CurrentSAC);
+            MTAL_DP("CManager::get_live_out_jitter_buffer_offset() not the SAC of previous TIC (sacOffset = %u)\n", sacOffset);
+            if(sacOffset <= offset)
+                offset -= sacOffset;
+            else
+                offset += get_live_jitter_buffer_length(self) - sacOffset;
+        }
+        //MTAL_DP("CManager::get_live_out_jitter_buffer_offset() returned %u (sacOffset = %u)\n", offset, sacOffset);
+        return offset;
     #endif // MT_TONE_TEST
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 int update_live_in_audio_data_format(void* user, uint32_t ulChannelId, char const * pszCodec)
 {
-    //struct TManager* self = (struct TManager*)user;
     return 1;
 }
 
@@ -1321,28 +1352,14 @@ void AudioFrameTIC(void* user)
         prevLockStatus = lockStatus;
     }
 
+    prepare_buffer_lives(&self->m_RTP_streams_manager);
+    
     if (self->m_bIORunning && lockStatus == PTPLS_LOCKED)
     {
-        /// retrieves live inputs
-        prepare_buffer_lives(&self->m_RTP_streams_manager);
-
-        /*
-         // override signal with a ramp
-         {
-            uint32_t ui32Offset = get_global_SAC(self) % get_live_jitter_buffer_length(self); // [smpl]
-            unsigned int ui32Channel = 1;
-            float* pfOutputBuffer = (float*)get_live_out_jitter_buffer(ui32Channel) + ui32Offset;
-            for(uint32_t ui32SampleIdx = 0; ui32SampleIdx < get_frame_size(); ui32SampleIdx++)
-            {
-                //pfOutputBuffer[i16 * 2] = (float)((theSampleTime + i16) % mRingBufferFrameSize) / (float)(mRingBufferFrameSize); // left
-                pfOutputBuffer[ui32SampleIdx] = -1.0 + (float)((get_global_SAC(self) + ui32SampleIdx) % 256) / 128;//(float)sin(fIncFractionOfAngle * (double)(get_global_SAC(self) + (uint64_t)ui32SampleIdx) * 2. * 3.14159265359);
-            }
-        }*/
-
         #ifdef MTTRANSPARENCY_CHECK
         {
             uint32_t ui32Channel = MTTRANSPARENCY_CHECK_CHANNEL_IDX;
-            uint32_t ui32Offset = get_global_SAC(self) % get_live_jitter_buffer_length(self); // [smpl]
+            uint32_t ui32Offset = get_live_out_jitter_buffer_offset(self, get_global_SAC(self));
 
             float *pfInputBuffer = NULL;
             float *pfOutputBuffer = (float*)get_live_out_jitter_buffer(ui32Channel) + ui32Offset;
@@ -1352,108 +1369,103 @@ void AudioFrameTIC(void* user)
         }
         #endif
 
-
-        // TODO
         #ifdef MTLOOPBACK
         {
             uint32_t ui32Channel = MTLOOPBACK_CHANNEL_IDX;
-            //uint32_t ui32Offset = (get_global_SAC(self) - get_frame_size(self)) % get_live_jitter_buffer_length(self); // [smpl]
-            uint32_t ui32Offset = get_io_buffers_smp_offset();
+            uint32_t ui32Offset = get_live_out_jitter_buffer_offset(self, get_global_SAC(self));
 
-            void *pfInputBuffer = (char*)get_live_in_jitter_buffer(ui32Channel) + ui32Offset * get_audio_engine_sample_bytelength(self);
-            void *pfOutputBuffer = (char*)get_live_out_jitter_buffer(ui32Channel) + ui32Offset * get_audio_engine_sample_bytelength(self);
+            void *pfInputBuffer = (char*)get_live_in_jitter_buffer(self, ui32Channel) + ui32Offset * get_audio_engine_sample_bytelength(self);
+            void *pfOutputBuffer = (char*)get_live_out_jitter_buffer(self, ui32Channel) + ui32Offset * get_audio_engine_sample_bytelength(self);
 
-            memcpy(pfOutputBuffer, pfInputBuffer, get_audio_engine_sample_bytelength(self) * get_frame_size());
-            //memset(pfOutputBuffer, 0xFB, sizeof(int32_t) * get_frame_size(self));
+            memcpy(pfOutputBuffer, pfInputBuffer, get_audio_engine_sample_bytelength(self) * get_frame_size(self));
+            //memset(pfOutputBuffer, 0x58, sizeof(int32_t) * get_frame_size(self)); // 4 byte because streams are padded to word of 32bits
 
             /// write live outputs
             frame_process_begin(&self->m_RTP_streams_manager);
             frame_process_end(&self->m_RTP_streams_manager);
         }
         #elif defined(MT_TONE_TEST) || defined (MT_RAMP_TEST)
-        frame_process_begin(&self->m_RTP_streams_manager);
-
-        uint32_t ui32Offset = (uint32_t)(get_global_SAC(self) % get_live_jitter_buffer_length(self));
-        uint32_t stepOut = get_audio_engine_sample_bytelength(self);
-
-        #if defined(MT_TONE_TEST)
-        int* LUT = &sinebuf[0];
-        unsigned int LUTnbPoints = 48;
-        unsigned int LUTSampleRate = 48000;
-
-        switch(self->m_SampleRate)
         {
-            case 96000:
-                LUT = &sinebuf_96k[0];
-                LUTnbPoints = 96;
-                LUTSampleRate = 96000;
-                break;
-            case 192000:
-                LUT = &sinebuf_192k[0];
-                LUTnbPoints = 192;
-                LUTSampleRate = 192000;
-                break;
-            case 384000:
-                LUT = &sinebuf_384k[0];
-                LUTnbPoints = 384;
-                LUTSampleRate = 384000;
-                break;
-        }
-        #endif // MT_TONE_TEST
+            uint32_t ui32Offset = get_live_out_jitter_buffer_offset(self, get_global_SAC(self));
+            uint32_t stepOut = get_audio_engine_sample_bytelength(self);
 
-        for(uint32_t chIdx = 0; chIdx < self->m_NumberOfOutputs; ++chIdx)
-        {
-            unsigned char* buf = (unsigned char*)get_live_out_jitter_buffer(chIdx) + ui32Offset * get_audio_engine_sample_bytelength(self);
-            if(chIdx == 0)
+            frame_process_begin(&self->m_RTP_streams_manager);
+
+            #if defined(MT_TONE_TEST)
+            int* LUT = &sinebuf[0];
+            unsigned int LUTnbPoints = 48;
+            unsigned int LUTSampleRate = 48000;
+
+            switch(self->m_SampleRate)
             {
-                for(uint32_t ui32SampleIdx = 0; ui32SampleIdx < get_frame_size(self); ui32SampleIdx++)
+                case 96000:
+                    LUT = &sinebuf_96k[0];
+                    LUTnbPoints = 96;
+                    LUTSampleRate = 96000;
+                    break;
+                case 192000:
+                    LUT = &sinebuf_192k[0];
+                    LUTnbPoints = 192;
+                    LUTSampleRate = 192000;
+                    break;
+                case 384000:
+                    LUT = &sinebuf_384k[0];
+                    LUTnbPoints = 384;
+                    LUTSampleRate = 384000;
+                    break;
+            }
+            #endif // MT_TONE_TEST
+
+            for(uint32_t chIdx = 0; chIdx < self->m_NumberOfOutputs; ++chIdx)
+            {
+                unsigned char* buf = (unsigned char*)get_live_out_jitter_buffer(chIdx) + ui32Offset * get_audio_engine_sample_bytelength(self);
+                if(chIdx == 0)
                 {
-                    #if defined(MT_TONE_TEST)
-                    unsigned long p = (self->m_tone_test_phase * self->m_SampleRate) / LUTSampleRate;
-                    int16_t val16 = LUT[(p + 4 * chIdx) % LUTnbPoints]/* >> 1*/;
-                    int32_t val24 = val16 << 8;
-                    self->m_tone_test_phase = (self->m_tone_test_phase + 1) % (LUTnbPoints * 100);
-                    #elif defined(MT_RAMP_TEST)
-                    int32_t val24 = self->m_ramp_test_phase;
-                    if(val24 >= 8388608) // 2^23
-                        val24 = -8388608;
-                    self->m_ramp_test_phase += 256;
-                    if(self->m_ramp_test_phase >= 8388608) // 2^23
-                        self->m_ramp_test_phase = -8388608;
+                    for(uint32_t ui32SampleIdx = 0; ui32SampleIdx < get_frame_size(self); ui32SampleIdx++)
+                    {
+                        #if defined(MT_TONE_TEST)
+                        unsigned long p = (self->m_tone_test_phase * self->m_SampleRate) / LUTSampleRate;
+                        int16_t val16 = LUT[(p + 4 * chIdx) % LUTnbPoints]/* >> 1*/;
+                        int32_t val24 = val16 << 8;
+                        self->m_tone_test_phase = (self->m_tone_test_phase + 1) % (LUTnbPoints * 100);
+                        #elif defined(MT_RAMP_TEST)
+                        int32_t val24 = self->m_ramp_test_phase;
+                        if(val24 >= 8388608) // 2^23
+                            val24 = -8388608;
+                        self->m_ramp_test_phase += 256;
+                        if(self->m_ramp_test_phase >= 8388608) // 2^23
+                            self->m_ramp_test_phase = -8388608;
 
-                    #endif // MT_RAMP_TEST
+                        #endif // MT_RAMP_TEST
 
-                    /// 32  bit output
-                    buf[0] = 0;
-                    buf[1] = ((unsigned char*)&val24)[0];
-                    buf[2] = ((unsigned char*)&val24)[1];
-                    buf[3] = ((unsigned char*)&val24)[2];
-                    buf += stepOut;
+                        /// 32  bit output
+                        buf[0] = 0;
+                        buf[1] = ((unsigned char*)&val24)[0];
+                        buf[2] = ((unsigned char*)&val24)[1];
+                        buf[3] = ((unsigned char*)&val24)[2];
+                        buf += stepOut;
+                    }
+                }
+                else
+                {
+                    unsigned char* bufSrc = (unsigned char*)get_live_out_jitter_buffer(0) + ui32Offset * get_audio_engine_sample_bytelength(self);
+                    memcpy(buf, bufSrc, get_frame_size() * get_audio_engine_sample_bytelength(self));
                 }
             }
-            else
-            {
-                unsigned char* bufSrc = (unsigned char*)get_live_out_jitter_buffer(0) + ui32Offset * get_audio_engine_sample_bytelength(self);
-                memcpy(buf, bufSrc, get_frame_size() * get_audio_engine_sample_bytelength(self));
-            }
-
+            frame_process_end(&self->m_RTP_streams_manager);
         }
-        frame_process_end(&self->m_RTP_streams_manager);
-
         #else
-        /// write live outputs
-        frame_process_begin(&self->m_RTP_streams_manager);
-        if(self->m_pALSAChip && self->m_alsa_driver_frontend)
-        {
-            self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 1);
-            self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
-        }
-        frame_process_end(&self->m_RTP_streams_manager);
+            /// write live outputs
+            frame_process_begin(&self->m_RTP_streams_manager);
+            if(self->m_pALSAChip && self->m_alsa_driver_frontend)
+            {
+                self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 1);
+                self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
+            }
+            frame_process_end(&self->m_RTP_streams_manager);
         #endif
     }
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Streams <> Ravenna Manager communication
@@ -1479,12 +1491,10 @@ void Init_C_Callbacks(struct TManager* self)
     self->m_c_audio_streamer_clock_PTP_callback.GetIPAddress = &GetIPAddress;
     self->m_c_audio_streamer_clock_PTP_callback.AudioFrameTIC = &AudioFrameTIC;
 }
-rtp_audio_stream_ops* Get_C_Callbacks(struct TManager* self) 
+rtp_audio_stream_ops* Get_C_Callbacks(struct TManager* self)
 {
     return &self->m_c_callbacks;
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ALSA <> Ravenna Manager communication
@@ -1500,9 +1510,10 @@ int attach_alsa_driver(void* user, const struct ravenna_mgr_ops *ops, void *alsa
     return -EINVAL;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// called from alsa driver
 /// effective change will be done by SetSampleRate once manger has received MT_ALSA_Msg_SetSampleRate message from daemon
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 int set_sample_rate(void* user, uint32_t rate)
 {
     struct TManager* self = (struct TManager*)user;
@@ -1550,23 +1561,6 @@ int get_sample_rate(void* user, uint32_t *rate)
     return -EINVAL;
 }
 
-/*int set_nb_inputs(void* user, uint32_t nb_channels)
-{
-    struct TManager* self = (struct TManager*)user;
-    int err = 0;
-    // TODO send message to daemon
-    return err;
-}
-
-int set_nb_outputs(void* user, uint32_t nb_channels)
-{
-    struct TManager* self = (struct TManager*)user;
-    int err = 0;
-    // TODO send message to daemon
-    return err;
-}*/
-
-
 int get_nb_inputs(void* user, uint32_t *nb_Channels)
 {
     struct TManager* self = (struct TManager*)user;
@@ -1611,28 +1605,25 @@ int get_capture_delay(void* user, snd_pcm_sframes_t *delay_in_sample)
     return -EINVAL;
 }
 
-/*int get_output_jitter_buffer_offset(void* user, uint32_t *offset)
+int get_output_jitter_buffer_offset(void* user, uint32_t *offset)
 {
     struct TManager* self = (struct TManager*)user;
-    if(offset)
+    if (offset)
     {
-        *offset = get_live_in_jitter_buffer_offset(get_global_SAC(self));
-        return 0;
+        *offset = get_live_out_jitter_buffer_offset(self, get_global_SAC(self));
     }
     return -EINVAL;
-}*/
+}
 
-/*
 int get_input_jitter_buffer_offset(void* user, uint32_t *offset)
 {
     struct TManager* self = (struct TManager*)user;
-    if(offset)
+    if (offset)
     {
-        *offset = get_io_buffers_smp_offset();
-        return 0;
+        *offset = get_live_in_jitter_buffer_offset(self, get_global_SAC(self));
     }
     return -EINVAL;
-}*/
+}
 
 int get_min_interrupts_frame_size(void* user, uint32_t *framesize)
 {
@@ -1644,7 +1635,6 @@ int get_min_interrupts_frame_size(void* user, uint32_t *framesize)
     }
     return -EINVAL;
 }
-
 
 int get_max_interrupts_frame_size(void* user, uint32_t *framesize)
 {
@@ -1668,7 +1658,6 @@ int get_interrupts_frame_size(void* user, uint32_t *framesize)
     return -EINVAL;
 }
 
-
 int start_interrupts(void* user)
 {
     struct TManager* self = (struct TManager*)user;
@@ -1688,7 +1677,6 @@ int stop_interrupts(void* user)
 
 int notify_master_volume_change(void* user, int direction, int32_t value)
 {
-    //struct TManager* self = (struct TManager*)user;
     if(direction == 0)
     {
         int err = 0;
@@ -1709,7 +1697,6 @@ int notify_master_volume_change(void* user, int direction, int32_t value)
 
 int notify_master_switch_change(void* user, int direction, int32_t value)
 {
-    //struct TManager* self = (struct TManager*)user;
     if(direction == 0)
     {
         int err = 0;
@@ -1730,7 +1717,6 @@ int notify_master_switch_change(void* user, int direction, int32_t value)
 
 int get_master_volume_value(void* user, int direction, int32_t* value)
 {
-    //struct TManager* self = (struct TManager*)user;
     if(value && direction == 0)
     {
         int err = 0;
@@ -1765,7 +1751,6 @@ int get_master_volume_value(void* user, int direction, int32_t* value)
 
 int get_master_switch_value(void* user, int direction, int32_t* value)
 {
-    //struct TManager* self = (struct TManager*)user;
     if(value && direction == 0)
     {
         int err = 0;
@@ -1825,12 +1810,11 @@ enum eAudioMode GetAudioModeFromRate(uint32_t sample_rate)
     }
 }
 
-
 void init_alsa_callbacks(struct TManager* self)
 {
     self->m_alsa_callbacks.register_alsa_driver = &attach_alsa_driver;
-    //self->m_alsa_callbacks.get_input_jitter_buffer_offset = &get_input_jitter_buffer_offset;
-    //self->m_alsa_callbacks.get_output_jitter_buffer_offset = &get_output_jitter_buffer_offset;
+    self->m_alsa_callbacks.get_input_jitter_buffer_offset = &get_input_jitter_buffer_offset;
+    self->m_alsa_callbacks.get_output_jitter_buffer_offset = &get_output_jitter_buffer_offset;
     self->m_alsa_callbacks.get_min_interrupts_frame_size = &get_min_interrupts_frame_size;
     self->m_alsa_callbacks.get_max_interrupts_frame_size = &get_max_interrupts_frame_size;
     self->m_alsa_callbacks.get_interrupts_frame_size = &get_interrupts_frame_size;

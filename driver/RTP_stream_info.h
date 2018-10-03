@@ -102,6 +102,22 @@ typedef struct
 	uint32_t		m_aui32Routing[MAX_CHANNELS_BY_RTP_STREAM]; //[StreamChannelId] = PhysicalChannelId; ~0 means not used
 } TRTP_stream_info;
 
+typedef struct {
+	union {
+		struct {
+			unsigned int sink_RTP_seq_id_error : 1;			// 0x01: wrong RTP sequence id
+			unsigned int sink_RTP_SSRC_error : 1;			// 0x02: wrong RTP SSRC
+			unsigned int sink_RTP_PayloadType_error : 1;	// 0x04: wrong RTP payload type
+			unsigned int sink_RTP_SAC_error : 1;			// 0x08: wrong RTP SAC
+			unsigned int sink_receiving_RTP_packet : 1;		// 0x10: receiving RTP packet (some packet RTP arrived)
+			unsigned int sink_muted : 1;					// 0x20: live has been muted
+			unsigned int sink_some_muted : 1;				// 0x40: used by Horus implementation which is only able to detect that a incomming stream is muted but which doesn't know which one
+		};
+		unsigned int flags;
+	} u;
+	int sink_min_time; //  min packet arrival time
+} TRTP_stream_status;
+
 #pragma pack(pop)
 
 ////////////////////////////////////////////////////////////////////
@@ -259,4 +275,59 @@ public:
 	}
 };
 
+class CRTP_stream_status: protected TRTP_stream_status
+{
+public:
+	CRTP_stream_status() { u.flags = 0; sink_min_time = 0; }
+	CRTP_stream_status(TRTP_stream_status const & stream_status) { u.flags = stream_status.u.flags; }
+
+	void clear() { u.flags = 0; sink_min_time = 0;
+	}
+
+	bool operator==(const CRTP_stream_status & other) const
+	{
+		return u.flags == other.u.flags && sink_min_time == other.sink_min_time;
+	}
+
+	bool operator!=(const CRTP_stream_status & other) const
+	{
+		return u.flags != other.u.flags || sink_min_time != other.sink_min_time;
+	}
+
+	CRTP_stream_status & operator=(const CRTP_stream_status & other)
+	{
+		u.flags = other.u.flags;
+		sink_min_time = other.sink_min_time;
+		return *this;
+	}
+
+	unsigned int flags() const {return u.flags;}
+
+	void set_sink_receiving_RTP_packet(bool bValue) { u.sink_receiving_RTP_packet = bValue ? 1 : 0; }
+	bool is_sink_receiving_RTP_packet() const { return u.sink_receiving_RTP_packet == 1; }
+
+	void set_sink_muted(bool bValue) { u.sink_muted = bValue ? 1 : 0; }
+	bool is_sink_muted() const { return u.sink_muted == 1; }
+
+	void set_sink_some_muted(bool bValue) { u.sink_some_muted = bValue ? 1 : 0; }
+	bool is_sink_some_muted() const { return u.sink_some_muted == 1; }
+
+	void set_sink_RTP_seq_id_error(bool bValue) { u.sink_RTP_seq_id_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_seq_id_error() const { return u.sink_RTP_seq_id_error == 1; }
+
+	void set_sink_RTP_SSRC_error(bool bValue) { u.sink_RTP_SSRC_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_SSRC_error() const { return u.sink_RTP_SSRC_error == 1; }
+
+	void set_sink_RTP_PayloadType_error(bool bValue) { u.sink_RTP_PayloadType_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_PayloadType_error() const { return u.sink_RTP_PayloadType_error == 1; }
+
+	void set_sink_RTP_SAC_error(bool bValue) { u.sink_RTP_SAC_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_SAC_error() const { return u.sink_RTP_SAC_error == 1; }
+
+	void set_sink_min_time(int iMinTime) { sink_min_time = iMinTime; }
+	int get_sink_min_time() const { return sink_min_time; }
+
+protected:
+	//TRTP_stream_status m_stream_status;
+};
 #endif

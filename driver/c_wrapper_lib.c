@@ -32,6 +32,8 @@
 #include "c_wrapper_lib.h"
 #include "module_netlink.h"
 
+#include <linux/version.h>
+
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h> /*NF_IP_PRE_FIRST*/
@@ -54,29 +56,37 @@ int CW_netfilter_register_hook(void* hook_func, void* hook_struct)
 {
     int ret = 0;
     struct nf_hook_ops* nfho = (struct nf_hook_ops*)hook_struct;
-	nfho->hook = hook_func;                 //function to call when conditions below met
-	nfho->hooknum = NF_INET_PRE_ROUTING;    //called right after packet recieved, first hook in Netfilter
-	nfho->pf = NFPROTO_IPV4;                //IPV4 packets
-	nfho->priority = NF_IP_PRI_FIRST;       //set to highest priority over all other hook functions
-	ret = nf_register_hook(nfho);               //register hook
-	printk(KERN_ERR "nf_register_hook return err code %d \n", ret);
-	return 0;
+    nfho->hook = hook_func;                 //function to call when conditions below met
+    nfho->hooknum = NF_INET_PRE_ROUTING;    //called right after packet recieved, first hook in Netfilter
+    nfho->pf = NFPROTO_IPV4;                //IPV4 packets
+    nfho->priority = NF_IP_PRI_FIRST;       //set to highest priority over all other hook functions
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+    nf_register_net_hook(&init_net, nfho); //register hook
+#else
+    nf_register_hook(nfho);
+#endif
+    printk(KERN_ERR "nf_register_hook return err code %d \n", ret);
+    return 0;
 }
 
 int CW_netfilter_unregister_hook(void* hook_struct)
 {
     struct nf_hook_ops* nfho = (struct nf_hook_ops*)hook_struct;
-	nf_unregister_hook(nfho);   //cleanup – unregister hook
-	return 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+    nf_unregister_net_hook(&init_net, nfho); //cleanup – unregister hook
+#else
+    nf_unregister_hook(nfho);
+#endif  
+    return 0;
 }
 
 int CW_get_mac_addr_of(unsigned char *addr, const char* iface)
 {
-	struct net_device *dev = dev_get_by_name(&init_net, iface);
-	if (!dev)
-		return -1;
-	memcpy(addr, dev->dev_addr, ETH_ALEN);
-	return 0;
+    struct net_device *dev = dev_get_by_name(&init_net, iface);
+    if (!dev)
+        return -1;
+    memcpy(addr, dev->dev_addr, ETH_ALEN);
+    return 0;
 }
 
 int CW_get_new_skb(void** skb, unsigned int data_len)
@@ -224,6 +234,6 @@ uint64_t CW_ll_modulo(uint64_t dividend, uint64_t divisor)
 {
     uint64_t __rest = 0;
     __rest = do_div(dividend, divisor);
-	//__rest = dividend % divisor;
+    //__rest = dividend % divisor;
     return __rest;
 }

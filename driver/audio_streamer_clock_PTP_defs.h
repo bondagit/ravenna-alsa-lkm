@@ -31,15 +31,27 @@
 
 #pragma once
 
-
-
 #pragma pack(push, 1)
+///////////////////////////
+typedef enum
+{
+    PTPLS_UNLOCKED	= 0,
+    PTPLS_LOCKING	= 1,
+    PTPLS_LOCKED	= 2
+} EPTPLockStatus;
 
 typedef struct
 {
+	uint8_t		ui8Domain;
+	uint8_t		ui8DSCP;
+} TPTPConfig;
+
+typedef struct
+{
+	EPTPLockStatus nPTPLockStatus;
 	uint64_t	ui64GMID;
-	uint8_t		ui8ClockDomain;
-} TPTPInfo;
+	uint32_t	ui32Jitter;
+} TPTPStatus;
 
 typedef struct
 {
@@ -64,13 +76,15 @@ typedef struct
 	uint32_t	ui32TICMaxDelta;
 } TTICStats;
 
-///////////////////////////
-typedef enum
+#define NB_TIMER_LATENCY_RANGES 10
+typedef struct
 {
-	PTPLS_UNLOCKED	= 0,
-	PTPLS_LOCKING	= 1,
-	PTPLS_LOCKED	= 2
-} EPTPLockStatus;
+    uint8_t     ui8NumberOfTimerLatencies;
+    uint32_t    aui32TimerLatencyRanges[NB_TIMER_LATENCY_RANGES]; // ]n-1.n] in [us]
+    uint64_t	aui64TimerLatencyOccurences[NB_TIMER_LATENCY_RANGES];
+} TTICOSStats;
+
+
 
 ///////////////////////////
 typedef enum
@@ -85,5 +99,3 @@ typedef enum
 } EPTPTimeCodeFrameType;
 
 #pragma pack(pop)
-
-
