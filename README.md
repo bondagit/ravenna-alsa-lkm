@@ -72,6 +72,8 @@ ALSA lib superior or equal to 1.0.29 for DSD support
 ## Compilation ##
 
 ```
+#optional : in case of the local repo is link to the capture branch switch it to master
+git checkout master
 #!makefile
 git clone https://AlsaIntegrator@bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git .
 cd driver
