@@ -691,12 +691,12 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 	//MTAL_DP("ui64RTPSAC = 0x%I64x ui64GlobalSAC = 0x%I64x\n", ui64RTPSAC, ui64GlobalSAC);
 
 	// expand ui32Timestamp to 64 bits
-	if(ui32RTPSAC < 0x7FFFFFFF && (uint32_t)ui64GlobalSAC > 0x7FFFFFFF)
+	if (ui32RTPSAC < 0x3FFFFFFFU && (uint32_t)ui64GlobalSAC >= 0xC0000000U) // 0xC0000000 = FFFFFFFF - 3FFFFFFF
 	{ // ui32RTPSAC wraps; we have to add 1 to 32 bits MSB
 		ui64RTPSAC += 0x100000000;
 		//MTAL_DP("0x%I64x + 0x100000000\n", ui64RTPSAC);
 	}
-	else if (ui32RTPSAC > 0x7FFFFFFF && (uint32_t)ui64GlobalSAC < 0x7FFFFFFF)
+	else if (ui32RTPSAC >= 0xC0000000U && (uint32_t)ui64GlobalSAC < 0x3FFFFFFFU) // 0xC0000000 = FFFFFFFF - 3FFFFFFF
 	{
 		// LSB of ui64GlobalSAC wraps; we have to sub 1 to 32 bits MSB
 		ui64RTPSAC -= 0x100000000;

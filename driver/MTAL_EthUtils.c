@@ -361,17 +361,19 @@ static uint8_t s_byIPV4mcast[6] = {0x01, 0x00, 0x5e, 0, 0, 0};
             if(iRes == 0)
             { // not found
                 // send packet to remote to force address resolution
-                SendICMPEchoRequestPacket(uiIP, true);
+				if (SendICMPEchoRequestPacket(uiIP, true) != 1)
+					return 0;
 
-                int iRetryCounter = 100;
-                while(iRes == 0 && iRetryCounter > 0)
-                {
-                    // need some time until cache is updated
-                    usleep(10000); // 10ms
+				
+				int iRetryCounter = 100;
+				while (iRes == 0 && iRetryCounter-- > 0)
+				{
+					// need some time until cache is updated
+					usleep(10000); // 10ms
 
-                    //
-                    iRes = GetMACFromARPCache(uiIP, ui8MAC);
-                }
+					//
+					iRes = GetMACFromARPCache(uiIP, ui8MAC);
+				}
             }
             return iRes;
         }

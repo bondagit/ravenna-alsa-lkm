@@ -167,10 +167,10 @@ static uint32_t GetFeatures()
 #define _SSE2_FEATURE_BIT 0x04000000
 
 #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    #include <asm/uaccess.h>
     #include <asm/processor.h>
     #include <linux/thread_info.h>
     #include <linux/sched.h>
+    #include <asm/uaccess.h>
 #endif
 
 void MTConvertInit() //Init_Converter()

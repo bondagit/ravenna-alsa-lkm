@@ -496,6 +496,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 		
 		for (us = 0; us < self->m_usNumberOfRTPSourceStreams; us++)
 		{
+			//warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
 			if (&self->m_apRTPSourceOrderedStreams[us]->m_RTPAudioStream == (TRTP_audio_stream*)hRTPStream)
 			{
 				ret = get_RTPStream_status(&self->m_apRTPSourceOrderedStreams[us]->m_RTPAudioStream, pstream_status);
@@ -521,6 +522,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 		#endif // UNDER_RTSS
 		for (us = 0; us < self->m_usNumberOfRTPSinkStreams; us++)
 		{
+			//warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
 			if (&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream == (TRTP_audio_stream*)hRTPStream)
 			{
 				ret = get_RTPStream_status(&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream, pstream_status);

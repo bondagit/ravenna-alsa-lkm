@@ -215,6 +215,7 @@ struct mr_alsa_audio_chip
 
 
 /// channel mappings (NADAC only)
+// This should be removed from the open source version
 static const struct snd_pcm_chmap_elem mr_alsa_audio_nadac_playback_ch_map[] = {
     { .channels = 1,
       .map = { SNDRV_CHMAP_MONO } },
@@ -1088,7 +1089,7 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
 {
     .info =     (   /*SNDRV_PCM_INFO_MMAP |*/ /* hardware supports mmap */
                     SNDRV_PCM_INFO_INTERLEAVED |
-                    SNDRV_PCM_INFO_NONINTERLEAVED | /* channels are not interleaved */
+                    /*SNDRV_PCM_INFO_NONINTERLEAVED |  channels are not interleaved */
                     SNDRV_PCM_INFO_BLOCK_TRANSFER | /* hardware transfer block of samples */
                     SNDRV_PCM_INFO_JOINT_DUPLEX |
                     SNDRV_PCM_INFO_PAUSE | /* pause ioctl is supported */

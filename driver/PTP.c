@@ -1162,7 +1162,7 @@ void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus)
     memset(pPTPStatus, 0, sizeof(TPTPStatus));
     pPTPStatus->nPTPLockStatus = GetLockStatus(self);
     pPTPStatus->ui64GMID = self->m_ui64PTPMaster_GMID;
-    pPTPStatus->ui32Jitter = 0; // TODO
+    pPTPStatus->i32Jitter = 0; // TODO
 }
 
 ///////////////////////////////////////////////////////////////////////////////

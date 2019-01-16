@@ -244,14 +244,14 @@ int send_msg_to_user_land(struct MT_ALSA_msg* tx_msg, struct MT_ALSA_msg* rx_msg
 
 int setup_netlink(void)
 {	
-#if LINUX_VERSION_CODE != KERNEL_VERSION(3,3,4)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
     struct netlink_kernel_cfg u2k_cfg = { .input = recv_msg_from_user_land, };
     struct netlink_kernel_cfg k2u_cfg = { .input = recv_reply_from_user_land, };
 #endif // LINUX_VERSION_CODE
 
 	response_from_user_land = NULL;
 
-#if LINUX_VERSION_CODE != KERNEL_VERSION(3,3,4)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
     nl_u2k_sk = netlink_kernel_create(&init_net, NETLINK_U2K_ID, &u2k_cfg);
 #else
     nl_u2k_sk = netlink_kernel_create(&init_net, NETLINK_U2K_ID, 0, recv_msg_from_user_land, NULL, THIS_MODULE);
@@ -262,7 +262,7 @@ int setup_netlink(void)
         return -10;
     }
 
-#if LINUX_VERSION_CODE != KERNEL_VERSION(3,3,4)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
     nl_k2u_sk = netlink_kernel_create(&init_net, NETLINK_K2U_ID, &k2u_cfg);
 #else
     nl_k2u_sk = netlink_kernel_create(&init_net, NETLINK_K2U_ID, 0, recv_reply_from_user_land, NULL, THIS_MODULE);

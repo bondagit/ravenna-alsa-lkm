@@ -50,7 +50,7 @@ typedef struct
 {
 	EPTPLockStatus nPTPLockStatus;
 	uint64_t	ui64GMID;
-	uint32_t	ui32Jitter;
+	int32_t		i32Jitter;
 } TPTPStatus;
 
 typedef struct
