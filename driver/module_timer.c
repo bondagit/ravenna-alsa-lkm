@@ -30,14 +30,12 @@
 ****************************************************************************/
 
 #include <linux/interrupt.h> // for tasklet
+#include <linux/wait.h>
 
 #include "module_main.h"
 #include "module_timer.h"
 
-static DECLARE_WAIT_QUEUE_HEAD(wq);
-
 static struct tasklet_hrtimer my_hrtimer_;
-static ktime_t prev_time_;
 static uint64_t base_period_;
 static uint64_t max_period_allowed;
 static uint64_t min_period_allowed;
@@ -47,22 +45,22 @@ static int stop_;
 enum hrtimer_restart timer_callback(struct hrtimer *timer)
 {
     int ret_overrun;
-    ktime_t kt_now;
     ktime_t period;
     uint64_t next_wakeup;
+    uint64_t now;
 
     do
     {
         t_clock_timer(&next_wakeup);
-        kt_now = hrtimer_cb_get_time(timer);
-        period = ktime_set(0, next_wakeup - ktime_to_ns(kt_now));
+        get_clock_time(&now);
+        period = ktime_set(0, next_wakeup - now);
 
-		if (ktime_to_ns(kt_now) > next_wakeup)
-		{
-			printk(KERN_INFO "Timer won't sleep, clock_timer is recall instantly\n");
-			period = ktime_set(0, 0);
-		}
-		else if (ktime_to_ns(period) > max_period_allowed || ktime_to_ns(period) < min_period_allowed)
+        if (now > next_wakeup)
+        {
+            printk(KERN_INFO "Timer won't sleep, clock_timer is recall instantly\n");
+            period = ktime_set(0, 0);
+        }
+        else if (ktime_to_ns(period) > max_period_allowed || ktime_to_ns(period) < min_period_allowed)
         {
             printk(KERN_INFO "Timer period out of range: %lld [ms]. Target period = %lld\n", ktime_to_ns(period) / 1000000, base_period_ / 1000000);
             if (ktime_to_ns(period) > (unsigned long)5E9L)
@@ -71,12 +69,6 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
                 period = ktime_set(0,((unsigned long)1E9L)); //1s
             }
         }
-        if (ktime_to_ns(kt_now) - ktime_to_ns(prev_time_) > max_period_allowed)
-        {
-            // comment it when running in VM
-            printk(KERN_INFO "Timer wake up time period is greater than %lld [ms] (%lld [ms])\n", (uint64_t)(max_period_allowed / 1000000), (ktime_to_ns(kt_now) - ktime_to_ns(prev_time_)) /1000000);
-        }
-        prev_time_ = kt_now;
 
         if(stop_)
         {
@@ -96,9 +88,9 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 int init_clock_timer(void)
 {
-	stop_ = 0;
-	///hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+    stop_ = 0;
+    ///hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_PINNED/*HRTIMER_MODE_ABS*/);
     ///my_hrtimer_.function = &timer_callback;
 
     //base_period_ = 100 * ((unsigned long)1E6L); // 100 ms
@@ -106,7 +98,7 @@ int init_clock_timer(void)
     set_base_period(base_period_);
 
     //start_clock_timer(); //used when no daemon
-	return 0;
+    return 0;
 }
 
 void kill_clock_timer(void)
@@ -117,16 +109,16 @@ void kill_clock_timer(void)
 int start_clock_timer(void)
 {
     ktime_t period = ktime_set(0, base_period_); //100 ms
-	tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
+    tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
 
-	return 0;
+    return 0;
 }
 
 void stop_clock_timer(void)
 {
 
     tasklet_hrtimer_cancel(&my_hrtimer_);
-	/*int ret_cancel = 0;
+    /*int ret_cancel = 0;
     while(hrtimer_callback_running(&my_hrtimer_))
         ++ret_cancel;
 
@@ -138,20 +130,13 @@ void stop_clock_timer(void)
 
 void get_clock_time(uint64_t* clock_time)
 {
-	ktime_t kt_now;
-	kt_now = ktime_get();
-	*clock_time = (uint64_t)ktime_to_ns(kt_now);
+    ktime_t kt_now;
+    kt_now = ktime_get();
+    *clock_time = (uint64_t)ktime_to_ns(kt_now);
 
-	/*raw_spinlock_t  *timer_lock = &my_hrtimer_.timer.base->cpu_base->lock;
-	int this_cpu = smp_processor_id(); // SMP issue
-	bool lock = this_cpu != timer_cpu_;
-	if (lock)
-		raw_spin_lock(timer_lock);
-	kt_now = hrtimer_cb_get_time(&my_hrtimer_.timer);
-	if (lock)
-		raw_spin_unlock(timer_lock);
-	*clock_time = (uint64_t)ktime_to_ns(kt_now);*/
-	return;
+    // struct timespec monotime;
+    // getrawmonotonic(&monotime);
+    // *clock_time = monotime.tv_sec * 1000000000L + monotime.tv_nsec;
 }
 
 void set_base_period(uint64_t base_period)
