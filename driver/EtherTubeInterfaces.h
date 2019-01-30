@@ -84,7 +84,8 @@ typedef struct
 	void (*get_audio_engine_sample_format)(void* self, enum EAudioEngineSampleFormat* pnSampleFormat);
 	void* (*get_live_in_jitter_buffer)(void* self, uint32_t ulChannelId);		// Note: buffer type is retrieved through get_audio_engine_sample_format
 	void* (*get_live_out_jitter_buffer)(void* self, uint32_t ulChannelId);	// Note: buffer type is retrieved through get_audio_engine_sample_format
-	uint32_t (*get_live_jitter_buffer_length)(void* self);
+	uint32_t (*get_live_in_jitter_buffer_length)(void* self);
+	uint32_t (*get_live_out_jitter_buffer_length)(void* self);
 	uint32_t (*get_live_in_jitter_buffer_offset)(void* self, const uint64_t ui64CurrentSAC); // const {return static_cast<uint32_t>(ui64CurrentSAC % get_live_jitter_buffer_length());}
 	uint32_t (*get_live_out_jitter_buffer_offset)(void* self, const uint64_t ui64CurrentSAC); // const {return static_cast<uint32_t>(ui64CurrentSAC % get_live_jitter_buffer_length());}
 

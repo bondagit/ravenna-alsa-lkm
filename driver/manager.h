@@ -212,7 +212,8 @@ void get_audio_engine_sample_format(void* user, enum EAudioEngineSampleFormat* p
 char get_audio_engine_sample_bytelength(void* user);
 void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId);	// Note: buffer type is retrieved through get_audio_engine_sample_format
 void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId);	// Note: buffer type is retrieved through get_audio_engine_sample_format
-uint32_t get_live_jitter_buffer_length(void* user);
+uint32_t get_live_in_jitter_buffer_length(void* user);
+uint32_t get_live_out_jitter_buffer_length(void* user);
 uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64CurrentSAC);
 uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64CurrentSAC);
 int update_live_in_audio_data_format(void* user, uint32_t /*ulChannelId*/, char const * /*pszCodec*/);

@@ -1253,7 +1253,14 @@ void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-uint32_t get_live_jitter_buffer_length(void* user)
+uint32_t get_live_in_jitter_buffer_length(void* user)
+{
+    struct TManager* self = (struct TManager*)user;
+    return self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+uint32_t get_live_out_jitter_buffer_length(void* user)
 {
     struct TManager* self = (struct TManager*)user;
     return self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
@@ -1265,7 +1272,7 @@ uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64Current
     struct TManager* self = (struct TManager*)user;
 
     #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
-        return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
+        return (uint32_t)(ui64CurrentSAC % get_live_in_jitter_buffer_length(self));
     #else
         uint32_t live_in_jitter_buffer_length = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
         return (uint32_t)(ui64CurrentSAC % live_in_jitter_buffer_length);
@@ -1291,7 +1298,7 @@ uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64Curren
     struct TManager* self = (struct TManager*)user;
 
     #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
-        return (uint32_t)(ui64CurrentSAC % get_live_jitter_buffer_length(self));
+        return (uint32_t)(ui64CurrentSAC % get_live_out_jitter_buffer_length(self));
     #else
         uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
         const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
@@ -1308,7 +1315,7 @@ uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64Curren
             if(sacOffset <= offset)
                 offset -= sacOffset;
             else
-                offset += get_live_jitter_buffer_length(self) - sacOffset;
+                offset += get_live_out_jitter_buffer_length(self) - sacOffset;
         }
         //MTAL_DP("CManager::get_live_out_jitter_buffer_offset() returned %u (sacOffset = %u)\n", offset, sacOffset);
         return offset;
@@ -1479,7 +1486,8 @@ void Init_C_Callbacks(struct TManager* self)
     self->m_c_callbacks.get_audio_engine_sample_format = &get_audio_engine_sample_format;
     self->m_c_callbacks.get_live_in_jitter_buffer = &get_live_in_jitter_buffer;
     self->m_c_callbacks.get_live_out_jitter_buffer = &get_live_out_jitter_buffer;
-    self->m_c_callbacks.get_live_jitter_buffer_length = &get_live_jitter_buffer_length;
+    self->m_c_callbacks.get_live_in_jitter_buffer_length = &get_live_in_jitter_buffer_length;
+    self->m_c_callbacks.get_live_out_jitter_buffer_length = &get_live_out_jitter_buffer_length;
     self->m_c_callbacks.get_live_in_jitter_buffer_offset = &get_live_in_jitter_buffer_offset;
     self->m_c_callbacks.get_live_out_jitter_buffer_offset = &get_live_out_jitter_buffer_offset;
     self->m_c_callbacks.update_live_in_audio_data_format = &update_live_in_audio_data_format;
