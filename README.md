@@ -7,7 +7,7 @@ Although the Kernel part of this software is licensed under [GNU GPL](https://ww
 **A. Integration into commercial products**
 Please contact us through [here](https://www.merging.com/company/general-inquiries)
 
-**B. Personal use
+**B. Personal use**
 Please find the license [here](https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm/src/master/Butler/LICENSE.md)
 
 ## Network ##
@@ -40,8 +40,6 @@ The RAVENNA ALSA implementation is splitted into 2 parts:
 * Remote volume control
 
 Note : The Butler cannot be launched if the LKM has not been previously inserted. The LKM cannot be removed as long as the Butler is running
-
-**The Daemon is not provided with this package. This binary is built for each specific platform by Merging Technologies and delivered under a license agreement.**
 
 ### ALSA Features ###
 * 1FS to 8FS support
@@ -121,15 +119,17 @@ Next to the Butler binary, you will find the merging_ravenna_daemon.conf file pr
 
 ## Audio networking ##
 A general presentation on Audio networking can be found on : [here](https://www.merging.com/highlights/audio-networking#audio-networking)
+
 ### Firewall ###
-To ensure a correct operation of the driver, check that the following port are open:
+To ensure a correct operation of the driver, check that the following port are open :
+
 * web server : port set in the config file TCP (default is 9090)
 * mdns : 5353 UDP
 * AES67 discovery : 9875 UDP
 
 ### Configuration ###
 Once the Butler is successfully launched, the web page configuration web page can be accessed at the port defined in the config file (default is 9090)
-<local IP of interface_name>:9090
+"<local IP of interface_name>:9090"
 The web page documentation is available (here)[https://confluence.merging.com/pages/viewpage.action?pageId=33260125]
 
 ### Hardware Requirement ###
@@ -170,6 +170,3 @@ Sources are not discovered: ensure that mutlicast traffic is not filtered by the
 ## Further docs ##
 * [Real-time Audio on Embedded Linux](https://elinux.org/images/8/82/Elc2011_lorriaux.pdf)
 * [Tools and technics for audio debugging](http://www.ti.com/lit/an/sprac10/sprac10.pdf)
-
-
-More information about Merging Technologies, RAVENNA and AES67 can be found on : [here](https://www.merging.com/highlights/audio-networking#audio-networking)
