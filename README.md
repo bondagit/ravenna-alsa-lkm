@@ -129,7 +129,7 @@ To ensure a correct operation of the driver, check that the following port are o
 
 ### Configuration ###
 Once the Butler is successfully launched, the web page configuration web page can be accessed at the port defined in the config file (default is 9090)
-"<local IP of interface_name>:9090"
+&<;Clocal IP of interface_name&>;:9090
 The web page documentation is available (here)[https://confluence.merging.com/pages/viewpage.action?pageId=33260125]
 
 ### Hardware Requirement ###
