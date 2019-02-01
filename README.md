@@ -109,7 +109,7 @@ Use the -d option to run it in a daemon mode.
 Next to the Butler binary, you will find the merging_ravenna_daemon.conf file providing the following options :
 
 * interface_name : Network interface name used by RAVENNA/AES67 network. e.g eth0, eth2, enc0, br1...
-* device_name : By default the name is "ALSA (on  <hostname>". This can be changed but the name has to be unique on the network (used by Zeroconf) and white spaces are not supported
+* device_name : By default the name is "ALSA (on  &<;hostname&>;". This can be changed but the name has to be unique on the network (used by Zeroconf) and white spaces are not supported
 * web_app_port : Port number on which the RAVENNA/AES67 webserver will listen to
 * web_app_path : Path of the webapp folder provided in the package. Should terminate by webapp/advanced
 * tic_frame_size_at_1fs : Frame size in sample at 1Fs (44.1 / 48 kHz). e.g 48 for AES67
@@ -129,8 +129,8 @@ To ensure a correct operation of the driver, check that the following port are o
 
 ### Configuration ###
 Once the Butler is successfully launched, the web page configuration web page can be accessed at the port defined in the config file (default is 9090)
-&#0060;Clocal IP of interface_name&#0062;:9090
-The web page documentation is available (here)[https://confluence.merging.com/pages/viewpage.action?pageId=33260125]
+&<;local IP of interface_name&>;:9090
+The web page documentation is available [here](https://confluence.merging.com/pages/viewpage.action?pageId=33260125)
 
 ### Hardware Requirement ###
 * A PTP master device running on the network (this driver does not act as a PTP master). E.g. [Horus/Hapi](https://www.merging.com/products/interfaces)
