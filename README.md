@@ -45,12 +45,13 @@ Note : The Butler cannot be launched if the LKM has not been previously inserted
 * 1FS to 8FS support
 * PCM up to 384kHz
 * Native DSD support (64/128/256) in playback only (DOP not supported)
-* Interleaved and non-interleaved(2) 16/24/32 bit integer formats
-* Up to 64(1) I/O
+* Interleaved and non-interleaved\** 16/24/32 bit integer formats
+* Up to 64\* I/O
 * Volume control
 
-(1) OEM build only. Public build is limited to 8 I/O
-(2) Not available in capture mode
+\* OEM build only. Public build is limited to 8 I/O
+
+\** Not available in capture mode
 
 ### mDNS implementation ###
 
@@ -73,6 +74,9 @@ If Avahi is present in the system, the Daemon has to use that library. If Avahi 
 ### ALSA ###
 ALSA lib superior or equal to 1.0.29 for DSD support (DSD is not yet supported in capture/receiver direction)
 A [Zeroconf](https://en.wikipedia.org/wiki/Zero-configuration_networking) discovering service running on the system (Avahi only for public build).
+
+### Architecture ###
+While the Butler OEM build may be build for multiple architecture (ARM, ARM64, x86, x86_64), the public Butler is built for the x86_64 architecture only
 
 ## Setup ##
 ### Driver (Linux Kernel Module) ###
