@@ -83,6 +83,7 @@ While the Butler OEM build may be build for multiple architecture (ARM, ARM64, x
 Pull and compile the driver
 ```
 git clone https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git
+cd ravenna-alsa-lkm/driver
 make
 ```
 Once you have successfully built the driver, you install by
@@ -107,6 +108,11 @@ The public Butler runs under the following conditions:
 * GLIBC >= 2.17  is required
 
 #### Launch ####
+```
+cd ravenna-alsa-lkm/Butler
+chmod u+x Merging_RAVENNA_Daemon
+./Merging_RAVENNA_Daemon
+```
 Use the -d option to run it in a daemon mode.
 
 #### Config file ####
