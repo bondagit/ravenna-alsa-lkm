@@ -86,13 +86,18 @@ git clone https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git
 cd ravenna-alsa-lkm/driver
 make
 ```
-Once you have successfully built the driver, you install by
+Once you have successfully built the driver, you are able to install (reboot survive) or insert it.
+
+* Install
+
 ```
 sudo su
 cp MergingRavennaALSA.ko /lib/modules/$(uname -r)/kernel/drivers
 depmod
 ```
-or simply insert the LKM
+
+* Insert
+
 ```
 sudo insmod MergingRavennaALSA.ko
 ```
