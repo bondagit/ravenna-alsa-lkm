@@ -7,6 +7,8 @@
 *
 *  Written by     : Baume Florian
 *  Date           : 15/04/2016
+*  Modified by    : Maximilian Hill
+*  Date           : 17/12/2019
 *  Modified by    :
 *  Date           :
 *  Modification   :
@@ -35,7 +37,7 @@
 #include "module_main.h"
 #include "module_timer.h"
 
-static struct tasklet_hrtimer my_hrtimer_;
+static struct hrtimer my_hrtimer_;
 static uint64_t base_period_;
 static uint64_t max_period_allowed;
 static uint64_t min_period_allowed;
@@ -89,9 +91,8 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
 int init_clock_timer(void)
 {
     stop_ = 0;
-    ///hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_PINNED/*HRTIMER_MODE_ABS*/);
-    ///my_hrtimer_.function = &timer_callback;
+    hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+    my_hrtimer_.function = &timer_callback;
 
     //base_period_ = 100 * ((unsigned long)1E6L); // 100 ms
     base_period_ = 1333333; // 1.3 ms
@@ -109,7 +110,7 @@ void kill_clock_timer(void)
 int start_clock_timer(void)
 {
     ktime_t period = ktime_set(0, base_period_); //100 ms
-    tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
+    hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
 
     return 0;
 }
@@ -117,7 +118,7 @@ int start_clock_timer(void)
 void stop_clock_timer(void)
 {
 
-    tasklet_hrtimer_cancel(&my_hrtimer_);
+    hrtimer_cancel(&my_hrtimer_);
     /*int ret_cancel = 0;
     while(hrtimer_callback_running(&my_hrtimer_))
         ++ret_cancel;
