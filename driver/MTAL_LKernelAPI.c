@@ -216,9 +216,12 @@ uint64_t MTAL_LK_GetCounterFreq(void)
 uint64_t MTAL_LK_GetSystemTime(void)
 {
     uint64_t timeVal = 0ull;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
     struct timespec64 ts64;
     ktime_get_real_ts64(&ts64);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+    struct timespec64 ts64;
+    getnstimeofday64(&ts64);
 #else
     struct timespec ts64;
     getnstimeofday(&ts64);
