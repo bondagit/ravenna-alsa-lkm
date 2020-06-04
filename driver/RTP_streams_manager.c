@@ -770,6 +770,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
 EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize)
 #endif // NT_DRIVER
 {
+    bool bProceeded = false;
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
         unsigned long flags;
     #endif
@@ -786,7 +787,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
 		return DR_PACKET_NOT_USED;
 	}
 
-	// Is this UDP packet is a RTP packet that we have to used?
+	// Is this UDP packet is a RTP packet that we have to use?
 
     #if defined(NT_DRIVER)
         self->m_csSinkRTPStreams.Lock(bDispatchLevel);
@@ -802,15 +803,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
         {
             if(ui64Key == get_key(&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream.m_tRTPStream.m_RTP_stream_info))
             {
-                if(ProcessRTPAudioPacket(&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream, (TRTPPacketBase*)pUDPPacketBase))
-                {
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
-                    #else
-                        self->m_csSinkRTPStreams.Unlock();
-                    #endif
-                    return DR_RTP_PACKET_USED;
-                }
+                bProceeded |= ProcessRTPAudioPacket(&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream, (TRTPPacketBase*)pUDPPacketBase);
             }
         }
     }
@@ -819,8 +812,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
     #else
         self->m_csSinkRTPStreams.Unlock();
 	#endif
-
-	return DR_PACKET_NOT_USED;
+	return bProceeded ? DR_RTP_PACKET_USED : DR_PACKET_NOT_USED;
 }
 
 //////////////////////////////////////////////////////////////

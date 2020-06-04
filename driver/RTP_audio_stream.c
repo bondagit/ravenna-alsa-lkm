@@ -1083,27 +1083,27 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 			self->m_ui32StreamStatusLastResetCounter = self->m_ui32StreamStatusResetCounter;
 
 			self->m_StreamStatus.u.flags = 0;
-			self->m_StreamStatus.u.sink_receiving_RTP_packet = bSinkIsReceiving ? 1 : 0;
-			self->m_StreamStatus.u.sink_muted = bLivesInMuted ? 1 : 0;
-			self->m_StreamStatus.u.sink_RTP_seq_id_error = bWrongRTPSeqId ? 1 : 0;
-			self->m_StreamStatus.u.sink_RTP_SSRC_error = bWrontRTPSSRC ? 1 : 0;
-			self->m_StreamStatus.u.sink_RTP_PayloadType_error = bWrongRTPPayloadType ? 1 : 0;
-			self->m_StreamStatus.u.sink_RTP_SAC_error = bWrongRTPSAC ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_receiving_RTP_packet = bSinkIsReceiving ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_muted = bLivesInMuted ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_RTP_seq_id_error = bWrongRTPSeqId ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_RTP_SSRC_error = bWrontRTPSSRC ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_RTP_PayloadType_error = bWrongRTPPayloadType ? 1 : 0;
+			self->m_StreamStatus.u.bit_fields.sink_RTP_SAC_error = bWrongRTPSAC ? 1 : 0;
 		}
 		else
 		{ // update error only
 			if (bSinkIsReceiving)
-				self->m_StreamStatus.u.sink_receiving_RTP_packet = 1;
+				self->m_StreamStatus.u.bit_fields.sink_receiving_RTP_packet = 1;
 			if (bLivesInMuted)
-				self->m_StreamStatus.u.sink_muted = 1;
+				self->m_StreamStatus.u.bit_fields.sink_muted = 1;
 			if (bWrongRTPSeqId)
-				self->m_StreamStatus.u.sink_RTP_seq_id_error = 1;
+				self->m_StreamStatus.u.bit_fields.sink_RTP_seq_id_error = 1;
 			if(bWrontRTPSSRC)
-				self->m_StreamStatus.u.sink_RTP_SSRC_error = 1;
+				self->m_StreamStatus.u.bit_fields.sink_RTP_SSRC_error = 1;
 			if(bWrongRTPPayloadType)
-				self->m_StreamStatus.u.sink_RTP_PayloadType_error = 1;
+				self->m_StreamStatus.u.bit_fields.sink_RTP_PayloadType_error = 1;
 			if(bWrongRTPSAC)
-				self->m_StreamStatus.u.sink_RTP_SAC_error = 1;
+				self->m_StreamStatus.u.bit_fields.sink_RTP_SAC_error = 1;
 		}
 	}
 }

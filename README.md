@@ -22,7 +22,7 @@ Note : In case of 100 Mb/s link, the bandwidth allows for up to 2 channels at 38
 The RAVENNA ALSA implementation is splitted into 2 parts:
 
 1. A Linux kernel module (LKM) : MergingRavennaALSA.ko
-2. A a user land binary call the Daemon : Merging_RAVENNA_Daemon
+2. A a user land binary call the Butler : Merging_RAVENNA_Daemon
 
 ### The kernel part is responsible of ###
 * Registering as an ALSA driver
@@ -35,8 +35,10 @@ The RAVENNA ALSA implementation is splitted into 2 parts:
 * High level RAVENNA/AES67 protocol implementation
   * mDNS discovery
   * SAP discovery
+  * NMOS IS-04/05 discovery/registration/managment
 * RAVENNA devices sample rate arbitration
 * Web server
+* CometD / HTTP REST API frontend
 * Remote volume control
 
 Note : The Butler cannot be launched if the LKM has not been previously inserted. The LKM cannot be removed as long as the Butler is running
@@ -49,26 +51,27 @@ Note : The Butler cannot be launched if the LKM has not been previously inserted
 * Up to 64\* I/O
 * Volume control
 
-\* OEM build only. Public build is limited to 8 I/O
+\* OEM build only. Public build is limited to 8 I/O if no Merging device is present
 
 \** Not available in capture mode
 
 ### mDNS implementation ###
 
-The RAVENNA protocol uses mDNS. Depending on the platform/distribution the Daemon will use Bonjour or Avahi libraries.
-If Avahi is present in the system, the Daemon has to use that library. If Avahi is not present in the system, a built-in Bonjour implementation will be used instead (available only for integrators builds).
+The RAVENNA protocol uses mDNS. Depending on the platform/distribution the Butler will use Bonjour or Avahi libraries.
+If Avahi is present in the system, the Butler has to use that library. If Avahi is not present in the system, a built-in Bonjour implementation will be used instead (available only for OEM integrators builds).
 
 ## Prerequisite ##
 ### Kernel ###
 * GCC >= 4.9
 * Linux kernel > 2.4 (3.18 for DSD support)
 * The Linux kernel headers for the target.
+* WARNING: Compilation failure for kernel >= v5.2
 
 #### Kernel Config ####
 * NETFILTER
 * HIGH_RES_TIMERS
 * NETLINK
-* Kernel > 2.4 (3.18 for DSD)
+* Kernel > 2.4 (3.18 for DSD support)
 * For optimal performance in a real time environment consider changing CONFIG_HZ=1000 when building the kernel. More [here](https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt)
 
 ### ALSA ###
@@ -110,7 +113,7 @@ The public Butler runs under the following conditions:
 * Avahi library must be installed (custom OEM build may work with Bonjour)
 * The processor architecture is limited to amd64 (x86_64)
 * Tested with Ubuntu 16.04
-* GLIBC >= 2.17  is required
+* GLIBC >= 2.17 is required
 
 #### Launch ####
 ```
@@ -124,7 +127,7 @@ Use the -d option to run it in a daemon mode.
 Next to the Butler binary, you will find the merging_ravenna_daemon.conf file providing the following options :
 
 * interface_name : Network interface name used by RAVENNA/AES67 network. e.g eth0, eth2, enc0, br1...
-* device_name : By default the name is "ALSA (on <hostname\>". This can be changed but the name has to be unique on the network (used by Zeroconf) and white spaces are not supported
+* device_name : By default the name is "Merging ALSA-AES67 (on <hostname\>". This can be changed but the name has to be unique on the network (used by Zeroconf) and white spaces are not supported
 * web_app_port : Port number on which the RAVENNA/AES67 webserver will listen to
 * web_app_path : Path of the webapp folder provided in the package. Should terminate by webapp/advanced
 * tic_frame_size_at_1fs : Frame size in sample at 1Fs (44.1 / 48 kHz). e.g 48 for AES67
@@ -142,6 +145,7 @@ To ensure a correct operation of the driver, check that the following port are o
 * web server : port set in the config file TCP (default is 9090)
 * mdns : 5353 UDP
 * AES67 discovery : 9875 UDP
+* PTP : 319 UDP and 320 UDP
 
 ### Configuration ###
 Once the Butler is successfully launched, the web page configuration web page can be accessed at the port defined in the config file (default is 9090)
@@ -151,9 +155,9 @@ Once the Butler is successfully launched, the web page configuration web page ca
 The web page documentation is available [here](https://confluence.merging.com/pages/viewpage.action?pageId=33260125)
 
 ### Hardware Requirement ###
-* A PTP master device running on the network (this driver does not act as a PTP master). E.g. [Horus/Hapi](https://www.merging.com/products/interfaces)
+* A PTP master device running on the network (this driver does not act as a PTP master). E.g. [Horus/Hapi/Anubis](https://www.merging.com/products/interfaces)
 * A switch supporting multicast traffic (RFC 1112), multicast forwarding, IGMPv2 (RFC 2236), IGMP snooping (RFC 4541)
-* An AES67 or RAVENNA device. E.g. [Horus/Hapi](https://www.merging.com/products/interfaces)
+* An AES67 or RAVENNA device. E.g. [Horus/Hapi/Anubis](https://www.merging.com/products/interfaces)
 
 ### AES67 knowledge base ###
 * [Merging and AES67 devices](http://www.merging.com/uploads/assets/Installers/ravenna/Configure%20Merging%20and%20AES67%20Devices.pdf)

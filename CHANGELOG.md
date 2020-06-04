@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.74 (28/06/2019)
+## v1.1.74 (2019-06-28)
 
 #### Enhancements:
 
@@ -18,3 +18,26 @@
 - [ZOEM-185](https://jira.merging.com/browse/ZOEM-185) Session sink reports RTP status error while the audio is correct
 
 ---
+
+## v1.1.93 (2020-06-2)
+
+#### New features:
+
+- REST API for Merging AES67 products (Doc avialalbe for OEM only)
+- NMOS IS-04/05 support
+
+#### Enhancements:
+
+- Hostname was limited to 11 characters. New limitation is 32 characters.
+- Compilation fix with Kernel version > 4.18
+- [RAV-997] (https://jira.merging.com/browse/RAV-997) verify PTP packets checksum -> reject packet if wrong
+- Advanced web page graphic improvement
+
+#### Bug Fixes:
+- [RAV-1251] (https://jira.merging.com/browse/RAV-1251) Two sinks using the same multicast address limitation
+- [NAD-654] (https://jira.merging.com/browse/NAD-654) NADAC+PLAYER noise on the channel 3 output when playing out DSD stereo files
+- [NAD-647] (https://jira.merging.com/browse/NAD-647) NADAC Volume jumps when adjusted from remote
+
+#### Known issues:
+
+- Compilation failure with Kernel version > 5.1 (tasklet_hrtimer_XXX functions have to be replace)

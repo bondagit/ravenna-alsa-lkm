@@ -76,7 +76,8 @@ typedef struct
 	uint32_t	ui32TICMaxDelta;
 } TTICStats;
 
-#define NB_TIMER_LATENCY_RANGES 10
+#define TIMER_LATENCY_MAX       1600 // [us]
+#define NB_TIMER_LATENCY_RANGES 16
 typedef struct
 {
     uint8_t     ui8NumberOfTimerLatencies;
@@ -99,3 +100,4 @@ typedef enum
 } EPTPTimeCodeFrameType;
 
 #pragma pack(pop)
+

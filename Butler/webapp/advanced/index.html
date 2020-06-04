@@ -59,12 +59,17 @@
             <div id="tabs" dojoType="dijit.layout.TabContainer" region="center" tabStrip="true">         
                    
                 <div dojoType="dijit.layout.ContentPane" title="General settings" selected="true">
-                    <h1>Audio configuration</h1>
+					<h1>Device Name</h1>
+                    <div dojoType="ravenna.widget.DeviceName" store="ravenna.Device.store"></div>  
+                    <h1>Audio Configuration</h1>
                     <div dojoType="ravenna.widget.AudioConfiguration" store="ravenna.Device.store"></div>
-                    <h1>Device Name</h1>
-                    <div dojoType="ravenna.widget.DeviceName" store="ravenna.Device.store"></div>     
-                    <h1>Network Interface</h1>
-                    <div dojoType="ravenna.widget.IPSettings" store="ravenna.Device.store"></div>                                   
+					<h1>Session Sinks Global</h1>
+                    <div dojoType="ravenna.widget.SessionSinkGlobalSettings" store="ravenna.Device.store"></div>                       
+                    <h1>Network</h1>
+					<div dojoType="ravenna.widget.NetworkGlobalSettings" store="ravenna.Device.store"></div>  
+                    <div dojoType="ravenna.widget.IPSettings" data-dojo-props="_port_id:0" store="ravenna.Device.store"></div>                                   
+                    <div dojoType="ravenna.widget.IPSettings" data-dojo-props="_port_id:1" store="ravenna.Device.store" style="display: none"></div>   
+                    <div><small>Note: changing the network settings require a reboot of the device.</small></div>                  
                 </div>
 <!--
 				<div dojoType="dijit.layout.ContentPane" title="PTP">

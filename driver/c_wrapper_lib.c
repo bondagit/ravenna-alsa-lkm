@@ -61,11 +61,12 @@ int CW_netfilter_register_hook(void* hook_func, void* hook_struct)
     nfho->pf = NFPROTO_IPV4;                //IPV4 packets
     nfho->priority = NF_IP_PRI_FIRST;       //set to highest priority over all other hook functions
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-    nf_register_net_hook(&init_net, nfho); //register hook
+    ret = nf_register_net_hook(&init_net, nfho); //register hook
 #else
-    nf_register_hook(nfho);
+    ret = nf_register_hook(nfho);
 #endif
-    printk(KERN_ERR "nf_register_hook return err code %d \n", ret);
+    if (ret)
+        printk(KERN_ERR "nf_register_hook return err code %d \n", ret);
     return 0;
 }
 

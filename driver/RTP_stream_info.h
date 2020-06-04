@@ -57,6 +57,11 @@ typedef struct
 	// must be the first class member
 	uint32_t		m_ui32CRTP_stream_info_sizeof; // used to verify that CRTP_stream_info version if the same for Host and Target
 
+	int8_t			m_b802_1Q;
+	int16_t			m_ui16VLAN_Id;
+
+	unsigned int	m_uiIfPortId;	// id of the ethernet adapter port to use
+
 	char			m_cName[MAX_STREAM_NAME_SIZE]; // we don't use std:string as this class is send through SendIODeviceIOControl(...)
 	uint32_t		m_ui32PlayOutDelay; // Ravenna doc: Playout delay may be separately configured for each receiver, and needs to be set high enough to account for the latencies in the network path.
 	uint32_t		m_ui32FrameSize;
@@ -109,7 +114,8 @@ typedef struct {
 			unsigned int sink_receiving_RTP_packet : 1;		// 0x10: receiving RTP packet (some packet RTP arrived)
 			unsigned int sink_muted : 1;					// 0x20: live has been muted
 			unsigned int sink_some_muted : 1;				// 0x40: used by Horus implementation which is only able to detect that a incomming stream is muted but which doesn't know which one
-		};
+			unsigned int sink_all_muted : 1;				// 0x80: audio missing from all available streams (i.e. ST2022-7)
+		} bit_fields;
 		unsigned int flags;
 	} u;
 	int sink_min_time; //  min packet arrival time
@@ -180,9 +186,18 @@ public:
 		return get_key((TRTP_stream_info*)this);
 	}
 
-	void SetName(const char* cName) {
-		set_stream_name((TRTP_stream_info*)this, const_cast<char*>(cName));
-	}
+	
+
+	void Set802_1Q(bool b802_1Q) { m_b802_1Q = b802_1Q; }
+	bool Is802_1Q() const { return m_b802_1Q ? true : false; }
+
+	void SetVLAN_Id(uint16_t ui16VLAN_Id) { m_ui16VLAN_Id = ui16VLAN_Id; }
+	uint16_t GetVLAN_Id() const { return m_ui16VLAN_Id; }
+
+	void SetIfPortId(unsigned int uiIfPortId) { m_uiIfPortId = uiIfPortId; }
+	unsigned int GetIfPortId() const {return m_uiIfPortId;}
+
+	void SetName(const char* cName) {set_stream_name((TRTP_stream_info*)this, const_cast<char*>(cName));}
 	const char* GetName() const { return m_cName; }
 
 	void SetPlayOutDelay(uint32_t ui32PlayOutDelay) { m_ui32PlayOutDelay = ui32PlayOutDelay; }
@@ -297,29 +312,54 @@ public:
 		sink_min_time = other.sink_min_time;
 		return *this;
 	}
+		
+	/*void ST2022_7_merge(const CRTP_stream_status & First, const CRTP_stream_status & Second)
+	{
+		clear();
+
+		set_sink_RTP_seq_id_error(First.is_sink_RTP_seq_id_error() || Second.is_sink_RTP_seq_id_error());
+		set_sink_RTP_SSRC_error(First.is_sink_RTP_SSRC_error() || Second.is_sink_RTP_SSRC_error());
+		set_sink_RTP_PayloadType_error(First.is_sink_RTP_PayloadType_error() || Second.is_sink_RTP_PayloadType_error());
+		set_sink_RTP_SAC_error(First.is_sink_RTP_SAC_error() || Second.is_sink_RTP_SAC_error());
+		set_sink_receiving_RTP_packet(First.is_sink_receiving_RTP_packet() || Second.is_sink_receiving_RTP_packet());
+
+		//bool bMuted = First.is_sink_muted() || Second.is_sink_muted();
+		//bMuted = First.is_sink_some_muted() || Second.is_sink_some_muted();
+		bool bMuted = First.is_sink_all_muted() || Second.is_sink_all_muted();
+		set_sink_muted(bMuted);
+
+		//set_sink_some_muted(First.is_sink_receiving_RTP_packet() || Second.is_sink_receiving_RTP_packet());
+		//set_sink_all_muted(First.is_sink_receiving_RTP_packet() || Second.is_sink_receiving_RTP_packet());
+
+		sink_min_time = First.get_sink_min_time() < Second.get_sink_min_time() ? First.get_sink_min_time() : Second.get_sink_min_time();
+	}*/
 
 	unsigned int flags() const {return u.flags;}
 
-	void set_sink_receiving_RTP_packet(bool bValue) { u.sink_receiving_RTP_packet = bValue ? 1 : 0; }
-	bool is_sink_receiving_RTP_packet() const { return u.sink_receiving_RTP_packet == 1; }
+	void set_sink_receiving_RTP_packet(bool bValue) { u.bit_fields.sink_receiving_RTP_packet = bValue ? 1 : 0; }
+	bool is_sink_receiving_RTP_packet() const { return u.bit_fields.sink_receiving_RTP_packet == 1; }
+	bool is_sink_receiving_RTP_packet_only() const { return flags() == 0x10; }
 
-	void set_sink_muted(bool bValue) { u.sink_muted = bValue ? 1 : 0; }
-	bool is_sink_muted() const { return u.sink_muted == 1; }
+	void set_sink_muted(bool bValue) { u.bit_fields.sink_muted = bValue ? 1 : 0; }
+	bool is_sink_muted() const { return u.bit_fields.sink_muted == 1; }
 
-	void set_sink_some_muted(bool bValue) { u.sink_some_muted = bValue ? 1 : 0; }
-	bool is_sink_some_muted() const { return u.sink_some_muted == 1; }
+	void set_sink_some_muted(bool bValue) { u.bit_fields.sink_some_muted = bValue ? 1 : 0; }
+	bool is_sink_some_muted() const { return u.bit_fields.sink_some_muted == 1; }
 
-	void set_sink_RTP_seq_id_error(bool bValue) { u.sink_RTP_seq_id_error = bValue ? 1 : 0; }
-	bool is_sink_RTP_seq_id_error() const { return u.sink_RTP_seq_id_error == 1; }
+	void set_sink_all_muted(bool bValue) { u.bit_fields.sink_all_muted = bValue ? 1 : 0; }
+	bool is_sink_all_muted() const { return u.bit_fields.sink_all_muted == 1; }
 
-	void set_sink_RTP_SSRC_error(bool bValue) { u.sink_RTP_SSRC_error = bValue ? 1 : 0; }
-	bool is_sink_RTP_SSRC_error() const { return u.sink_RTP_SSRC_error == 1; }
+	void set_sink_RTP_seq_id_error(bool bValue) { u.bit_fields.sink_RTP_seq_id_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_seq_id_error() const { return u.bit_fields.sink_RTP_seq_id_error == 1; }
 
-	void set_sink_RTP_PayloadType_error(bool bValue) { u.sink_RTP_PayloadType_error = bValue ? 1 : 0; }
-	bool is_sink_RTP_PayloadType_error() const { return u.sink_RTP_PayloadType_error == 1; }
+	void set_sink_RTP_SSRC_error(bool bValue) { u.bit_fields.sink_RTP_SSRC_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_SSRC_error() const { return u.bit_fields.sink_RTP_SSRC_error == 1; }
 
-	void set_sink_RTP_SAC_error(bool bValue) { u.sink_RTP_SAC_error = bValue ? 1 : 0; }
-	bool is_sink_RTP_SAC_error() const { return u.sink_RTP_SAC_error == 1; }
+	void set_sink_RTP_PayloadType_error(bool bValue) { u.bit_fields.sink_RTP_PayloadType_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_PayloadType_error() const { return u.bit_fields.sink_RTP_PayloadType_error == 1; }
+
+	void set_sink_RTP_SAC_error(bool bValue) { u.bit_fields.sink_RTP_SAC_error = bValue ? 1 : 0; }
+	bool is_sink_RTP_SAC_error() const { return u.bit_fields.sink_RTP_SAC_error == 1; }
 
 	void set_sink_min_time(int iMinTime) { sink_min_time = iMinTime; }
 	int get_sink_min_time() const { return sink_min_time; }

@@ -607,9 +607,14 @@ static int netSelect(int fd, uint32_t ui32Timeout_sec, uint32_t ui32Timeout_usec
 
 	if (ret == -1)
 	{
-		if (errno == EAGAIN || errno == EINTR)
+		if (errno == EAGAIN)
 		{
-			rv_log(LOG_ERR, "netSelect: errno EAGAIN or EINTR (%d)\n", errno);
+			rv_log(LOG_NOTICE, "netSelect: errno EAGAIN\n");
+			ret = 0;
+		}
+		else if (errno == EINTR)
+		{
+			rv_log(LOG_NOTICE, "netSelect: errno EINTR\n");
 			ret = 0;
 		}
 		else
@@ -895,6 +900,36 @@ static int set_thread_priority(TMTAL_IPC_Instance* pTMTAL_IPC_Instance, int poli
 }
 
 ////////////////////////////////////////////////////////////////
+static int pthread_timeout_join(pthread_t* ppthread, unsigned int uiSecTimeout)
+{
+	struct timespec ts;
+	int s;
+
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+	{
+		rv_log(LOG_ERR, "clock_gettime failed\n");
+		return -1;
+	}
+
+	ts.tv_sec += uiSecTimeout;
+
+	int iRet = pthread_timedjoin_np(*ppthread, NULL, &ts);
+	switch (iRet)
+	{
+	case 0: // success
+		break;
+	case ETIMEDOUT:
+		rv_log(LOG_ERR, "join failed; timeout\n");
+		break;
+	case EINVAL:
+		rv_log(LOG_ERR, "join failed; invalid absolute time\n");
+		break;
+	}
+	rv_log(LOG_NOTICE, "iRet = %i\n", iRet);
+	return iRet;
+}
+
+////////////////////////////////////////////////////////////////
 static void destroy_thread(TMTAL_IPC_Instance* pTMTAL_IPC_Instance)
 {
 	if (pTMTAL_IPC_Instance->s_pthread)
@@ -906,7 +941,9 @@ static void destroy_thread(TMTAL_IPC_Instance* pTMTAL_IPC_Instance)
 		send_buffer_to_fifo(pTMTAL_IPC_Instance->s_server_fd, buf, sizeof(buf));
 
 
-		pthread_join(pTMTAL_IPC_Instance->s_pthread, 0);
+		//pthread_join(pTMTAL_IPC_Instance->s_pthread, 0);
+		pthread_timeout_join(&pTMTAL_IPC_Instance->s_pthread, 5);
+		
 		pTMTAL_IPC_Instance->s_pthread = 0;
 	}	
 }

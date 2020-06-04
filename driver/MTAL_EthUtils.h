@@ -67,6 +67,15 @@ typedef struct
 } TEthernetHeader;
 
 typedef struct
+{
+	uint8_t		byDest[6];   ///< The destination MAC address
+	uint8_t		bySrc[6];    ///< The source MAC address
+	uint16_t	usTPID;		// Tag protocol identifier
+	uint16_t	usVID;		// VLAN ID
+	uint16_t	usType;      ///< The Ethernet type (0x5000, big-endian, for EtherTube)
+} TEthernetHeader8021Q;
+
+typedef struct
 {											// Offset  Length (bytes)
 	uint8_t		ucVersion_HeaderLen;	// 14		1
 	uint8_t		ucTOS;					// 15       1
@@ -240,6 +249,14 @@ typedef struct
 	TUDPHeader			UDPHeader;
 	TRTPHeader			RTPHeader;
 } TRTPPacketBase;
+
+typedef struct
+{
+	TEthernetHeader8021Q		EthernetHeader;	///< The Ethernet header
+	TIPV4Header			IPV4Header;
+	TUDPHeader			UDPHeader;
+	TRTPHeader			RTPHeader;
+} TRTPPacketBase8021Q;
 
 // Special case for EtherTubeRTP packet
 // We are using RTPHeader.ssrc to retrieve the UnitDeviceID
