@@ -305,6 +305,20 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 		return DR_PACKET_NOT_USED;
 	}
 
+	// verify checksum
+	if (pUDPPacketBase->UDPHeader.usCheckSum != 0)
+	{
+		uint16_t ui16CheckSum = MTAL_ComputeUDPChecksum(&pPTPPacketBase->UDPHeader, MTAL_SWAP16(pUDPPacketBase->UDPHeader.usLen), (unsigned short*)&pPTPPacketBase->IPV4Header.ui32SrcIP, (unsigned short*)&pPTPPacketBase->IPV4Header.ui32DestIP);
+		if (ui16CheckSum != 0)
+		{
+			MTAL_DP("Bad checksum 0x%x\n", ui16CheckSum);
+			MTAL_DP("PTP type: 0%x seq_id: %u\n", pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F, pPTPPacketBase->V2MsgHeader.wSequenceId);
+			MTAL_DP("\n");
+
+			// the packet is rejected
+			return DR_PACKET_ERROR;
+		}
+	}
 
 	//DumpPTPV2MsgHeader(&pPTPPacketBase->V2MsgHeader);
 
@@ -322,6 +336,16 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			{
 				MTAL_DP("too short announce PTP packet size = %d should be at least %u\n", ui32PacketSize,  (uint32_t)sizeof(TPTPV2MsgAnnouncePacket));
 				return DR_PACKET_NOT_USED;
+			}
+
+			{
+				uint16_t wDeltaSeq = MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId) - self->m_wLastAnnounceSequenceId;
+				if (wDeltaSeq > 1)
+				{
+					MTAL_DP("PTP Announce delta(%u) error\n", wDeltaSeq);
+					MTAL_DP("\tV2MsgHeader.wSequenceId = %d != m_wLastAnnounceSequenceId = %d + 1\n", MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId), self->m_wLastAnnounceSequenceId);
+				}
+				self->m_wLastAnnounceSequenceId = MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId);
 			}
 
             //######################################################

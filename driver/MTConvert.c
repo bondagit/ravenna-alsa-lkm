@@ -1302,7 +1302,9 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
     void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
 {
     int ret = 0;
+#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     int ret_pu;
+#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1395,7 +1397,9 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
     void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
 {
     int ret = 0;
+#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     int ret_pu;
+#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1499,7 +1503,9 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
     void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
 {
     int ret = 0;
+#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     int ret_pu;
+#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1631,7 +1637,9 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
     void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
 {
     int ret = 0;
+#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     int ret_pu;
+#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;

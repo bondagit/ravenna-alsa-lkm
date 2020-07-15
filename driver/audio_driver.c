@@ -78,6 +78,7 @@ static char *id = SNDRV_DEFAULT_STR1; /* Id for card */
 static bool enable = SNDRV_DEFAULT_ENABLE1; /* Enable this card */
 static int pcm_devs = 1;
 //static int pcm_substreams = 8; // todo
+//#define MUTE_CHECK
 #ifdef MUTE_CHECK
 static bool playback_mute_detected = false;
 #endif
@@ -185,7 +186,7 @@ struct mr_alsa_audio_chip
 
 /// channel mappings (NADAC only)
 // This should be removed from the open source version
-static const struct snd_pcm_chmap_elem mr_alsa_audio_nadac_playback_ch_map[] = {
+static const struct snd_pcm_chmap_elem mr_alsa_audio_nadac_playback_ch_map[9] = {
     { .channels = 1,
       .map = { SNDRV_CHMAP_MONO } },
     { .channels = 2,
@@ -222,20 +223,20 @@ static int mr_alsa_audio_output_gain_info(  struct snd_kcontrol *kcontrol,// TOD
         return -EINVAL;
 
     uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-    chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
+    //chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
     //printk("mr_alsa_audio_output_gain_info: uinfo->count = %u \n", uinfo->count);
+    uinfo->count = 1;
     uinfo->value.integer.min = -99;
     uinfo->value.integer.max = 0;
     return 0;
 }
-
 
 static int mr_alsa_audio_output_gain_get(struct snd_kcontrol *kcontrol,// TODO Playback Volume control
                     struct snd_ctl_elem_value *ucontrol)
 {
     struct mr_alsa_audio_chip *chip = NULL;
     int err = 0;
-    unsigned int chidx = 0;
+    //unsigned int chidx = 0;
     //printk(" >> >> enter mr_alsa_audio_output_gain_get\n");
     if(kcontrol == NULL || ucontrol == NULL)
         return -EINVAL;
@@ -250,14 +251,14 @@ static int mr_alsa_audio_output_gain_get(struct snd_kcontrol *kcontrol,// TODO P
     }
     else
     {
-        //printk(" >> >> mr_alsa_audio_output_gain_get: value = %d \n", chip->current_playback_volume);
+        //printk(KERN_INFO "mr_alsa_audio_output_gain_get: value = %d \n", chip->current_playback_volume);
         //err = chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
         ucontrol->value.integer.value[0] = chip->current_playback_volume;
-        if(chip->current_nboutputs > 1)
-        {
-            for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
-                ucontrol->value.integer.value[chidx] = chip->current_playback_volume;
-        }
+        // if(chip->current_nboutputs > 1)
+        // {
+            // for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
+                // ucontrol->value.integer.value[chidx] = chip->current_playback_volume;
+        // }
         err = 0;
     }
     //spin_unlock_irq(&chip->lock);
@@ -269,7 +270,6 @@ static int mr_alsa_audio_output_gain_put(struct snd_kcontrol *kcontrol,// TODO P
     struct mr_alsa_audio_chip *chip = NULL;
     int32_t value = 0;
     int err = 0;
-    //printk(" >> >> enter mr_alsa_audio_output_gain_put\n");
     if(kcontrol == NULL || ucontrol == NULL)
         return -EINVAL;
     chip = snd_kcontrol_chip(kcontrol);
@@ -282,13 +282,14 @@ static int mr_alsa_audio_output_gain_put(struct snd_kcontrol *kcontrol,// TODO P
     }
     else
     {
-        //printk(" >> mr_alsa_audio_output_gain_put: numid= %u; name=  %s; iface= %u\n", ucontrol->id.numid, ucontrol->id.name, ucontrol->id.iface);
+        //printk(KERN_DEBUG "mr_alsa_audio_output_gain_put: numid= %u; name=  %s; iface= %u; sub= %u; index= %u\n", ucontrol->id.numid, ucontrol->id.name, ucontrol->id.iface, ucontrol->id.subdevice, ucontrol->id.index);
         value = ucontrol->value.integer.value[0];
-        //printk(" >> >> mr_alsa_audio_output_gain_put: value = %d\n", value);
+        //printk(KERN_INFO "mr_alsa_audio_output_gain_put: value[0] = %d\n", value);
         if(chip->current_playback_volume != (int32_t)value)
         {
             chip->current_playback_volume = (int32_t)value;
             err = chip->mr_alsa_audio_ops->notify_master_volume_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
+            //spin_unlock_irq(&chip->lock);
             return 1;
         }
     }
@@ -322,7 +323,8 @@ static int mr_alsa_audio_output_switch_info(struct snd_kcontrol *kcontrol,
         return -EINVAL;
 
     uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-    chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
+    //chip->mr_alsa_audio_ops->get_nb_outputs(chip->ravenna_peer, &uinfo->count);
+    uinfo->count = 1;
     uinfo->value.integer.min = 0;
     uinfo->value.integer.max = 1;
     return 0;
@@ -334,7 +336,7 @@ static int mr_alsa_audio_output_switch_get( struct snd_kcontrol *kcontrol,
 {
     struct mr_alsa_audio_chip *chip = NULL;
     int err = 0;
-    unsigned int chidx = 0;
+    //unsigned int chidx = 0;
     //printk(" >> >> enter mr_alsa_audio_output_switch_get\n");
     if(kcontrol == NULL || ucontrol == NULL)
         return -EINVAL;
@@ -352,11 +354,11 @@ static int mr_alsa_audio_output_switch_get( struct snd_kcontrol *kcontrol,
         //printk(" >> >> mr_alsa_audio_output_switch_get: value = %d\n", chip->current_playback_switch);
         //err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &value);
         ucontrol->value.integer.value[0] = chip->current_playback_switch;
-        if(chip->current_nboutputs > 1)
-        {
-            for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
-                ucontrol->value.integer.value[chidx] = chip->current_playback_switch;
-        }
+        // if(chip->current_nboutputs > 1)
+        // {
+            // for(chidx = 1; chidx < chip->current_nboutputs; ++chidx)
+                // ucontrol->value.integer.value[chidx] = chip->current_playback_switch;
+        // }
         err = 0;
     }
     //spin_unlock_irq(&chip->lock);
@@ -1290,7 +1292,8 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     struct snd_pcm_runtime *runtime = substream->runtime;
     int chn = 0;
-    int interleaved = ((channel == -1 && runtime->channels > 1)? 1 : 0);
+    //int interleaved = ((channel == -1 && runtime->channels > 1)? 1 : 0);
+    int interleaved = runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED || SNDRV_PCM_ACCESS_MMAP_INTERLEAVED ? 1 : 0;
     unsigned int nb_logical_bits = snd_pcm_format_width(runtime->format);
     unsigned int strideIn = snd_pcm_format_physical_width(runtime->format) >> 3;
     unsigned int strideOut = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE) >> 3;
@@ -1301,13 +1304,19 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
 
     #ifdef MUTE_CHECK
         // mute check
+        unsigned char *buffer_to_check = chip->playback_buffer + ravenna_buffer_pos * strideOut; // output buffer channel 0
         bool mute_detected = false;
         char testblock [256];
         memset(testblock, 0, sizeof(testblock));
     #endif
+    
+    if (channel > 0 && channel >= runtime->channels)
+    {
+        printk(KERN_WARNING "Channel %d copy ignored because it does not fit the available runtime channels (%d)", channel, runtime->channels);
+       return 0;
+    }
 
-    //printk(KERN_DEBUG "entering mr_alsa_audio_pcm_playback_copy (substream name=%s #%d) ...\n", substream->name, substream->number);
-
+    //printk(KERN_DEBUG "entering mr_alsa_audio_pcm_playback_copy (substream name=%s #%d) (runtime channels %d) access %d...\n", substream->name, substream->number, runtime->channels, runtime->access));
 
     /*if(snd_BUG_ON(chip->playback_buffer_rav_sac > chip->playback_buffer_alsa_sac))
     {
@@ -1338,7 +1347,7 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
     //printk("playback_copy: rate = %u, dsdmode = %u, #IRQ per period = %u, count = %u, pos = %lu, ravenna_buffer_pos = %u, alsa_pb_sac = %llu, ravenna_pb_sac = %llu\n", (dsdrate > 0? dsdrate : runtime->rate), dsdmode, chip->nb_playback_interrupts_per_period, count, pos, ravenna_buffer_pos, chip->playback_buffer_alsa_sac, chip->playback_buffer_rav_sac);
     if(count == 0)
         return 0;
-
+    
     if(interleaved)
     {
         {
@@ -1527,6 +1536,21 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
             }
         }
     }
+    
+    
+    #ifdef MUTE_CHECK
+    // First channel check
+    mute_detected = !memcmp(testblock, buffer_to_check, min((ssize_t )256, frames_to_bytes(runtime, count)));
+    if (mute_detected != playback_mute_detected)
+    {
+        if (mute_detected)
+            printk(">>>>Playback buffer mute detected\n");
+        else
+            printk(">>>>Playback buffer signal detected\n");
+        playback_mute_detected = mute_detected;
+    }
+    #endif
+    
     chip->playback_buffer_alsa_sac += count;
     return count;
 }
@@ -1792,6 +1816,10 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
 
     printk(KERN_DEBUG "mr_alsa_audio_pcm_hw_params (enter): rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
     spin_lock_irq(&chip->lock);
+    
+    #ifdef MUTE_CHECK
+        playback_mute_detected = false;
+    #endif
 
     if(dsd_mode != 0)
     {

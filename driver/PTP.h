@@ -87,6 +87,7 @@ typedef struct
     volatile uint16_t m_usPTPMasterPortNumber;
 
 
+	uint16_t m_wLastAnnounceSequenceId;
     uint16_t m_wLastSyncSequenceId;
     uint16_t m_wLastFollowUp;
 

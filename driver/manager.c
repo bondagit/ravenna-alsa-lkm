@@ -268,6 +268,7 @@ bool startIO(struct TManager* self)
     MTAL_DP("MergingRAVENNAAudioDriver::startIO\n");
 
     MuteInputBuffer(self);
+    MuteOutputBuffer(self);
 
     #if defined(MT_TONE_TEST)
     self->m_tone_test_phase = 0;
@@ -286,6 +287,7 @@ bool stopIO(struct TManager* self)
 {
     MTAL_DP("MergingRAVENNAAudioDriver::stopIO\n");
     self->m_bIORunning = false;
+    MuteInputBuffer(self);
     MuteOutputBuffer(self);
     return true;
 }
