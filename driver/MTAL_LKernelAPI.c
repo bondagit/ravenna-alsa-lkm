@@ -7,8 +7,6 @@
 *
 *  Written by     : Beguec Frederic, Baume Florian
 *  Date           : 16/03/2016
-*  Modified by    : Maximilian Hill
-*  Date           : 17/12/2019
 *  Modified by    : 
 *  Date           :
 *  Modification   :
