@@ -1153,7 +1153,7 @@ static int mr_alsa_audio_pcm_capture_copy_user(  struct snd_pcm_substream *subst
                                             unsigned long count)
  {
     struct snd_pcm_runtime *runtime = substream->runtime;
-    bool interleaved = runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ? 1 : 0;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
     return mr_alsa_audio_pcm_capture_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, src, count / bytes_to_frame_factor);
 }
@@ -1177,7 +1177,7 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
 {
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     struct snd_pcm_runtime *runtime = substream->runtime;
-    int interleaved = ((channel == -1 && runtime->channels > 1)? 1 : 0);
+    int interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     unsigned int nb_logical_bits = snd_pcm_format_width(runtime->format);
     unsigned int strideIn = snd_pcm_format_physical_width(runtime->format) >> 3;
     uint32_t ravenna_buffer_pos = pos;
@@ -1257,7 +1257,7 @@ static int mr_alsa_audio_pcm_playback_copy_user(  struct snd_pcm_substream *subs
                                             unsigned long count)
 {
     struct snd_pcm_runtime *runtime = substream->runtime;
-    bool interleaved = runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ? 1 : 0;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
     return mr_alsa_audio_pcm_playback_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, src, count / bytes_to_frame_factor);
 }
@@ -1292,8 +1292,7 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     struct snd_pcm_runtime *runtime = substream->runtime;
     int chn = 0;
-    //int interleaved = ((channel == -1 && runtime->channels > 1)? 1 : 0);
-    int interleaved = runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED || SNDRV_PCM_ACCESS_MMAP_INTERLEAVED ? 1 : 0;
+    int interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     unsigned int nb_logical_bits = snd_pcm_format_width(runtime->format);
     unsigned int strideIn = snd_pcm_format_physical_width(runtime->format) >> 3;
     unsigned int strideOut = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE) >> 3;
@@ -1562,7 +1561,7 @@ static int mr_alsa_audio_pcm_playback_fill_silence(  struct snd_pcm_substream *s
                                             unsigned long count)
 {
     struct snd_pcm_runtime *runtime = substream->runtime;
-    bool interleaved = runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ? 1 : 0;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
     return mr_alsa_audio_pcm_playback_silence(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, count / bytes_to_frame_factor);
 }
@@ -1575,7 +1574,7 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     struct snd_pcm_runtime *runtime = substream->runtime;
     unsigned char *out;
-    int interleaved = ((channel == -1 && runtime->channels > 1)? 1 : 0);
+    int interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
     //unsigned int strideIn = snd_pcm_format_physical_width(runtime->format) >> 3;
     unsigned int strideOut = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE) >> 3;
     size_t ravBuffer_csize = MR_ALSA_RINGBUFFER_NB_FRAMES * strideOut;
