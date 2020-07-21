@@ -65,7 +65,6 @@ If Avahi is present in the system, the Butler has to use that library. If Avahi 
 * GCC >= 4.9
 * Linux kernel > 2.4 (3.18 for DSD support)
 * The Linux kernel headers for the target.
-* WARNING: Compilation failure for kernel >= v5.2
 
 #### Kernel Config ####
 * NETFILTER
