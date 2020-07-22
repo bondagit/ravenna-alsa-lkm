@@ -74,7 +74,7 @@ int CW_netfilter_unregister_hook(void* hook_struct)
 {
     struct nf_hook_ops* nfho = (struct nf_hook_ops*)hook_struct;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-    nf_unregister_net_hook(&init_net, nfho); //cleanup – unregister hook
+    nf_unregister_net_hook(&init_net, nfho); //cleanup ï¿½ unregister hook
 #else
     nf_unregister_hook(nfho);
 #endif  
@@ -193,7 +193,7 @@ int CW_socket_tx_buffer(void* user_data, unsigned int data_len, const char* ifac
 
         skb->pkt_type = PACKET_OUTGOING;
         //skb->ip_summed = CHECKSUM_NONE; // do not change anything ?
-        skb->dev = dev
+        skb->dev = dev;
         
         xmit_ret_code = dev_queue_xmit(skb);
 
