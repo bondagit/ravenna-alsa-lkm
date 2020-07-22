@@ -157,13 +157,7 @@ int CW_socket_tx_packet(void* skb, unsigned int data_len, const char* iface)
 #ifdef NO_TX
     dev_kfree_skb(skb_ptr);
 #else
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-    local_irq_enable();
-#endif
     xmit_ret_code = dev_queue_xmit(skb_ptr);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-    local_irq_disable();
-#endif
 #endif
     if (xmit_ret_code < 0)
     {
@@ -199,14 +193,10 @@ int CW_socket_tx_buffer(void* user_data, unsigned int data_len, const char* ifac
 
         skb->pkt_type = PACKET_OUTGOING;
         //skb->ip_summed = CHECKSUM_NONE; // do not change anything ?
-        skb->dev = dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-        local_irq_enable();
-#endif
+        skb->dev = dev
+        
         xmit_ret_code = dev_queue_xmit(skb);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-        local_irq_disable();
-#endif
+
         if (xmit_ret_code != 0)
         {
             printk(KERN_ALERT "xmit_ret_code return err code %d \n", xmit_ret_code);
