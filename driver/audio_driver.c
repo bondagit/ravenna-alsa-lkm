@@ -2140,7 +2140,7 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory: could not allocate playback buffer (%zd bytes vmalloc requested...\n", wanted);
         goto _failed;
     }
-
+    memset(chip->playback_buffer, 0, wanted);
 
     wanted = mr_alsa_audio_pcm_hardware_capture.buffer_bytes_max; // MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4;
 
@@ -2151,6 +2151,7 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory: could not allocate capture buffer (%zd bytes vmalloc requested...\n", wanted);
         goto _failed;
     }
+    memset(chip->capture_buffer, 0, wanted);
     for (i = 0; i < MR_ALSA_NB_CHANNELS_MAX; i++)
     {
         chip->capture_buffer_channels_map[i] = (void*)chip->capture_buffer + MR_ALSA_RINGBUFFER_NB_FRAMES * i * 4;
