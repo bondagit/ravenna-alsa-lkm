@@ -158,7 +158,7 @@ void recv_reply_from_user_land(struct sk_buff *skb)
 			// check if the given size if sufficient to copy the answered data
 			if (response_from_user_land->dataSize >= msg->dataSize)
 			{
-				if (response_from_user_land->data == NULL)
+				if (response_from_user_land->data != NULL)
 				{
 					memcpy(response_from_user_land->data, msg->data, msg->dataSize);
 				}

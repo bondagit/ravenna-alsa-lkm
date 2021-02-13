@@ -64,9 +64,9 @@
         }
         #endif // __cplusplus
     #include <linux/types.h>
-    #define new NEW
+    //#define new NEW
     #include <linux/string.h>
-    #undef new
+    //#undef new
     #else
         #include <stdint.h>
     #endif

@@ -32,9 +32,9 @@
 #include "MTAL_TargetPlatform.h"
 
 #if (defined(MTAL_LINUX) && defined(MTAL_KERNEL))
-    #define new NEW
+    //#define new NEW
     #include <linux/string.h>
-    #undef new
+    //#undef new
 #else
     #include <string.h>
 #endif

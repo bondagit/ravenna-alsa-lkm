@@ -90,7 +90,7 @@ uint32_t get_FS(uint32_t ui32SamplingRate)
 			return 2;
 		default:
 			// TODO: should assert
-			MTAL_DP("Caudio_streamer_clock::get_FS error: unknown SamplingRate = %u\n", ui32SamplingRate);
+			//MTAL_DP("Caudio_streamer_clock::get_FS error: unknown SamplingRate = %u\n", ui32SamplingRate);
 		case 48000:
 		case 44100:
 			return 1;
@@ -110,7 +110,7 @@ uint32_t get_samplerate_base(uint32_t ui32SamplingRate)
 
 		default:
 			// TODO: should assert
-			MTAL_DP("Caudio_streamer_clock::get_samplerate_base error: unknown SamplingRate = %u\n", ui32SamplingRate);
+			//MTAL_DP("Caudio_streamer_clock::get_samplerate_base error: unknown SamplingRate = %u\n", ui32SamplingRate);
 		case 352800:
 		case 176400:
 		case 88200:
