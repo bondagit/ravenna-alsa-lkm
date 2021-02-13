@@ -1320,10 +1320,10 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[0], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1360,10 +1360,10 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[3], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1415,13 +1415,13 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[0], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1461,13 +1461,13 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[3], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1522,16 +1522,16 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[0], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(zero, (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1574,16 +1574,16 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[3], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(zero, (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1606,16 +1606,16 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[1], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[2], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(in[3], (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                        ret_pu = put_user(zero, (unsigned char __user *)out);
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1656,16 +1656,16 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
                     {
                         const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[3], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[2], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[1], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[0], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
                         #else
@@ -1707,16 +1707,16 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
                     {
                         const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[0], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[1], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[2], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                            ret_pu = put_user(in[3], (unsigned char __user *)out);
                             ret |= ret_pu;
                             out++;
                         #else
@@ -1875,6 +1875,7 @@ void MTConvertBigEndianInt16ToMappedInt32DeInterleave(  void* input_buffer,
     uint32_t i, ch;
     const unsigned int stride_in = 2 * nb_channels, stride_out = 4;
     const unsigned int out_pos = offset_output_buf * stride_out;
+
     for(ch = 0; ch < nb_channels; ++ch)
     {
         uint8_t* in = (uint8_t*)input_buffer + 2 * ch;

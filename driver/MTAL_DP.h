@@ -129,26 +129,34 @@
             #include <linux/version.h>
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
                 #include <linux/kern_levels.h>
-                #define MTAL_DP(...) MTAL_LK_print(KERN_INFO __VA_ARGS__)
+                #define MTAL_DP(...)
+                //#define MTAL_DP(...) MTAL_LK_print(KERN_INFO __VA_ARGS__)
                 #define MTAL_DP_EMRG(...) MTAL_LK_print(KERN_EMERG  __VA_ARGS__)
                 #define MTAL_DP_ALERT(...) MTAL_LK_print(KERN_ALERT __VA_ARGS__)
                 #define MTAL_DP_CRIT(...) MTAL_LK_print(KERN_CRIT __VA_ARGS__)
                 #define MTAL_DP_ERR(...) MTAL_LK_print(KERN_ERR __VA_ARGS__)
                 #define MTAL_DP_WARN(...) MTAL_LK_print(KERN_WARNING __VA_ARGS__)
-                #define MTAL_DP_NOTICE(...) MTAL_LK_print(KERN_NOTICE __VA_ARGS__)
-                #define MTAL_DP_INFO(...) MTAL_LK_print(KERN_INFO __VA_ARGS__)
-                #define MTAL_DP_DEBUG(...) MTAL_LK_print(KERN_DEBUG __VA_ARGS__)
+                #define MTAL_DP_NOTICE(...)
+                //#define MTAL_DP_NOTICE(...) MTAL_LK_print(KERN_NOTICE __VA_ARGS__)
+                #define MTAL_DP_INFO(...)
+                //#define MTAL_DP_INFO(...) MTAL_LK_print(KERN_INFO __VA_ARGS__)
+                #define MTAL_DP_DEBUG(...)
+                //#define MTAL_DP_DEBUG(...) MTAL_LK_print(KERN_DEBUG __VA_ARGS__)
             #else
                 //#include <linux/kernel.h>
-                #define MTAL_DP(...) MTAL_LK_print("<d>"__VA_ARGS__)
+                #define MTAL_DP(...)
+                //#define MTAL_DP(...) MTAL_LK_print("<d>"__VA_ARGS__)
                 #define MTAL_DP_EMRG(...) MTAL_LK_print("<>"__VA_ARGS__)
                 #define MTAL_DP_ALERT(...) MTAL_LK_print("<1>"__VA_ARGS__)
                 #define MTAL_DP_CRIT(...) MTAL_LK_print("<2>"__VA_ARGS__)
                 #define MTAL_DP_ERR(...) MTAL_LK_print("<3>"__VA_ARGS__)
                 #define MTAL_DP_WARN(...) MTAL_LK_print("<4>"__VA_ARGS__)
-                #define MTAL_DP_NOTICE(...) MTAL_LK_print("<5>"__VA_ARGS__)
-                #define MTAL_DP_INFO(...) MTAL_LK_print("<6>"__VA_ARGS__)
-                #define MTAL_DP_DEBUG(...) MTAL_LK_print("<7>"__VA_ARGS__)
+                #define MTAL_DP_NOTICE(...)
+                //#define MTAL_DP_NOTICE(...) MTAL_LK_print("<5>"__VA_ARGS__)
+                #define MTAL_DP_INFO(...)
+                //#define MTAL_DP_INFO(...) MTAL_LK_print("<6>"__VA_ARGS__)
+                #define MTAL_DP_DEBUG(...)
+                //#define MTAL_DP_DEBUG(...) MTAL_LK_print("<7>"__VA_ARGS__)
             #endif
 
 

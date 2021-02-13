@@ -40,6 +40,7 @@
 
 #include "RTP_audio_stream.h"
 #include "MTAL_DP.h"
+#include "c_wrapper_lib.h"
 
 #define DEBUG_TRACE(x) MTAL_DP("[RTP Stream] "); MTAL_DP x
 #define ASSERT(x) {if(!(x)) { MTAL_DP("Assert in %s line %i\n", __FILE__, __LINE__); }}
@@ -377,7 +378,7 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 		// if audio data format was changed we have to mute channels with the proper mute pattern; for now, we always mute
 		for(us = 0; us < pRTP_stream_info->m_byNbOfChannels; us++)
 		{
-			//MTAL_DP("[%u] m_pvLivesInCircularBuffer[us] = 0x%x buffer length = %u wordlength = %u\n", us, m_pvLivesInCircularBuffer[us], pManager->get_live_in_jitter_buffer_length(pManager->user), m_usAudioEngineSampleWordLength);
+			//MTAL_DP("[%u] m_pvLivesInCircularBuffer[us] = 0x%x buffer length = %u wordlength = %u\n", us, self->m_pvLivesInCircularBuffer[us], pManager->get_live_in_jitter_buffer_length(pManager->user), self->m_usAudioEngineSampleWordLength);
 
 			if(self->m_pvLivesInCircularBuffer[us])
 			{	// mute
@@ -413,7 +414,7 @@ int Destroy(TRTP_audio_stream* self)
 		unsigned short us;
 		for(us = 0; us < pRTP_stream_info->m_byNbOfChannels; us++)
 		{
-			//MTAL_DP("[%u] m_pvLivesInCircularBuffer[us] = 0x%x buffer length = %u wordlength = %u\n", us, m_pvLivesInCircularBuffer[us], pManager->get_live_in_jitter_buffer_length(pManager->user), m_usAudioEngineSampleWordLength);
+			//MTAL_DP("[%u] m_pvLivesInCircularBuffer[us] = 0x%x buffer length = %u wordlength = %u\n", us, self->m_pvLivesInCircularBuffer[us], self->m_pManager->get_live_in_jitter_buffer_length(self->m_pManager->user), self->m_usAudioEngineSampleWordLength);
 
 			if(self->m_pvLivesInCircularBuffer[us])
 			{	// mute
@@ -782,7 +783,7 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 
 		//MTAL_DP("ui32RTPSAC %u  perfcounter %I64u\n", ui32RTPSAC, MTAL_LK_GetCounterTime());
 		// ui32UsedSAC is the first frame SAC when this packet will be used
-		ui64UsedSAC = (ui64RTPSAC - (ui64RTPSAC % pManager->get_frame_size(pManager->user)));
+		ui64UsedSAC = (ui64RTPSAC - (CW_ll_modulo(ui64RTPSAC, pManager->get_frame_size(pManager->user))));
 
 		i64DeltaSAC =  ui64UsedSAC - ui64GlobalSAC;
 		//MTAL_DP("i64DeltaSAC %I64u playout delay %u, frame size: %u\n", i64DeltaSAC, pRTP_stream_info->m_ui32PlayOutDelay, pManager->get_frame_size(pManager->user));

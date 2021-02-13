@@ -1274,10 +1274,10 @@ uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64Current
     struct TManager* self = (struct TManager*)user;
 
     #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
-        return (uint32_t)(ui64CurrentSAC % get_live_in_jitter_buffer_length(self));
+        return (uint32_t)CW_ll_modulo(ui64CurrentSAC, get_live_in_jitter_buffer_length(self));
     #else
         uint32_t live_in_jitter_buffer_length = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
-        return (uint32_t)(ui64CurrentSAC % live_in_jitter_buffer_length);
+        return (uint32_t)CW_ll_modulo(ui64CurrentSAC, live_in_jitter_buffer_length);
     #endif
 }
 
@@ -1300,7 +1300,7 @@ uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64Curren
     struct TManager* self = (struct TManager*)user;
 
     #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
-        return (uint32_t)(ui64CurrentSAC % get_live_out_jitter_buffer_length(self));
+        return (uint32_t)CW_ll_modulo(ui64CurrentSAC, get_live_out_jitter_buffer_length(self));
     #else
         uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
         const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
@@ -1434,9 +1434,9 @@ void AudioFrameTIC(void* user)
                     {
                         #if defined(MT_TONE_TEST)
                         unsigned long p = (self->m_tone_test_phase * self->m_SampleRate) / LUTSampleRate;
-                        int16_t val16 = LUT[(p + 4 * chIdx) % LUTnbPoints]/* >> 1*/;
+                        int16_t val16 = LUT[CW_ll_modulo((p + 4 * chIdx), LUTnbPoints)]/* >> 1*/;
                         int32_t val24 = val16 << 8;
-                        self->m_tone_test_phase = (self->m_tone_test_phase + 1) % (LUTnbPoints * 100);
+                        self->m_tone_test_phase = CW_ll_modulo((self->m_tone_test_phase + 1), (LUTnbPoints * 100));
                         #elif defined(MT_RAMP_TEST)
                         int32_t val24 = self->m_ramp_test_phase;
                         if(val24 >= 8388608) // 2^23
