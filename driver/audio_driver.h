@@ -74,8 +74,8 @@ struct alsa_ops
     int (*get_nb_outputs)(void* ravenna_peer, uint32_t *nb_channels);
     int (*get_playout_delay)(void* ravenna_peer, snd_pcm_sframes_t *delay_in_sample);
     int (*get_capture_delay)(void* ravenna_peer, snd_pcm_sframes_t *delay_in_sample);
-    int (*start_interrupts)(void* ravenna_peer); /// starts IO
-    int (*stop_interrupts)(void* ravenna_peer); /// stops IO
+    int (*start_interrupts)(void* ravenna_peer, bool is_playback); /// starts IO
+    int (*stop_interrupts)(void* ravenna_peer, bool is_playback); /// stops IO
 
     int (*notify_master_volume_change)(void* ravenna_peer, int direction, int32_t value); /// direction: 0 for playback, 1 for capture. value: from -99 to 0
     int (*notify_master_switch_change)(void* ravenna_peer, int direction, int32_t value); /// direction: 0 for playback, 1 for capture. value: 0 for mute, 1 for enable

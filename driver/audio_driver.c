@@ -824,13 +824,13 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
             n = snd_pcm_playback_hw_avail(runtime);
             n += runtime->delay;
         }
-        chip->mr_alsa_audio_ops->start_interrupts(chip->ravenna_peer);
+        chip->mr_alsa_audio_ops->start_interrupts(chip->ravenna_peer, alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK);
         return 0;
 
     case SNDRV_PCM_TRIGGER_STOP:
     case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
     case SNDRV_PCM_TRIGGER_SUSPEND:
-        chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
+        chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK);
         return 0;
     default:
         return -EINVAL;
@@ -870,15 +870,19 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         {
             if(runtime_dsd_mode != chip->current_dsd)
             {
-                chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
+                chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+                spin_unlock_irq(&chip->lock);
                 err = chip->mr_alsa_audio_ops->set_sample_rate(chip->ravenna_peer, runtime_dsd_rate);
+                spin_lock_irq(&chip->lock);
             }
         }
         else if(chip->current_rate != runtime->rate)
         {
-            chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
+            chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
             //printk("\n### mr_alsa_audio_pcm_prepare: mr_alsa_audio_ops->set_sample_rate to %u\n", runtime->rate);
+            spin_unlock_irq(&chip->lock);
             err = chip->mr_alsa_audio_ops->set_sample_rate(chip->ravenna_peer, runtime->rate);
+            spin_lock_irq(&chip->lock);
             //printk("### mr_alsa_audio_pcm_prepare: mr_alsa_audio_ops->set_sample_rate returned %d\n\n", err);
         }
 
@@ -1825,14 +1829,18 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     {
         if(dsd_mode != chip->current_dsd)
         {
-            chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
+            chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+            spin_unlock_irq(&chip->lock);
             err = chip->mr_alsa_audio_ops->set_sample_rate(chip->ravenna_peer, dsd_rate);
+            spin_lock_irq(&chip->lock);
         }
     }
     else if(rate != chip->current_rate)
     {
-        chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer);
+        chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+        spin_unlock_irq(&chip->lock);
         err = chip->mr_alsa_audio_ops->set_sample_rate(chip->ravenna_peer, rate);
+        spin_lock_irq(&chip->lock);
     }
 
     if(chip->ravenna_peer)

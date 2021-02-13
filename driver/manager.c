@@ -133,6 +133,8 @@ bool init(struct TManager* self, int* errorCode)
     self->m_bIORunning = false;
     self->m_pALSAChip = NULL;
     self->m_alsa_driver_frontend = NULL;
+    self->m_bIsPlaybackIO = false;
+    self->m_bIsRecordingIO = false;
 
     memset(self->m_cInterfaceName, 0, MAX_INTERFACE_NAME);
 
@@ -249,8 +251,10 @@ bool start(struct TManager* self)
 bool stop(struct TManager* self)
 {
     MTAL_DP("entering CManager::stop..\n");
-    if(self->m_bIORunning)
-        stopIO(self);
+    if(self->m_bIORunning) {
+        stopIO(self, false);
+        stopIO(self, true);
+    }
     EnableEtherTube(&self->m_EthernetFilter, 0);
 
     StopAudioFrameTICTimer(&self->m_PTP);
@@ -261,14 +265,23 @@ bool stop(struct TManager* self)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-bool startIO(struct TManager* self)
+bool startIO(struct TManager* self, bool is_playback)
 {
     if(!self->m_bIsStarted)
         return false;
+
     MTAL_DP("MergingRAVENNAAudioDriver::startIO\n");
 
-    MuteInputBuffer(self);
-    MuteOutputBuffer(self);
+    if (!is_playback) {
+        printk(KERN_DEBUG "starting capture I/O\n");
+        MuteInputBuffer(self);
+        self->m_bIsRecordingIO = true;
+    }
+    else {
+        printk(KERN_DEBUG "starting playback I/O\n");
+        MuteOutputBuffer(self);
+        self->m_bIsPlaybackIO = true;
+    }
 
     #if defined(MT_TONE_TEST)
     self->m_tone_test_phase = 0;
@@ -283,12 +296,27 @@ bool startIO(struct TManager* self)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-bool stopIO(struct TManager* self)
+bool stopIO(struct TManager* self, bool is_playback)
 {
     MTAL_DP("MergingRAVENNAAudioDriver::stopIO\n");
-    self->m_bIORunning = false;
-    MuteInputBuffer(self);
-    MuteOutputBuffer(self);
+
+    if (is_playback && !self->m_bIsPlaybackIO)
+        return true;
+    if (!is_playback && !self->m_bIsRecordingIO)
+        return true;
+
+    if (!is_playback) {
+        printk(KERN_DEBUG "stopping capture I/O\n");
+        MuteInputBuffer(self);
+        self->m_bIsRecordingIO = false;
+    } else {
+        printk(KERN_DEBUG "stopping playback I/O\n");
+        MuteOutputBuffer(self);
+        self->m_bIsPlaybackIO = false;
+    }
+
+    self->m_bIORunning = self->m_bIsRecordingIO || self->m_bIsPlaybackIO;
+
     return true;
 }
 
@@ -613,7 +641,8 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
         case MT_ALSA_Msg_StartIO:
         {
             MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StartIO..\n");
-            if (!startIO(self))
+            /*
+            if (!startIO(self) )
             {
                 MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StartIO.. failed\n");
                 msg_reply.errCode = -401;
@@ -623,11 +652,14 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
                 MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StartIO.. succeeded\n");
                 msg_reply.errCode = 0;
             }
+            */
+            msg_reply.errCode = -401;
             break;
         }
         case MT_ALSA_Msg_StopIO:
         {
             MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StopIO..\n");
+            /*
             if (!stopIO(self))
             {
                 MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StopIO.. failed\n");
@@ -638,6 +670,8 @@ void OnNewMessage(struct TManager* self, struct MT_ALSA_msg* msg_rcv)
                 MTAL_DP("CManager::OnNewMessage MT_ALSA_Msg_StopIO.. succeeded\n");
                 msg_reply.errCode = 0;
             }
+            */
+            msg_reply.errCode = -401;
             break;
         }
         case MT_ALSA_Msg_SetSampleRate:
@@ -1468,8 +1502,10 @@ void AudioFrameTIC(void* user)
             frame_process_begin(&self->m_RTP_streams_manager);
             if(self->m_pALSAChip && self->m_alsa_driver_frontend)
             {
-                self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 1);
-                self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
+                if (self->m_bIsRecordingIO)
+                  self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 1);
+                if (self->m_bIsPlaybackIO)
+                  self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
             }
             frame_process_end(&self->m_RTP_streams_manager);
         #endif
@@ -1680,20 +1716,25 @@ int get_interrupts_frame_size(void* user, uint32_t *framesize)
     return -EINVAL;
 }
 
-int start_interrupts(void* user)
+int start_interrupts(void* user, bool is_playback)
 {
     struct TManager* self = (struct TManager*)user;
-    if(startIO(self))
+
+    MTAL_DP("entering CManager::start_interrupts..\n");
+    if(startIO(self, is_playback)) {
         return 0;
+    }
     return -1;
 }
 
-int stop_interrupts(void* user)
+int stop_interrupts(void* user, bool is_playback)
 {
     struct TManager* self = (struct TManager*)user;
+
 	MTAL_DP("entering CManager::stop_interrupts..\n");
-    if(stopIO(self))
+    if (stopIO(self, is_playback)) {
         return 0;
+    }
     return -1;
 }
 

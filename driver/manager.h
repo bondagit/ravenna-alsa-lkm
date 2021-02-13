@@ -86,6 +86,9 @@ struct TManager
     int32_t m_nPlayoutDelay;
     int32_t m_nCaptureDelay;
 
+    bool m_bIsPlaybackIO;
+    bool m_bIsRecordingIO;
+
     volatile bool m_bIsStarted;
     volatile bool m_bIORunning;
 
@@ -144,8 +147,8 @@ void destroy(struct TManager* self);
 bool start(struct TManager* self);
 bool stop(struct TManager* self);
 
-bool startIO(struct TManager* self);
-bool stopIO(struct TManager* self);
+bool startIO(struct TManager* self, bool is_playback);
+bool stopIO(struct TManager* self, bool is_playback);
 
 bool SetInterfaceName(struct TManager* self, const char* cInterfaceName);
 bool SetSamplingRate(struct TManager* self, uint32_t SamplingRate);
@@ -242,8 +245,8 @@ int get_nb_inputs(void* user, uint32_t *nb_Channels);
 int get_nb_outputs(void* user, uint32_t *nb_Channels);
 int get_playout_delay(void* user, snd_pcm_sframes_t *delay_in_sample);
 int get_capture_delay(void* user, snd_pcm_sframes_t *delay_in_sample);
-int start_interrupts(void* user);
-int stop_interrupts(void* user);
+int start_interrupts(void* user, bool is_playback);
+int stop_interrupts(void* user, bool is_playback);
 int notify_master_volume_change(void* user, int direction, int32_t value);
 int notify_master_switch_change(void* user, int direction, int32_t value);
 int get_master_volume_value(void* user, int direction, int32_t* value);
