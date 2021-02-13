@@ -94,7 +94,7 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
     if (ip_header->saddr == 0x0100007f) // 127.0.0.1
     {
         //printk(KERN_INFO "Loopback address detected\n");
-        return NF_ACCEPT;
+        //return NF_ACCEPT;
     }
     
 
