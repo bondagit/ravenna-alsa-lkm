@@ -121,6 +121,8 @@ void MTConvertMappedInt24ToBigEndianInt24Interleave(void** ppi24Uninterleave, co
 void MTConvertBigEndianInt24ToMappedInt24DeInterleave(void* pbyBigEndianInterleave, void** ppi24Uninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 void MTConvertMappedInt32ToBigEndianInt24Interleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pbyBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
 void MTConvertBigEndianInt24ToMappedInt32DeInterleave(void* pbyBigEndianInterleave, void** ppi32Uninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
+void MTConvertMappedInt32ToBigEndianInt32Interleave(void** ppi32Uninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pbyBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+void MTConvertBigEndianInt32ToMappedInt32DeInterleave(void* pbyBigEndianInterleave, void** ppi32Uninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 
 // DSD
 void MTConvertMappedFloatToBigEndianDSD64Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);

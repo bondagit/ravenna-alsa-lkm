@@ -168,7 +168,7 @@ int is_valid(TRTP_stream_info* rtp_stream_info)
     {
         char* cCodec = rtp_stream_info->m_cCodec;
         if (strcmp(cCodec, "L16") && strcmp(cCodec, "L24") && strcmp(cCodec, "L2432")
-            && strcmp(cCodec, "DSD64_32") && strcmp(cCodec, "DSD128_32")
+            && strcmp(cCodec, "AM824") && strcmp(cCodec, "DSD64_32") && strcmp(cCodec, "DSD128_32")
             && strcmp(cCodec, "DSD64") && strcmp(cCodec, "DSD128") && strcmp(cCodec, "DSD256"))
         {
             MTAL_DP("CRTP_stream_info::IsValid: wrong codec = %s\n", cCodec);
@@ -249,6 +249,10 @@ unsigned char get_codec_word_lenght(const char* cCodec)
 		return 3;
 	}
 	else if (strcmp(cCodec, "L2432") == 0)
+	{
+		return 4;
+	}
+	else if (strcmp(cCodec, "AM824") == 0)
 	{
 		return 4;
 	}

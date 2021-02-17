@@ -2106,6 +2106,95 @@ void MTConvertBigEndianInt24ToMappedInt32DeInterleave(  void* input_buffer,
 }*/
 
 
+void MTConvertMappedInt32ToBigEndianInt32Interleave(void** input_buffer,
+                                                    const uint32_t offset_input_buf,
+                                                    void* output_buffer,
+                                                    const uint32_t nb_channels,
+                                                    const uint32_t nb_samples_in)
+{
+
+    uint32_t i, ch;
+    uint8_t* out = (uint8_t*)output_buffer;
+    const unsigned int stride_in = 4;
+    unsigned int in_pos = offset_input_buf * stride_in;
+    for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+    {
+        if(Arch_is_big_endian())
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[0];
+                out[1] = in[1];
+                out[2] = in[2];
+                out[3] = in[3];
+                out += 4;
+            }
+        }
+        else
+        {
+            for(ch = 0; ch < nb_channels; ++ch)
+            {
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[3];
+                out[1] = in[2];
+                out[2] = in[1];
+                out[3] = in[0];
+                out += 4;
+            }
+        }
+        in_pos += stride_in;
+    }
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Convert from an interleave buffer to N non-interleave buffers
+// i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
+void MTConvertBigEndianInt32ToMappedInt32DeInterleave(  void* input_buffer,
+                                                        void** output_buffer,
+                                                        uint32_t offset_output_buf,
+                                                        uint32_t nb_channels,
+                                                        uint32_t nb_samples)
+{
+    uint32_t i, ch;
+    const unsigned int stride_in = 4 * nb_channels, stride_out = 4;
+    const unsigned int out_pos = offset_output_buf * stride_out;
+    for(ch = 0; ch < nb_channels; ++ch)
+    {
+        uint8_t* in = (uint8_t*)input_buffer + 4 * ch;
+        uint8_t* out = (uint8_t*)output_buffer[ch] + out_pos;
+
+        if(Arch_is_big_endian())
+        {
+            for(i = 0; i < nb_samples; ++i)
+            {
+                out[0] = in[0];
+                out[1] = in[1];
+                out[2] = in[2];
+                out[3] = in[3];
+
+                in += stride_in;
+                out += stride_out;
+            }
+        }
+        else
+        {
+            for(i = 0; i < nb_samples; ++i)
+            {
+                out[0] = in[3];
+                out[1] = in[2];
+                out[2] = in[1];
+                out[3] = in[0];
+
+                in += stride_in;
+                out += stride_out;
+            }
+        }
+    }
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////

@@ -171,6 +171,10 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 				{
 					self->m_pfnMTConvertMappedToInterleave = &MTConvertMappedInt32ToBigEndianInt24Interleave;
 				}
+				else if(strcmp(pRTP_stream_info->m_cCodec, "AM824") == 0)
+				{
+					self->m_pfnMTConvertMappedToInterleave = &MTConvertMappedInt32ToBigEndianInt32Interleave;
+				}
 				else if(strcmp(pRTP_stream_info->m_cCodec, "DSD64_32") == 0 || strcmp(pRTP_stream_info->m_cCodec, "DSD128_32") == 0 || strcmp(pRTP_stream_info->m_cCodec, "DSD256") == 0)
 				{
 					self->m_pfnMTConvertMappedToInterleave = &MTConvertMappedFloatToBigEndianDSD256Interleave;
@@ -300,6 +304,10 @@ int Create(TRTP_audio_stream* self, TRTP_stream_info* pRTP_stream_info, rtp_audi
 				else if(strcmp(pRTP_stream_info->m_cCodec, "L24") == 0)
 				{
 					self->m_pfnMTConvertInterleaveToMapped = &MTConvertBigEndianInt24ToMappedInt32DeInterleave;
+				}
+				else if(strcmp(pRTP_stream_info->m_cCodec, "AM824") == 0)
+				{
+					self->m_pfnMTConvertInterleaveToMapped = &MTConvertBigEndianInt32ToMappedInt32DeInterleave;
 				}
 				else
 				{
