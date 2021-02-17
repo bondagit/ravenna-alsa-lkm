@@ -1299,12 +1299,9 @@ void MTConvertBigEndianInt24ToMappedFloatDeInterleave(void* pvBigEndianInterleav
 
 
 int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t offset_input_buf, 
-    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
 {
     int ret = 0;
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    int ret_pu;
-#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1312,94 +1309,39 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
 
     if(Arch_is_big_endian())
     {
-        if(from_kernel_to_user)
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[0], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[1];
-                        out[1] = in[0];
-                        out += 2;
-                    #endif
-                }
-                in_pos += stride_in;
-            }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    out[0] = in[1];
-                    out[1] = in[0];
-                    out += 2;
-                }
-                in_pos += stride_in;
-            }
-        }
+         for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+         {
+             for(ch = 0; ch < nb_channels; ++ch)
+             {
+                 const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                 out[0] = in[1];
+                 out[1] = in[0];
+                 out += 2;
+             }
+             in_pos += stride_in;
+         }
     }
     else
     {
-        if(from_kernel_to_user)
+        for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
         {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+            for(ch = 0; ch < nb_channels; ++ch)
             {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[3], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[2];
-                        out[1] = in[3];
-                        out += 2;
-                    #endif
-                }
-                in_pos += stride_in;
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[2];
+                out[1] = in[3];
+                out += 2;
             }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    out[0] = in[2];
-                    out[1] = in[3];
-                    out += 2;
-                }
-                in_pos += stride_in;
-            }
+            in_pos += stride_in;
         }
     }
     return ret;
 }
 
 int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t offset_input_buf,
-    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
 {
     int ret = 0;
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    int ret_pu;
-#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1407,105 +1349,41 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
 
     if(Arch_is_big_endian())
     {
-        if(from_kernel_to_user)
+        for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
         {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+            for(ch = 0; ch < nb_channels; ++ch)
             {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[0], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[2];
-                        out[1] = in[1];
-                        out[2] = in[0];
-                        out += 3;
-                    #endif
-                }
-                in_pos += stride_in;
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[2];
+                out[1] = in[1];
+                out[2] = in[0];
+                out += 3;
             }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    out[0] = in[2];
-                    out[1] = in[1];
-                    out[2] = in[0];
-                    out += 3;
-                }
-                in_pos += stride_in;
-            }
-
+            in_pos += stride_in;
         }
     }
     else
     {
-        if(from_kernel_to_user)
+        for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
         {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+            for(ch = 0; ch < nb_channels; ++ch)
             {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[3], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[1];
-                        out[1] = in[2];
-                        out[2] = in[3];
-                        out += 3;
-                    #endif
-                }
-                in_pos += stride_in;
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[1];
+                out[1] = in[2];
+                out[2] = in[3];
+                out += 3;
             }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    out[0] = in[1];
-                    out[1] = in[2];
-                    out[2] = in[3];
-                    out += 3;
-                }
-                in_pos += stride_in;
-            }
+            in_pos += stride_in;
         }
     }
     return ret;
 }
 
 int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint32_t offset_input_buf,
-    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
 {
     int ret = 0;
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    int ret_pu;
-#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1513,133 +1391,43 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
 
     if(Arch_is_big_endian())
     {
-        if(from_kernel_to_user)
+        for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
         {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+            for(ch = 0; ch < nb_channels; ++ch)
             {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        char zero = 0x00;
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[0], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(zero, (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[2];
-                        out[1] = in[1];
-                        out[2] = in[0];
-                        out[3] = 0x00;
-                        out += 4;
-                    #endif
-                }
-                in_pos += stride_in;
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[2];
+                out[1] = in[1];
+                out[2] = in[0];
+                out[3] = 0x00;
+                out += 4;
             }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    out[0] = in[2];
-                    out[1] = in[1];
-                    out[2] = in[0];
-                    out[3] = 0x00;
-                    out += 4;
-                }
-                in_pos += stride_in;
-            }
-
+            in_pos += stride_in;
         }
     }
     else
     {
-        if(from_kernel_to_user)
+        for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
         {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+            for(ch = 0; ch < nb_channels; ++ch)
             {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        char zero = 0x00;
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[3], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(zero, (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[1];
-                        out[1] = in[2];
-                        out[2] = in[3];
-                        out[3] = 0x00;
-                        out += 4;
-                    #endif
-                }
-                in_pos += stride_in;
+                const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                out[0] = in[1];
+                out[1] = in[2];
+                out[2] = in[3];
+                out[3] = 0x00;
+                out += 4;
             }
-        }
-        else
-        {
-            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-            {
-                for(ch = 0; ch < nb_channels; ++ch)
-                {
-                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        char zero = 0x00;
-                        ret_pu = put_user(in[1], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[2], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(in[3], (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                        ret_pu = put_user(zero, (unsigned char __user *)out);
-                        ret |= ret_pu;
-                        out++;
-                    #else
-                        out[0] = in[1];
-                        out[1] = in[2];
-                        out[2] = in[3];
-                        out[3] = 0x00;
-                        out += 4;
-                    #endif
-                }
-                in_pos += stride_in;
-            }
+            in_pos += stride_in;
         }
     }
     return ret;
 }
 
 int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t offset_input_buf,
-    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in, const bool from_kernel_to_user)
+    void* output_buffer, const uint32_t nb_channels, const uint32_t nb_samples_in)
 {
     int ret = 0;
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    int ret_pu;
-#endif
     uint32_t i, ch;
     uint8_t* out = (uint8_t*)output_buffer;
     const unsigned int stride_in = 4;
@@ -1648,103 +1436,34 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
     {
         if(Arch_is_big_endian())
         {
-            if(from_kernel_to_user)
+            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
             {
-                for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+                for(ch = 0; ch < nb_channels; ++ch)
                 {
-                    for(ch = 0; ch < nb_channels; ++ch)
-                    {
-                        const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                        #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            ret_pu = put_user(in[3], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[2], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[1], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[0], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                        #else
-                            out[0] = in[3];
-                            out[1] = in[2];
-                            out[2] = in[1];
-                            out[3] = in[0];
-                            out += 4;
-                        #endif
-                    }
-                    in_pos += stride_in;
+                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                    out[0] = in[3];
+                    out[1] = in[2];
+                    out[2] = in[1];
+                    out[3] = in[0];
+                    out += 4;
                 }
+                in_pos += stride_in;
             }
-            else
-            {
-                for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-                {
-                    for(ch = 0; ch < nb_channels; ++ch)
-                    {
-                        const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                        out[0] = in[3];
-                        out[1] = in[2];
-                        out[2] = in[1];
-                        out[3] = in[0];
-                        out += 4;
-                    }
-                    in_pos += stride_in;
-                }
-            }
-
         }
         else
         {
-            if(from_kernel_to_user)
+            for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
             {
-                for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
+                for(ch = 0; ch < nb_channels; ++ch)
                 {
-                    for(ch = 0; ch < nb_channels; ++ch)
-                    {
-                        const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                        #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            ret_pu = put_user(in[0], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[1], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[2], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                            ret_pu = put_user(in[3], (unsigned char __user *)out);
-                            ret |= ret_pu;
-                            out++;
-                        #else
-                            out[0] = in[0];
-                            out[1] = in[1];
-                            out[2] = in[2];
-                            out[3] = in[3];
-                            out += 4;
-                        #endif
-                    }
-                    in_pos += stride_in;
+                    const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
+                    out[0] = in[0];
+                    out[1] = in[1];
+                    out[2] = in[2];
+                    out[3] = in[3];
+                    out += 4;
                 }
-            }
-            else
-            {
-                for(i = offset_input_buf; i < offset_input_buf + nb_samples_in; ++i)
-                {
-                    for(ch = 0; ch < nb_channels; ++ch)
-                    {
-                        const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
-                        out[0] = in[0];
-                        out[1] = in[1];
-                        out[2] = in[2];
-                        out[3] = in[3];
-                        out += 4;
-                    }
-                    in_pos += stride_in;
-                }
+                in_pos += stride_in;
             }
         }
     }

@@ -1140,17 +1140,17 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
         switch(nb_logical_bits)
         {
             case 16:
-                MTConvertMappedInt32ToInt16LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count, false);
+                MTConvertMappedInt32ToInt16LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count);
                 break;
             case 24:
             {
                 switch(strideIn)
                 {
                     case 3:
-                        MTConvertMappedInt32ToInt24LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count, false);
+                        MTConvertMappedInt32ToInt24LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count);
                     break;
                     case 4:
-                        MTConvertMappedInt32ToInt24LE4ByteInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count, false);
+                        MTConvertMappedInt32ToInt24LE4ByteInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count);
                     break;
                     default:
                     {
@@ -1161,7 +1161,7 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
                 break;
             }
             case 32:
-                MTConvertMappedInt32ToInt32LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count, false);
+                MTConvertMappedInt32ToInt32LEInterleave(chip->capture_buffer_channels_map, ravenna_buffer_pos, src, runtime->channels, count);
                 break;
         }
     }
