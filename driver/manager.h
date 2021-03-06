@@ -165,7 +165,7 @@ bool IsStarted(struct TManager* self);
 bool IsIOStarted(struct TManager* self);
 
 // Netfilter
-int EtherTubeRxPacket(struct TManager* self, void* packet, int packet_size, const char* ifname);
+int EtherTubeRxPacket(struct TManager* self, void* packet, int packet_size, const char* ifname, int mac_header);
 void EtherTubeHookFct(struct TManager* self, void* hook_fct, void* hook_struct);
 
 // Messaging
@@ -200,7 +200,7 @@ void AudioFrameTIC(void* user);
 //static void AudioFrameTIC_(void* self) { return ((CManager*)self)->AudioFrameTIC(); }
 //static uint32_t GetIPAddress_(void* self) { return ((CManager*)self)->GetIPAddress(); }
 // CEtherTubeAdviseSink
-EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize);
+EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize, int mac_header);
 //static EDispatchResult DispatchPacket_(void* self, void* pBuffer, uint32_t packetsize)  { return ((CManager*)self)->DispatchPacket(pBuffer, packetsize); }
 
 
@@ -266,3 +266,4 @@ enum eAudioMode GetAudioModeFromRate(const uint32_t sample_rate);
 #elif defined(MT_RAMP_TEST)
     int32_t m_ramp_test_phase;
 #endif // MT_TONE_TEST
+

@@ -546,9 +546,9 @@ bool IsIOStarted(struct TManager* self)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-int EtherTubeRxPacket(struct TManager* self, void* packet, int packet_size, const char* ifname)
+int EtherTubeRxPacket(struct TManager* self, void* packet, int packet_size, const char* ifname, int mac_header)
 {
-    return rx_packet(&self->m_EthernetFilter, packet, packet_size, ifname);
+    return rx_packet(&self->m_EthernetFilter, packet, packet_size, ifname, mac_header);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1155,14 +1155,14 @@ uint32_t GetIPAddress(void* user)
 // CEtherTubeAdviseSink
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
-EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize)
+EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize, int mac_header)
 {
     EDispatchResult nDispatchResult = DR_PACKET_NOT_USED;
     TUDPPacketBase* pUDPPacketBase = (TUDPPacketBase*)pBuffer;
 
-    if(packetsize < sizeof(TUDPPacketBase) || pUDPPacketBase->EthernetHeader.usType != MTAL_SWAP16(MTAL_ETH_PROTO_IPV4) || pUDPPacketBase->IPV4Header.byProtocol != IP_PROTO_UDP)
+    if(packetsize < sizeof(TUDPPacketBase) || (mac_header && pUDPPacketBase->EthernetHeader.usType != MTAL_SWAP16(MTAL_ETH_PROTO_IPV4)) || pUDPPacketBase->IPV4Header.byProtocol != IP_PROTO_UDP)
     { // can not be for us
-        if(pUDPPacketBase->EthernetHeader.usType == MTAL_SWAP16(MTAL_ETH_MAC_CONTROL) && packetsize >= sizeof(TMACControlFrame))
+        if((mac_header && pUDPPacketBase->EthernetHeader.usType == MTAL_SWAP16(MTAL_ETH_MAC_CONTROL)) && packetsize >= sizeof(TMACControlFrame))
         {
             TMACControlFrame* pMACControlFrame = (TMACControlFrame*)pBuffer;
             MTAL_DP("receive a MAC CONTROL: could be a PAUSE packet which could mean there is a too slow device (10/100Mb) on the network\n");

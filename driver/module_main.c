@@ -97,9 +97,9 @@ void nl_rx_msg(void* rx_msg)
     OnNewMessage(&man, (struct MT_ALSA_msg*)rx_msg);
 }
 
-int nf_rx_packet(void* packet, int packet_size, const char* ifname)
+int nf_rx_packet(void* packet, int packet_size, const char* ifname, int mac_header)
 {
-    return EtherTubeRxPacket(&man, packet, packet_size, ifname);
+    return EtherTubeRxPacket(&man, packet, packet_size, ifname, mac_header);
 }
 
 void nf_hook_fct(void* hook_fct, void* hook_struct)

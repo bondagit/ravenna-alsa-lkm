@@ -245,7 +245,7 @@ void netfilter_hook_fct(TEtherTubeNetfilter* self, void* nf_hook_fct, void* nf_h
 
 //#include <linux/netfilter.h>
 ////////////////////////////////////////////////////////////////////////
-int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const char* ifname)
+int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const char* ifname, int mac_header)
 {
     {
         int ret = 0;
@@ -269,7 +269,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
         // roonOS provides an empty string !
         if (strlen(ifname) != 0 && strcmp(ifname, self->ifname_used_) != 0)
         {
-            //MTAL_DP_INFO("2: %s, %s\n", ifname, ifname_used_);
+            //MTAL_DP_INFO("2: %s, %s\n", ifname, self->ifname_used_);
             return 1;
         }
         if (packet == NULL)
@@ -284,11 +284,11 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
         }
     }
 
-    switch (DispatchPacket(self->manager_ptr_, packet, packet_size))
+    switch (DispatchPacket(self->manager_ptr_, packet, packet_size, mac_header))
     {
         case DR_RTP_PACKET_USED:
-        case DR_PTP_PACKET_USED:
             return 0; //NF_DROP;
+        case DR_PTP_PACKET_USED:
         case DR_PACKET_NOT_USED:
         case DR_RTP_MIDI_PACKET_USED:
         case DR_PACKET_ERROR:

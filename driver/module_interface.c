@@ -59,7 +59,7 @@
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Merging Technologies <alsa@merging.com>");
 MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver"); // see modinfo
-MODULE_VERSION("bondagit-1.0");
+MODULE_VERSION("bondagit-1.1-beta");
 MODULE_SUPPORTED_DEVICE("{{ALSA,Merging RAVENNA}}");
 
 
@@ -71,7 +71,7 @@ static int hooked = 0;
  */
 unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-    int err = 0;
+    int err = 0, rc = 0;
     struct iphdr *ip_header = NULL;
     if (!skb)
     {
@@ -112,7 +112,14 @@ unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struc
         }
     }
 
-    switch (nf_rx_packet(skb_mac_header(skb), skb->len + ETH_HLEN, in->name))
+    if (skb_mac_header(skb) == skb_network_header(skb)) {
+        rc = nf_rx_packet(skb_network_header(skb) - ETH_HLEN, skb->len + ETH_HLEN, in->name, 0);
+    }
+    else {
+        rc = nf_rx_packet(skb_mac_header(skb), skb->len + ETH_HLEN, in->name, 1);
+    }
+
+    switch (rc)
     {
         case 0:
             return NF_DROP;

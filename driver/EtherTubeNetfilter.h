@@ -110,7 +110,7 @@ extern "C"
 /*extern*/ int IsEtherTubeStarted(TEtherTubeNetfilter* self);
 
 /*extern*/ void netfilter_hook_fct(TEtherTubeNetfilter* self, void* nf_hook_fct, void* nf_hook_struct);
-/*extern*/ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const char* ifname);
+/*extern*/ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const char* ifnamei, int mac_header);
 
 #if	defined(__cplusplus)
 }
