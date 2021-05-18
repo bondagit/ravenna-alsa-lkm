@@ -1061,7 +1061,7 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_playback =
 {
     .info =     (   SNDRV_PCM_INFO_MMAP | /* hardware supports mmap */
                     SNDRV_PCM_INFO_INTERLEAVED |
-                    SNDRV_PCM_INFO_NONINTERLEAVED | /* channels are not interleaved */
+                    /*SNDRV_PCM_INFO_NONINTERLEAVED |  channels are not interleaved */
                     SNDRV_PCM_INFO_BLOCK_TRANSFER | /* hardware transfer block of samples */
                     SNDRV_PCM_INFO_JOINT_DUPLEX |
                     SNDRV_PCM_INFO_PAUSE | /* pause ioctl is supported */
