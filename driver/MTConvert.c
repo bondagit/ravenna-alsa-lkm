@@ -63,7 +63,9 @@ static inline bool Arch_is_big_endian(void)
 }
 
 
-
+#if (defined(MTAL_LINUX) && defined(MTAL_KERNEL))
+    #include <linux/version.h>
+#endif
 
 #if defined(WIN32) && !defined(NT_DRIVER)
 
@@ -134,6 +136,8 @@ INT32TOFLOAT JmpTableInt32ToFloat = NotOptimized_ConvertInt32ToFloat;
 // Global variables
 
 ///////////////////////////////////////////////////////////////////////////////
+#if defined(WIN32) && !defined(NT_DRIVER)
+#ifndef _AMD64_
 static uint32_t GetFeatures()
 {
     /*uint32_t dwFeature;
@@ -160,6 +164,8 @@ static uint32_t GetFeatures()
 
     return CPUInfo[3];
 }
+#endif
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 #define _MMX_FEATURE_BIT 0x00800000
@@ -1320,10 +1326,18 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                         #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[0], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[0], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1360,10 +1374,18 @@ int MTConvertMappedInt32ToInt16LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1415,13 +1437,25 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[0], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[0], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1461,13 +1495,25 @@ int MTConvertMappedInt32ToInt24LEInterleave(void** input_buffer, const uint32_t 
                 {
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1522,16 +1568,32 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[0], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[0], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(zero, (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, zero, (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
                     #else
@@ -1574,17 +1636,30 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE
                         ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(zero, (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, zero, (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
                     #else
                         out[0] = in[1];
@@ -1606,17 +1681,29 @@ int MTConvertMappedInt32ToInt24LE4ByteInterleave(void** input_buffer, const uint
                     const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
                         char zero = 0x00;
-                        __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
-                        __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
-                        __put_user_x(1, zero, (unsigned long __user *)out, ret_pu);
-                        ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(zero, (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, zero, (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                        ret |= ret_pu;
                         out++;
                     #else
                         out[0] = in[1];
@@ -1656,17 +1743,29 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
                     {
                         const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[0], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[0], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
                         #else
                             out[0] = in[3];
@@ -1707,17 +1806,29 @@ int MTConvertMappedInt32ToInt32LEInterleave(void** input_buffer, const uint32_t 
                     {
                         const uint8_t* in = (uint8_t*)input_buffer[ch] + in_pos;
                         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                            __put_user_x(1, in[0], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[0], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[0], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[1], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[1], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[1], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[2], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[2], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[2], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
-                            __put_user_x(1, in[3], (unsigned long __user *)out, ret_pu);
-                            ret |= ret_pu;
+                        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+                            ret_pu = __put_user(in[3], (unsigned long __user*)out);
+                        #else
+                            __put_user_x(1, in[3], (unsigned long __user*)out, ret_pu);
+                        #endif // LINUX_VERSION_CODE                            ret |= ret_pu;
                             out++;
                         #else
                             out[0] = in[0];
@@ -2347,6 +2458,48 @@ void MTConvertBigEndianDSD128_32ToMappedInt16DeInterleave(void* pvBigEndianInter
 }
 
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Convert from N non-interleave buffers to an interleave buffer
+// i.e. [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)] - > [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)]
+void MTConvertMappedInt16ToBigEndianDSD128Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels)
+{
+	uint32_t dwSample, dwChannel;
+	uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
+
+	for (dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+	{
+		for (dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+		{
+			if (ppfUninterleave[dwChannel])
+			{
+				*pui16BigEndianInterleave = ((uint16_t**)ppfUninterleave)[dwChannel][dwSample]; // DSD bytes -> byte[1-0]
+				pui16BigEndianInterleave++;
+			}
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Convert from an interleave buffer to N non-interleave buffers
+// i.e. [A0.B0.A1.B1...A(dwNbOfSamplesByChannels-1).B(dwNbOfSamplesByChannels-1)] -> [A0..A(dwNbOfSamplesByChannels-1)][B0..B(dwNbOfSamplesByChannels-1)]
+void MTConvertBigEndianDSD128ToMappedInt16DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels)
+{
+	uint32_t dwSample, dwChannel;
+	uint16_t* pui16BigEndianInterleave = (uint16_t*)pvBigEndianInterleave;
+
+	for (dwSample = dwOffsetInUninterleaveBuffer; dwSample < dwOffsetInUninterleaveBuffer + dwNbOfSamplesByChannels; dwSample++)
+	{
+		for (dwChannel = 0; dwChannel < dwNbOfChannels; dwChannel++)
+		{
+			if (ppfUninterleave[dwChannel])
+			{
+				((uint16_t**)ppfUninterleave)[dwChannel][dwSample] = pui16BigEndianInterleave[0];
+				pui16BigEndianInterleave++;
+			}
+		}
+	}
+}
 
 
 
