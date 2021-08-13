@@ -1207,9 +1207,7 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
     {
         int ret_pu;
         char val = 0xf1;
-        __put_user_x(1, val, (unsigned long __user *)src, ret_pu);
         ret_pu = put_user(val, (unsigned long __user *)src);
-        //put_user(val, (unsigned long __user *)src);
         switch(nb_logical_bits)
         {
             case 16:
