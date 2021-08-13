@@ -1277,7 +1277,7 @@ uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64Current
         return (uint32_t)(ui64CurrentSAC % get_live_in_jitter_buffer_length(self));
     #else
         uint32_t live_in_jitter_buffer_length = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
-        return (uint32_t)(ui64CurrentSAC % live_in_jitter_buffer_length);
+        return (uint32_t)(CW_ll_modulo(ui64CurrentSAC, live_in_jitter_buffer_length));
     #endif
 }
 
