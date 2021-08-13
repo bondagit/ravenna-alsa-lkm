@@ -96,7 +96,7 @@ int init_clock_timer(void)
 {
     stop_ = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-    hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_SOFT);
+    hrtimer_init(&my_hrtimer_, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
     my_hrtimer_.function = &timer_callback;
 #else
     tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_PINNED/*HRTIMER_MODE_ABS*/);
@@ -121,7 +121,7 @@ int start_clock_timer(void)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
     hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
 #else
-    tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS_SOFT);
+    tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
 #endif
 
     return 0;
