@@ -1302,25 +1302,8 @@ uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64Curren
     #if defined(MT_TONE_TEST) || defined (MT_RAMP_TEST) || defined (MTLOOPBACK) || defined (MTTRANSPARENCY_CHECK)
         return (uint32_t)(CW_ll_modulo(ui64CurrentSAC, get_live_out_jitter_buffer_length(self)));
     #else
-        uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
-        const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
-
-        if(ui64CurrentSAC > get_global_SAC(self))
-        {
-            MTAL_DP("CManager::get_live_out_jitter_buffer_offset() wrong SAC request (SAC = %llu)\n", ui64CurrentSAC);
-            return 0;
-        }
-        if(sacOffset > 0) // f10b In reallity this var is always equal to zero.
-        {
-            MTAL_DP("get_global_SAC(self)=%llu get_frame_size(self)=%llu ui64CurrentSAC=%llu\n", get_global_SAC(self), get_frame_size(self), ui64CurrentSAC);
-            MTAL_DP("CManager::get_live_out_jitter_buffer_offset() not the SAC of previous TIC (sacOffset = %u)\n", sacOffset);
-            if(sacOffset <= offset)
-                offset -= sacOffset;
-            else
-                offset += get_live_out_jitter_buffer_length(self) - sacOffset;
-        }
-        //MTAL_DP("CManager::get_live_out_jitter_buffer_offset() returned %u (sacOffset = %u)\n", offset, sacOffset);
-        return offset;
+        uint32_t live_out_jitter_buffer_length = self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
+        return (uint32_t)(CW_ll_modulo(ui64CurrentSAC, live_out_jitter_buffer_length));
     #endif // MT_TONE_TEST
 }
 

@@ -507,15 +507,27 @@ static void* mr_alsa_audio_get_playback_buffer(void *rawchip)
 }
 static uint32_t mr_alsa_audio_get_playback_buffer_size_in_frames(void *rawchip)
 {
+    uint32_t res = 0;
     if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        if(chip->playback_buffer)
-            return MR_ALSA_RINGBUFFER_NB_FRAMES;
+        struct snd_pcm_runtime *runtime = chip->playback_substream ? chip->playback_substream->runtime : NULL;
+        if (chip->playback_buffer)
+        {
+            if (runtime && runtime->period_size != 0 && runtime->periods != 0)
+            {
+                res = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
+            }
+            else
+            {
+                res = MR_ALSA_RINGBUFFER_NB_FRAMES;
+            }
+        }
+    
     }
-    return 0;
-
+     return res;
 }
+
 static void* mr_alsa_audio_get_capture_buffer(void *rawchip)
 {
     if(rawchip)
@@ -981,7 +993,7 @@ static snd_pcm_uframes_t mr_alsa_audio_pcm_pointer(struct snd_pcm_substream *als
         }
         else
         {
-            offset = chip->playback_buffer_pos;
+            chip->mr_alsa_audio_ops->get_output_jitter_buffer_offset(chip->ravenna_peer, &offset);
         }
 
         /// Ravenna DSD always uses a rate of 352k with eventual zero padding to maintain a 32 bit alignment
