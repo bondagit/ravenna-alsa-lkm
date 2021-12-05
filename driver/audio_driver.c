@@ -1088,7 +1088,7 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_playback =
     .buffer_bytes_max = MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
     .period_bytes_min = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 3, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
     .period_bytes_max = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
-    .periods_min =      12, // min number of periods per buffer (for 8fs)
+    .periods_min =      2, // min number of periods per buffer (for 8fs)
     .periods_max =      96, // max number of periods per buffer (for 1fs)
     .fifo_size =        0
 };
@@ -1117,7 +1117,7 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
     .buffer_bytes_max = MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4, // 4 bytes per sample, 128 ch
     .period_bytes_min = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 2 * 4, // amount of data in bytes for 8 channels, 24bit samples, at 1Fs
     .period_bytes_max = MR_ALSA_NB_FRAMES_PER_PERIOD_AT_1FS * 8 * MR_ALSA_NB_CHANNELS_MAX * 4, // amount of data in bytes for MR_ALSA_NB_CHANNELS_MAX, 32bit samples, at 8Fs
-    .periods_min =      12, // min number of periods per buffer (for 8fs)
+    .periods_min =      2, // min number of periods per buffer (for 8fs)
     .periods_max =      96, // min number of periods per buffer (for 1fs)
     .fifo_size =        0
 };
@@ -1482,6 +1482,7 @@ static int mr_alsa_audio_hw_rule_rate_by_format( struct snd_pcm_hw_params *param
     return ret;
 }
 
+
 static int mr_alsa_audio_hw_rule_period_size_by_rate(struct snd_pcm_hw_params *params,
                                                                 struct snd_pcm_hw_rule *rule)
 {
@@ -1527,6 +1528,7 @@ static int mr_alsa_audio_hw_rule_period_size_by_rate(struct snd_pcm_hw_params *p
     return ret;
 }
 
+#if 0
 static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_hw_params *params,
                                                                 struct snd_pcm_hw_rule *rule)
 {
@@ -1602,6 +1604,9 @@ static int mr_alsa_audio_hw_rule_period_nb_by_rate_and_format(  struct snd_pcm_h
     //printk("mr_alsa_audio_hw_rule_period_nb_by_rate_and_format returns %d : [%u, %u] => [%u, %u]\n", ret, orig_min, orig_max, pn->min, pn->max);
     return ret;
 }
+#endif
+
+
 
 /// open callback
 /// This is called when a pcm substream is opened.
@@ -1664,7 +1669,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
-        periods_min = (MR_ALSA_RINGBUFFER_NB_FRAMES >> 2) / maxPTPFrameSize; /// worst case is with alsa rate = 88200 for DSD64, 32 bit aligned: in this case the Alsa ring buffer size is 4 times smaller due to the nb interrupt per periods
+        periods_min = 2;
         periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
 
         mr_alsa_audio_pcm_hardware_playback.period_bytes_min = period_bytes_min;
@@ -1727,7 +1732,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
-        periods_min = (MR_ALSA_RINGBUFFER_NB_FRAMES >> 2) / maxPTPFrameSize; /// worst case is with alsa rate = 88200 for DSD64, 32 bit aligned: in this case the Alsa ring buffer size is 4 times smaller due to the nb interrupt per periods
+        periods_min = 2;
         periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
 
         mr_alsa_audio_pcm_hardware_capture.period_bytes_min = period_bytes_min;
@@ -1761,7 +1766,6 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
                         mr_alsa_audio_hw_rule_rate_by_format, chip,
                         SNDRV_PCM_HW_PARAM_FORMAT, -1);
 
-
     ///Periods
 
     /// Update the Period Sizes Static array accordingly
@@ -1780,13 +1784,19 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
                         mr_alsa_audio_hw_rule_period_size_by_rate, chip,
                         SNDRV_PCM_HW_PARAM_RATE, -1);
 
+
+    printk("minPTPFrameSize = %d\n", minPTPFrameSize);
+    printk("maxPTPFrameSize = %d\n", maxPTPFrameSize);
+    snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, minPTPFrameSize);
+
+#if 0
     ///rules Nb Periods by Rate
     snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS,
                         mr_alsa_audio_hw_rule_period_nb_by_rate_and_format, chip,
                         SNDRV_PCM_HW_PARAM_RATE, SNDRV_PCM_HW_PARAM_FORMAT, -1);
 
     snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS, (MR_ALSA_RINGBUFFER_NB_FRAMES >> 2) / maxPTPFrameSize);
-
+#endif
 
     if(ret < 0)
     {
