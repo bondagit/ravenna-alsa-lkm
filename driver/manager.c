@@ -1256,7 +1256,7 @@ void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
     unsigned char* inputBuffer = nullptr;
-    uint32_t bufferLength = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
+    uint32_t bufferLength = RINGBUFFERSIZE;
 
     inputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_capture_buffer(self->m_pALSAChip));
     if(inputBuffer == nullptr || ulChannelId >= self->m_NumberOfInputs)
@@ -1275,7 +1275,7 @@ void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
     unsigned char* outputBuffer = nullptr;
-    uint32_t bufferLength = self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
+    uint32_t bufferLength = RINGBUFFERSIZE;
 
     outputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_playback_buffer(self->m_pALSAChip));
     if(outputBuffer == nullptr || ulChannelId >= self->m_NumberOfOutputs)
