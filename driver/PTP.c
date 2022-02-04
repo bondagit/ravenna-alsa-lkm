@@ -324,6 +324,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
 	if((pPTPPacketBase->V2MsgHeader.byReserved1AndVersionPTP & 0xF) != 2)	// PTP version 2s
 	{
+		MTAL_DP("Incompatible PTP version\n");
 		return DR_PACKET_NOT_USED;
 	}
 
@@ -372,6 +373,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     ResetPTPMaster(self);
                 }
                 
+                
                 if (pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber == self->m_PTPConfig.ui8Domain)
                 {
                     bool bElectThisPTPMaster = false;
@@ -409,6 +411,10 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     { // save announce time
                         self->m_ui64PTPMaster_AnnounceTime = ui64CurrentTime;
                     }
+                }
+                else
+                {
+                    MTAL_DP("Announced domain %d look for domain %d\n", pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber, self->m_PTPConfig.ui8Domain);
                 }
             }
             //######################################################
@@ -1186,7 +1192,8 @@ void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus)
     memset(pPTPStatus, 0, sizeof(TPTPStatus));
     pPTPStatus->nPTPLockStatus = GetLockStatus(self);
     pPTPStatus->ui64GMID = self->m_ui64PTPMaster_GMID;
-    pPTPStatus->i32Jitter = 0; // TODO
+    pPTPStatus->i32NetworkJitter = 0; // TODO
+	pPTPStatus->i32ClockJitter = 0; // TODO
 }
 
 ///////////////////////////////////////////////////////////////////////////////
