@@ -410,6 +410,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     if (ui64_CurrentClockIdentity == self->m_ui64PTPMaster_ClockIdentity)
                     { // save announce time
                         self->m_ui64PTPMaster_AnnounceTime = ui64CurrentTime;
+                        MTAL_DP("Updating announce time %llu\n", self->m_ui64PTPMaster_AnnounceTime);
                     }
                 }
             }
@@ -1039,10 +1040,12 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         //ui64AbsoluteTime = self->m_dTIC_CurrentPeriod / 100000 + ui64CurrentRTXClockTime; // Real box
         //ui64AbsoluteTime = self->m_dTIC_CurrentPeriod / 10000 + ui64CurrentRTXClockTime; // Virtual box
         // too late detection
-        uint64_t ui64CurrentTime;
+        uint64_t ui64CurrentTime, ui64CurrentTimeRef;
 		bool dropout_every_5second = false; // DSD mute debug
 		
         get_clock_time(&ui64CurrentTime);
+        ui64CurrentTimeRef = ui64CurrentTime;
+        ui64CurrentTimeRef /= 100; // [100ns]
         ui64CurrentTime /= NS_2_REF_UNIT; // [100us]
 		
 		/*if (ui64CurrentTime - g_ui64CurrentTimeMinus5Second > 50000)
@@ -1084,6 +1087,16 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         /////////////
 
         *pui64NextRTXClockTime = ui64AbsoluteTime * NS_2_REF_UNIT;
+
+        if (GetLockStatus(self) == PTPLS_LOCKED)
+        {
+            if (self->m_ui64PTPMaster_AnnounceTime != 0 && ui64CurrentTimeRef - self->m_ui64PTPMaster_AnnounceTime > PTPMASTER_ANNOUNCE_TIMEOUT)
+            {
+                printk("PTP Master announce timeout, resetting ...\n");
+                ResetPTPLock(self, true);
+                ResetPTPMaster(self);
+            }
+        }
     }
 }
 
