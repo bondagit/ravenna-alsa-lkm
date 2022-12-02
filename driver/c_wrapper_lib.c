@@ -74,7 +74,7 @@ int CW_netfilter_unregister_hook(void* hook_struct)
 {
     struct nf_hook_ops* nfho = (struct nf_hook_ops*)hook_struct;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-    nf_unregister_net_hook(&init_net, nfho); //cleanup – unregister hook
+    nf_unregister_net_hook(&init_net, nfho); //cleanup unregister hook
 #else
     nf_unregister_hook(nfho);
 #endif  
