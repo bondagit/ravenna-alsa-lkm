@@ -126,6 +126,7 @@ typedef struct {
 ////////////////////////////////////////////////////////////////////
 int check_struct_version(TRTP_stream_info* rtp_stream_info);
 uint64_t get_key(TRTP_stream_info* rtp_stream_info);
+uint64_t make_key(unsigned char byNICId, uint32_t ui32DestIP, unsigned short usDestPort);
 void dump(TRTP_stream_info* rtp_stream_info);
 int is_valid(TRTP_stream_info* rtp_stream_info);
 void set_stream_name(TRTP_stream_info* rtp_stream_info, const char* cName);

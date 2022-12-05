@@ -51,9 +51,15 @@ int check_struct_version(TRTP_stream_info* rtp_stream_info)
 }
 
 ////////////////////////////////////////////////////////////////////
+uint64_t make_key(unsigned char byNICId, uint32_t ui32DestIP, unsigned short usDestPort)
+{
+	return ((uint64_t)byNICId) << 48 | ((uint64_t)ui32DestIP) << 16 | usDestPort;
+}
+
+////////////////////////////////////////////////////////////////////
 uint64_t get_key(TRTP_stream_info* rtp_stream_info)
 {
-	return ((uint64_t)MTAL_SWAP32(rtp_stream_info->m_ui32DestIP)) << 16 | MTAL_SWAP16(rtp_stream_info->m_usDestPort);
+	return make_key((unsigned char)rtp_stream_info->m_uiIfPortId, MTAL_SWAP32(rtp_stream_info->m_ui32DestIP), MTAL_SWAP16(rtp_stream_info->m_usDestPort));
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -68,27 +74,32 @@ void dump(TRTP_stream_info* rtp_stream_info)
 	MTAL_DP("\tKey: 0x%llx\n", get_key(rtp_stream_info));
 #endif //WIN32
 	MTAL_DP("\tName: %s\n", rtp_stream_info->m_cName);
-	MTAL_DP("\tPlay out delay: %u\n\n", rtp_stream_info->m_ui32PlayOutDelay);
-	MTAL_DP("\tFrame Size: %u\n\n", rtp_stream_info->m_ui32FrameSize);
+	MTAL_DP("\tNIC: %u\n", rtp_stream_info->m_uiIfPortId);
+	MTAL_DP("\tPlay out delay: %u\n", rtp_stream_info->m_ui32PlayOutDelay);
+	MTAL_DP("\tFrame Size: %u\n", rtp_stream_info->m_ui32FrameSize);
 
 	// IP
+	MTAL_DP("\n");
 	MTAL_DP("\tRTCP SrcIP: "); MTAL_DumpIPAddress(rtp_stream_info->m_ui32RTCPSrcIP, true);		// only for LiveOut
 	MTAL_DP("\tSrcIP: "); MTAL_DumpIPAddress(rtp_stream_info->m_ui32SrcIP, true);		// only for LiveOut
 	MTAL_DP("\tDestIP: "); MTAL_DumpIPAddress(rtp_stream_info->m_ui32DestIP, true);
 	MTAL_DP("\tDestMAC: "); MTAL_DumpMACAddress(rtp_stream_info->m_ui8DestMAC);
-	MTAL_DP("\tTTL: %d\n\n", rtp_stream_info->m_byTTL);
+	MTAL_DP("\tTTL: %d\n", rtp_stream_info->m_byTTL);
 
 	// UDP
-	MTAL_DP("\tUDP src port: %d\n\n", rtp_stream_info->m_usSrcPort);
-	MTAL_DP("\tUDP dest port: %d\n\n", rtp_stream_info->m_usDestPort);
-	MTAL_DP("\tUDP RTCP src port: %d\n\n", rtp_stream_info->m_usRTCPSrcPort);
-	MTAL_DP("\tUDP RTCP dest port: %d\n\n", rtp_stream_info->m_usRTCPDestPort);
+	MTAL_DP("\n");
+	MTAL_DP("\tUDP src port: %d\n", rtp_stream_info->m_usSrcPort);
+	MTAL_DP("\tUDP dest port: %d\n", rtp_stream_info->m_usDestPort);
+	MTAL_DP("\tUDP RTCP src port: %d\n", rtp_stream_info->m_usRTCPSrcPort);
+	MTAL_DP("\tUDP RTCP dest port: %d\n", rtp_stream_info->m_usRTCPDestPort);
 
 	// RTP
+	MTAL_DP("\n");
 	MTAL_DP("\tPayloadType: %d\n", rtp_stream_info->m_byPayloadType);
-	MTAL_DP("\tSSRC: %u\n\n", rtp_stream_info->m_ui32SSRC);
+	MTAL_DP("\tSSRC: %u\n", rtp_stream_info->m_ui32SSRC);
 
 	// framecount
+	MTAL_DP("\n");
 	MTAL_DP("\t Max samples per packets: %d\n", rtp_stream_info->m_ui32MaxSamplesPerPacket);
 
 	// Sync-time
@@ -103,7 +114,7 @@ void dump(TRTP_stream_info* rtp_stream_info)
 	MTAL_DP("\tsampling Rate: %u\n", rtp_stream_info->m_ui32SamplingRate);
 	MTAL_DP("\tCodec: %s WordLength: %d\n", rtp_stream_info->m_cCodec, get_codec_word_lenght(rtp_stream_info->m_cCodec));
 	MTAL_DP("\tChannels: %d\n", rtp_stream_info->m_byNbOfChannels);
-	MTAL_DP("\tSource: %d\n\n", rtp_stream_info->m_bSource);
+	MTAL_DP("\tSource: %d\n", rtp_stream_info->m_bSource);
 
 	MTAL_DP("\tRouting: ");
 	for(us = 0; us < rtp_stream_info->m_byNbOfChannels; us++)
@@ -158,10 +169,31 @@ int is_valid(TRTP_stream_info* rtp_stream_info)
 		return 0;
 	}
 
-	// UDP
-	if (rtp_stream_info->m_usDestPort != 6517 && (rtp_stream_info->m_usDestPort < 1024 || (rtp_stream_info->m_usDestPort & 1 ) == 1))
+	#ifdef MT_EMBEDDED
 	{
-		MTAL_DP("CRTP_stream_info::IsValid: wrong Stream Port = %u\nNote: For transports based on UDP, the value should be in the range 1024 to 65535 inclusive.  For RTP compliance it should be an even number.\n", rtp_stream_info->m_usDestPort);
+		// rejects 224.x.x.x
+		if (rtp_stream_info->m_ui32DestIP >> 24 == 224)
+		{
+			MTAL_DP("CRTP_stream_info::IsValid: wrong Dest IP = ");
+			MTAL_DumpIPAddress(rtp_stream_info->m_ui32DestIP, false);			
+			MTAL_DP(" 224.x.x.x are not supported\n");
+			return 0;
+		}
+		// rejects when multi-cast and x.x.x.255
+		if ((rtp_stream_info->m_ui32DestIP & 0xF00000FF) == 0xE00000FF)
+		{
+			MTAL_DP("CRTP_stream_info::IsValid: wrong Dest IP = ");
+			MTAL_DumpIPAddress(rtp_stream_info->m_ui32DestIP, false);
+			MTAL_DP(" multi-cast x.x.x.255 are not supported\n");
+			return 0;
+		}
+	}
+	#endif
+
+	// UDP
+	if (rtp_stream_info->m_usDestPort < 1024 || rtp_stream_info->m_usDestPort > 32767)
+	{
+		MTAL_DP("CRTP_stream_info::IsValid: wrong Stream Port = %u\nNote: For transports based on UDP, the value should be in the range 1024 to 32767 inclusive.\n", rtp_stream_info->m_usDestPort);
 		return 0;
 	}
 
