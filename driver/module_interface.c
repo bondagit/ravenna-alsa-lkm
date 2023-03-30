@@ -60,7 +60,6 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Merging Technologies <alsa@merging.com>");
 MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver"); // see modinfo
 MODULE_VERSION("0.2");
-MODULE_SUPPORTED_DEVICE("{{ALSA,Merging RAVENNA}}");
 
 
 static struct nf_hook_ops nf_ho; // netfilter struct holding set of netfilter hook function options

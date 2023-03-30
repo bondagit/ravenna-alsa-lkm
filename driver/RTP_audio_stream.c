@@ -1016,7 +1016,7 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 {
 	// sink status (used by m_StreamStatus)
 	bool bLivesInMuted = false;
-
+	int64_t delta;
 	TRTP_stream_info* pRTP_stream_info = &self->m_tRTPStream.m_RTP_stream_info;
 	rtp_audio_stream_ops* pManager = self->m_pManager;
 
@@ -1024,7 +1024,8 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 	if(!pRTP_stream_info->m_bSource)
 	{ // Sink
 		MTAL_RtTraceEvent(RTTRACEEVENT_SINK_LIVE_MUTED, (PVOID)(RT_TRACE_EVENT_OCCURENCE), 0);
-		if(IsLivesInMustBeMuted(self))
+		delta = self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user);
+		if(delta < (signed)self->m_pManager->get_frame_size(self->m_pManager->user))
 		{
 			uint32_t ui32Offset = pManager->get_live_in_jitter_buffer_offset(pManager->user, pManager->get_global_SAC(pManager->user));
 			bLivesInMuted = true;
@@ -1032,7 +1033,6 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 			if(self->m_ulLivesInDMCounter < pManager->get_live_in_jitter_buffer_length(pManager->user) / pManager->get_frame_size(pManager->user))
 			{
 				unsigned short us;
-				int64_t delta = self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user);
 				#ifndef WIN32
 					MTAL_DP("sink %s: is muted at globalSAC = %llu (delta = %lld)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), delta);
 				#else

@@ -36,11 +36,7 @@
 #include "MTAL_TargetPlatform.h"
 #ifdef MTAL_WIN
 	#if (_MSC_VER >= 1600) && !defined(MTAL_KERNEL) // >= Visual 2010
-		#ifdef __cplusplus
-            #include <cstdint>
-		#else // __cplusplus
-            #include <stdint.h>
-		#endif // __cplusplus
+        #include <stdint.h>
 	#else
 		typedef unsigned char		uint8_t;
 		typedef signed char			int8_t;
@@ -56,17 +52,8 @@
 	#endif //
 #elif defined(MTAL_LINUX)
     #if defined(MTAL_KERNEL)
-        #if defined(__cplusplus)
-        extern "C"
-        {
-            typedef bool _Bool;
-            #define _LINUX_STDDEF_H
-        }
-        #endif // __cplusplus
-    #include <linux/types.h>
-    #define new NEW
-    #include <linux/string.h>
-    #undef new
+		#include <linux/types.h>
+		#include <linux/string.h>
     #else
         #include <stdint.h>
     #endif
