@@ -1221,17 +1221,13 @@ char get_audio_engine_sample_bytelength(void* user)
 void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
-    unsigned char* inputBuffer = nullptr;
-    uint32_t bufferLength = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
-
-    inputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_capture_buffer(self->m_pALSAChip));
+    unsigned char* inputBuffer = inputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_capture_buffer(self->m_pALSAChip));
     if(inputBuffer == nullptr || ulChannelId >= self->m_NumberOfInputs)
     {
         MTAL_DP_ERR("CManager::get_live_in_jitter_buffer() failed: retrieving channel #%u buffer jitter buffer \n", ulChannelId + 1);
         return NULL;
     }
-    inputBuffer += ulChannelId * bufferLength * get_audio_engine_sample_bytelength(self);
-
+    inputBuffer += ulChannelId * RINGBUFFERSIZE * get_audio_engine_sample_bytelength(self);
     return inputBuffer;
 }
 
@@ -1240,17 +1236,13 @@ void* get_live_in_jitter_buffer(void* user, uint32_t ulChannelId)
 void* get_live_out_jitter_buffer(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
-    unsigned char* outputBuffer = nullptr;
-    uint32_t bufferLength = self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
-
-    outputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_playback_buffer(self->m_pALSAChip));
+    unsigned char* outputBuffer = (unsigned char*)(self->m_alsa_driver_frontend->get_playback_buffer(self->m_pALSAChip));
     if(outputBuffer == nullptr || ulChannelId >= self->m_NumberOfOutputs)
     {
         MTAL_DP_ERR("CManager::get_live_out_jitter_buffer() failed: retrieving channel #%u buffer jitter buffer \n", ulChannelId + 1);
         return NULL;
     }
-    outputBuffer += ulChannelId * bufferLength * get_audio_engine_sample_bytelength(self);
-
+    outputBuffer += ulChannelId * RINGBUFFERSIZE * get_audio_engine_sample_bytelength(self);
     return outputBuffer;
 }
 
