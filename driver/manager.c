@@ -1089,7 +1089,7 @@ void MuteInputBuffer(struct TManager* self)
     }
 
     //MTAL_DP("Input Buffer muted with 0x%x\n", get_live_in_mute_pattern(0));
-    memset(inputBuffer, get_live_in_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * MAX_NUMBEROFINPUTS);
+    memset(inputBuffer, get_live_in_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * self->m_NumberOfInputs);
 
     self->m_alsa_driver_frontend->unlock_capture_buffer(self->m_pALSAChip, &flags);
 }
@@ -1116,7 +1116,7 @@ void MuteOutputBuffer(struct TManager* self)
     }
 
     //MTAL_DP("Output Buffer muted with 0x%x\n", get_live_out_mute_pattern(self, 0));
-    memset(outputBuffer, get_live_out_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * MAX_NUMBEROFOUTPUTS);
+    memset(outputBuffer, get_live_out_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * self->m_NumberOfOutputs);
 
     self->m_alsa_driver_frontend->unlock_playback_buffer(self->m_pALSAChip, &flags);
 }

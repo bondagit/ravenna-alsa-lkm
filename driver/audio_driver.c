@@ -65,11 +65,11 @@
 
 
 /// reminder:
-//#define SNDRV_PCM_FORMAT_DSD_U8         ((__force snd_pcm_format_t) 48) /* DSD, 1-byte samples DSD (x8) */
-//#define SNDRV_PCM_FORMAT_DSD_U16_LE     ((__force snd_pcm_format_t) 49) /* DSD, 2-byte samples DSD (x16), little endian */
-//#define SNDRV_PCM_FORMAT_DSD_U32_LE     ((__force snd_pcm_format_t) 50) /* DSD, 4-byte samples DSD (x32), little endian */
-//#define SNDRV_PCM_FORMAT_DSD_U16_BE     ((__force snd_pcm_format_t) 51) /* DSD, 2-byte samples DSD (x16), big endian */
-//#define SNDRV_PCM_FORMAT_DSD_U32_BE     ((__force snd_pcm_format_t) 52) /* DSD, 4-byte samples DSD (x32), big endian */
+//#define SNDRV_PCM_FORMAT_DSD_U8         ((__force snd_pcm_format_t) 48) /* DSD, 1-byte samples DSD (x8)
+//#define SNDRV_PCM_FORMAT_DSD_U16_LE     ((__force snd_pcm_format_t) 49) /* DSD, 2-byte samples DSD (x16), little endian
+//#define SNDRV_PCM_FORMAT_DSD_U32_LE     ((__force snd_pcm_format_t) 50) /* DSD, 4-byte samples DSD (x32), little endian
+//#define SNDRV_PCM_FORMAT_DSD_U16_BE     ((__force snd_pcm_format_t) 51) /* DSD, 2-byte samples DSD (x16), big endian
+//#define SNDRV_PCM_FORMAT_DSD_U32_BE     ((__force snd_pcm_format_t) 52) /* DSD, 4-byte samples DSD (x32), big endian
 
 
 static int index = SNDRV_DEFAULT_IDX1; /* Index 0-max */
@@ -604,11 +604,11 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
             unsigned long bytes_to_frame_factor;
             struct snd_pcm_runtime *runtime = chip->capture_substream->runtime;
             ring_buffer_size = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
-            if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
+            /*if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
             {
                 printk(KERN_ERR "mr_alsa_audio_pcm_interrupt capture period_size*periods > MR_ALSA_RINGBUFFER_NB_FRAMES\n");
                 return -2;
-            }
+            }*/
             
             /// DMA case
             bytes_to_frame_factor = runtime->channels * chip->current_alsa_capture_stride;
@@ -641,11 +641,11 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
             unsigned long bytes_to_frame_factor;
             struct snd_pcm_runtime *runtime = chip->playback_substream->runtime;
             ring_buffer_size = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
-            if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
+            /*if (ring_buffer_size > MR_ALSA_RINGBUFFER_NB_FRAMES)
             {
                 printk(KERN_ERR "mr_alsa_audio_pcm_interrupt playback period_size*periods > MR_ALSA_RINGBUFFER_NB_FRAMES\n");
                 return -2;
-            }
+            }*/
 
             bytes_to_frame_factor = runtime->channels * chip->current_alsa_playback_stride;
             //printk(KERN_DEBUG "playback copy pos=%u, dma_pos=%u, count=%u, channels=%d pcm_size=%u\n", chip->playback_buffer_pos, pos, ptp_frame_size, runtime->channels, pcm_buffer_size);
@@ -1665,17 +1665,20 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
                 t.max = bits;
         }
 
-        //printk("mr_alsa_audio_pcm_open: playback format nb bits range:  [%u, %u]\n", t.min, t.max);
+        printk("mr_alsa_audio_pcm_open: playback format nb bits range: [%u, %u]\n", t.min, t.max);
 
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
         periods_min = 2;
-        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
+        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / maxPTPFrameSize;
 
         mr_alsa_audio_pcm_hardware_playback.period_bytes_min = period_bytes_min;
         mr_alsa_audio_pcm_hardware_playback.period_bytes_max = period_bytes_max;
         mr_alsa_audio_pcm_hardware_playback.periods_min = periods_min;
         mr_alsa_audio_pcm_hardware_playback.periods_max = periods_max;
+
+        printk("mr_alsa_audio_pcm_open: playback period size range: [%zu, %zu], periods range: [%u, %u]\n",
+              period_bytes_min, period_bytes_max, periods_min, periods_max);
 
         runtime->hw = mr_alsa_audio_pcm_hardware_playback;
 
@@ -1728,12 +1731,15 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
             if (t.max < (unsigned)bits)
                 t.max = bits;
         }
-        //printk("mr_alsa_audio_pcm_open: capture format nb bits range:  [%u, %u]\n", t.min, t.max);
+        printk("mr_alsa_audio_pcm_open: capture format nb bits range: [%u, %u]\n", t.min, t.max);
 
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
         periods_min = 2;
-        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / minPTPFrameSize;
+        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / maxPTPFrameSize;
+
+        printk("mr_alsa_audio_pcm_open: capture period size range: [%zu, %zu], periods range: [%u, %u]\n",
+              period_bytes_min, period_bytes_max, periods_min, periods_max);
 
         mr_alsa_audio_pcm_hardware_capture.period_bytes_min = period_bytes_min;
         mr_alsa_audio_pcm_hardware_capture.period_bytes_max = period_bytes_max;
@@ -1769,7 +1775,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
     ///Periods
 
     /// Update the Period Sizes Static array accordingly
-    printk(KERN_DEBUG "\nCurrent PTPFrame Size = %u\n", ptp_frame_size);
+    printk(KERN_DEBUG "Current PTPFrame Size = %u\n", ptp_frame_size);
     for(idx = 0; idx < ARRAY_SIZE(g_supported_period_sizes); ++idx)
     {
         g_supported_period_sizes[idx] = min(minPTPFrameSize << idx, maxPTPFrameSize);
@@ -1927,7 +1933,6 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
     pcm = chip->pcm;
     wanted = mr_alsa_audio_pcm_hardware_playback.buffer_bytes_max; // MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4;
 
-
     chip->playback_buffer = vmalloc(wanted);
     if(!chip->playback_buffer)
     {
@@ -1935,6 +1940,7 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory: could not allocate playback buffer (%zd bytes vmalloc requested...\n", wanted);
         goto _failed;
     }
+    printk("mr_alsa_audio_preallocate_memory: allocated playback buffer of %zd bytes vmalloc requested\n", wanted);
     memset(chip->playback_buffer, 0, wanted);
 
     wanted = mr_alsa_audio_pcm_hardware_capture.buffer_bytes_max; // MR_ALSA_RINGBUFFER_NB_FRAMES * MR_ALSA_NB_CHANNELS_MAX * 4;
@@ -1946,6 +1952,7 @@ static int mr_alsa_audio_preallocate_memory(struct mr_alsa_audio_chip *chip)
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory: could not allocate capture buffer (%zd bytes vmalloc requested...\n", wanted);
         goto _failed;
     }
+    printk("mr_alsa_audio_preallocate_memory: allocated capture buffer of %zd bytes vmalloc requested\n", wanted);
     memset(chip->capture_buffer, 0, wanted);
     for (i = 0; i < MR_ALSA_NB_CHANNELS_MAX; i++)
     {
