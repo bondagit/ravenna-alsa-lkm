@@ -1775,7 +1775,6 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
     ///Periods
 
     /// Update the Period Sizes Static array accordingly
-    printk(KERN_DEBUG "Current PTPFrame Size = %u\n", ptp_frame_size);
     for(idx = 0; idx < ARRAY_SIZE(g_supported_period_sizes); ++idx)
     {
         g_supported_period_sizes[idx] = min(minPTPFrameSize << idx, maxPTPFrameSize);
@@ -1790,9 +1789,9 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
                         mr_alsa_audio_hw_rule_period_size_by_rate, chip,
                         SNDRV_PCM_HW_PARAM_RATE, -1);
 
+    printk("Current PTPFrame Size = %u, minPTPFrameSize = %u, maxPTPFrameSize = %u\n", 
+        ptp_frame_size, minPTPFrameSize, maxPTPFrameSize);
 
-    printk("minPTPFrameSize = %d\n", minPTPFrameSize);
-    printk("maxPTPFrameSize = %d\n", maxPTPFrameSize);
     snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, minPTPFrameSize);
 
 #if 0
