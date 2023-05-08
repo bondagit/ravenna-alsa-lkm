@@ -1301,7 +1301,7 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     //struct snd_pcm_runtime *runtime = substream->runtime;
     //unsigned long flags;
-    uint32_t ptp_frame_size;
+    uint32_t ptp_frame_size = 0;
     unsigned int        rate = params_rate(params);
     snd_pcm_format_t    format = params_format(params);
     unsigned int nbCh = params_channels(params);
