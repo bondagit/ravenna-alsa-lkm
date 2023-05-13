@@ -1670,7 +1670,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_playback.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
         periods_min = 2;
-        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / maxPTPFrameSize;
+        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / ptp_frame_size;
 
         mr_alsa_audio_pcm_hardware_playback.period_bytes_min = period_bytes_min;
         mr_alsa_audio_pcm_hardware_playback.period_bytes_max = period_bytes_max;
@@ -1736,7 +1736,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
         period_bytes_min = minPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_min * (t.min >> 3); // amount of data in bytes for min channels, smallest sample size in bytes, minimum period size
         period_bytes_max = maxPTPFrameSize * mr_alsa_audio_pcm_hardware_capture.channels_max * (t.max >> 3); // amount of data in bytes for max channels, largest sample size in bytes, maximum period size
         periods_min = 2;
-        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / maxPTPFrameSize;
+        periods_max = MR_ALSA_RINGBUFFER_NB_FRAMES / ptp_frame_size;
 
         printk("mr_alsa_audio_pcm_open: capture period size range: [%zu, %zu], periods range: [%u, %u]\n",
               period_bytes_min, period_bytes_max, periods_min, periods_max);
