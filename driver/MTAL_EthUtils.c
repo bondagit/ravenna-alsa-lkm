@@ -104,14 +104,13 @@ void MTAL_DumpID(uint64_t ullID)
 	uint32_t ui32;
 	for(ui32 = 0; ui32 < sizeof(ullID); ui32++)
 	{
-		uint8_t by = (ullID >> (ui32 * 8)) & 0xFF;
 		if(ui32 > 0)
 		{
-			MTAL_DP(":%2.2X", by);
+			MTAL_DP(":%2.2X", (ullID >> (ui32 * 8)) & 0xFF);
 		}
 		else
 		{
-			MTAL_DP("%2.2X", by);
+			MTAL_DP("%2.2X", (ullID >> (ui32 * 8)) & 0xFF);
 		}
 	}
 	MTAL_DP("\n");
@@ -553,8 +552,7 @@ void MTAL_DumpAppleMIDI(TAppleMIDI_PacketBase* pAppleMIDI_PacketBase)
 			break;
 		case APPLEMIDI_COMMAND_SYNCHRONIZATION:
 		{
-			TAppleMIDI_Synch_Packet* pSynch = (TAppleMIDI_Synch_Packet*)pAppleMIDI_PacketBase;
-			MTAL_DP("Synchronization[%d]", pSynch->ui8Count);
+			MTAL_DP("Synchronization[%d]", ((TAppleMIDI_Synch_Packet*)pAppleMIDI_PacketBase)->ui8Count);
 			break;
 		}
 		case APPLEMIDI_COMMAND_RECEIVER_FEEDBACK:
@@ -577,10 +575,9 @@ void MTAL_DumpAppleMIDI(TAppleMIDI_PacketBase* pAppleMIDI_PacketBase)
 		case APPLEMIDI_COMMAND_INVITATION_ACCEPTED:
 		case APPLEMIDI_COMMAND_ENDSESSION:
 		{
-			TAppleMIDI_IN_NO_OK_BY_Packet* pAppleMIDI_IN_NO_OK_BY_Packet = (TAppleMIDI_IN_NO_OK_BY_Packet*)pAppleMIDI_PacketBase;
-			MTAL_DP("\tProtocol Version = %d\n", MTAL_SWAP32(pAppleMIDI_IN_NO_OK_BY_Packet->ui32ProtocolVersion));
-			MTAL_DP("\tInitiator token = 0x%x\n", MTAL_SWAP32(pAppleMIDI_IN_NO_OK_BY_Packet->ui32InitiatorToken));
-			MTAL_DP("\tSender SSRC = 0x%x\n", MTAL_SWAP32(pAppleMIDI_IN_NO_OK_BY_Packet->ui32SenderSSRC));
+			MTAL_DP("\tProtocol Version = %d\n", MTAL_SWAP32((TAppleMIDI_IN_NO_OK_BY_Packet*)pAppleMIDI_PacketBase->ui32ProtocolVersion));
+			MTAL_DP("\tInitiator token = 0x%x\n", MTAL_SWAP32((TAppleMIDI_IN_NO_OK_BY_Packet*)pAppleMIDI_PacketBase->ui32InitiatorToken));
+			MTAL_DP("\tSender SSRC = 0x%x\n", MTAL_SWAP32((TAppleMIDI_IN_NO_OK_BY_Packet*)pAppleMIDI_PacketBase->ui32SenderSSRC));
 			break;
 		}
 	}

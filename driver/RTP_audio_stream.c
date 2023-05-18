@@ -1041,11 +1041,10 @@ void PrepareBufferLives(TRTP_audio_stream* self)
 			if(self->m_ulLivesInDMCounter < pManager->get_live_in_jitter_buffer_length(pManager->user) / pManager->get_frame_size(pManager->user))
 			{
 				unsigned short us;
-				int64_t delta = self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user);
 				#ifndef WIN32
-					MTAL_DP("sink %s: is muted at globalSAC = %llu (delta = %lld)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), delta);
+					MTAL_DP("sink %s: is muted at globalSAC = %llu (delta = %lld)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user));
 				#else
-					MTAL_DP("sink %s: is muted at globalSAC = %I64u (delta = %I64)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), delta);
+					MTAL_DP("sink %s: is muted at globalSAC = %I64u (delta = %I64)\n", pRTP_stream_info->m_cName, pManager->get_global_SAC(pManager->user), self->m_tRTPStream.m_ui64LastAudioSampleReceivedSAC - pManager->get_global_SAC(pManager->user));
 				#endif
 				self->m_ulLivesInDMCounter++;
 
