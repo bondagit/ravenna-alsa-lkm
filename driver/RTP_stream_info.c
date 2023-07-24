@@ -32,7 +32,9 @@
 #include "MTAL_TargetPlatform.h"
 
 #if (defined(MTAL_LINUX) && defined(MTAL_KERNEL))
+    #define new NEW
     #include <linux/string.h>
+    #undef new
 #else
     #include <string.h>
 #endif
@@ -189,15 +191,20 @@ int is_valid(TRTP_stream_info* rtp_stream_info)
 	#endif
 
 	// UDP
-	if (rtp_stream_info->m_usDestPort < 1024 || rtp_stream_info->m_usDestPort > 32767)
+
+	// UDP port limitation
+	if (!MTAL_IsIPMulticast(rtp_stream_info->m_ui32DestIP)
+		&& (rtp_stream_info->m_usDestPort < 1024 || rtp_stream_info->m_usDestPort > 32767) // FPGA: limits UNICAST port in range [1024..32767], so that MIDI pre can be placed on 32768 + ports
+		)
 	{
-		MTAL_DP("CRTP_stream_info::IsValid: wrong Stream Port = %u\nNote: For transports based on UDP, the value should be in the range 1024 to 32767 inclusive.\n", rtp_stream_info->m_usDestPort);
+		MTAL_DP("CRTP_stream_info::IsValid: wrong Stream Port = %u\nNote: For transports based on UDP (UNICAST only), the value should be in the range 1024 to 32767 inclusive.\n", rtp_stream_info->m_usDestPort);
 		return 0;
 	}
 
     {
         char* cCodec = rtp_stream_info->m_cCodec;
-        if (strcmp(cCodec, "L16") && strcmp(cCodec, "L24") && strcmp(cCodec, "L2432")
+		// Note: only ZMAN is supporting L32
+        if (strcmp(cCodec, "L16") && strcmp(cCodec, "L24") && strcmp(cCodec, "L32") && strcmp(cCodec, "L2432")
             && strcmp(cCodec, "DSD64_32") && strcmp(cCodec, "DSD128_32")
             && strcmp(cCodec, "DSD64") && strcmp(cCodec, "DSD128") && strcmp(cCodec, "DSD256"))
         {
@@ -278,7 +285,7 @@ unsigned char get_codec_word_lenght(const char* cCodec)
 	{
 		return 3;
 	}
-	else if (strcmp(cCodec, "L2432") == 0)
+	else if (strcmp(cCodec, "L2432") == 0 || strcmp(cCodec, "L32") == 0)
 	{
 		return 4;
 	}
