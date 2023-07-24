@@ -655,7 +655,7 @@ EMTAL_IPC_Error send_buffer_to_fifo(int fd, uint8_t* pBuffer, uint32_t ui32Buffe
 // return latest message in the fifo.
 EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* pvOutBuffer, uint32_t* pui32OutBufferSize, int32_t* pi32MsgErr)
 {
-	uint32_t ui32MaxRetryDuration = 500000; // [us]
+	uint32_t ui32MaxRetryDuration = 5000000; // [us]
 	uint32_t ui32StartTime = get_current_time(); // [us]
 
 	int iMsgCounter = 0;
@@ -695,13 +695,13 @@ EMTAL_IPC_Error read_answer_from_fifo(int fd_client, uint32_t ui32SeqId, void* p
 					ssize_t bytes_read2 = read(fd_client, &MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
 					if (bytes_read2 < 0)
 					{
-						rv_log(LOG_ERR, "2. read error: errno = %i\n", errno);
+						rv_log(LOG_ERR, "2. read error: errno = %i, %s\n", errno, strerror(errno));
 						return MIE_FAIL;
 					}
 					else if ((unsigned)bytes_read2 < MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase))
 					{
 						// wrong message
-						rv_log(LOG_ERR, "2. wrong message size: %u expected >= %lu", (unsigned int)bytes_read2, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
+						rv_log(LOG_ERR, "2. wrong message size: %u expected >= %lu\n", (unsigned int)bytes_read2, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
 						return MIE_FAIL;
 					}
 
@@ -826,7 +826,8 @@ static int process_message_from_fifo(TMTAL_IPC_Instance* pTMTAL_IPC_Instance, in
 			ssize_t bytes_read2 = read(fd, &MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase));
 			if (bytes_read2 < 0)
 			{
-				rv_log(LOG_ERR, "2. read error: errno = %i\n", errno);
+				rv_log(LOG_ERR, "2. read error: errno = %i, %s, pBuf=0x%x, size=0x%x, msg_size=0x%x\n", errno, strerror(errno), &MTAL_IPC_MsgBlock_tmp.pui8Buffer, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase), MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize);
+				rv_log(LOG_ERR, "MsgSize= %u, MsgSeqId=%u, MsgId=%u\n", MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize, MTAL_IPC_MsgBlock_tmp.base.ui32MsgSeqId, MTAL_IPC_MsgBlock_tmp.base.ui32MsgId);
 				return -1;
 			}			
 			else if ((unsigned)bytes_read2 <  MTAL_IPC_MsgBlock_tmp.base.ui32MsgSize - sizeof(MTAL_IPC_MsgBlockBase))

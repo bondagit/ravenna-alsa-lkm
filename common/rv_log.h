@@ -3,6 +3,7 @@
 #ifndef RV_LOG_H
 #define RV_LOG_H
 
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -13,9 +14,13 @@ extern "C" {
 	void rv_log__(unsigned int log_level, char const* filename, int line, char const *format, ...);
 	void log4c_log__(char const* device_category, unsigned int log_level, char const* filename, int line, char const *format, ...);
 
+	typedef void (*rv_log_callback)(unsigned int log_level, char const* filename, int line, char const* text);
+	void rv_log_set_callback__(rv_log_callback pCallback);
+
 	#ifdef WIN32
 		extern int g_bANSI_Enabled;
 		void rv_log_add_console();
+		int rv_log_to_file(char const* pFileName, bool append = false);
 	#endif
 	//extern char cColors[9][13];
 #ifdef __cplusplus
@@ -26,9 +31,9 @@ extern "C" {
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #ifdef WIN32
-#define __FILE_NAME__ (strrchr(__FILE__, '\\') ? (strrchr(__FILE__, '\\') + 1) : __FILE__)
+#define __RV_FILE_NAME__ (strrchr(__FILE__, '\\') ? (strrchr(__FILE__, '\\') + 1) : __FILE__)
 #else
-#define __FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1) : __FILE__)
+#define __RV_FILE_NAME__ (strrchr(__FILE__, '/') ? (strrchr(__FILE__, '/') + 1) : __FILE__)
 #endif
 //#define AT "In " __FILE__ ", line " TOSTRING(__LINE__) ": "
 
@@ -73,12 +78,12 @@ extern "C" {
 
 #if UNDER_RTSS
 	#include "MTAL_DP.h"
-	#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__); MTAL_DP(__VA_ARGS__); }}
-	#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __FILE_NAME__, __LINE__);  MTAL_DP(__VA_ARGS__); MTAL_DP("\r\n"); }}
+	#define rv_log(log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __RV_FILE_NAME__, __LINE__); MTAL_DP(__VA_ARGS__); }}
+	#define log4c_log(device_category, log_level, ...) { if(log_level <= LOG_MAX_LEVEL) { MTAL_DP("In %s, line %i: ", __RV_FILE_NAME__, __LINE__);  MTAL_DP(__VA_ARGS__); MTAL_DP("\r\n"); }}
 
 #else
-	#define rv_log(log_level, format, ...)  rv_log__(log_level, __FILE_NAME__, __LINE__, format, ##__VA_ARGS__)
-	#define log4c_log(device_category, log_level, format, ...) log4c_log__(TOSTRING(device_category), log_level, __FILE_NAME__, __LINE__, format, ##__VA_ARGS__)
+	#define rv_log(log_level, format, ...)  rv_log__(log_level, __RV_FILE_NAME__, __LINE__, format, ##__VA_ARGS__)
+	#define log4c_log(device_category, log_level, format, ...) log4c_log__(TOSTRING(device_category), log_level, __RV_FILE_NAME__, __LINE__, format, ##__VA_ARGS__)
 #endif
 
 #endif

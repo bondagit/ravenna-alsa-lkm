@@ -13,7 +13,7 @@ Please find the license [here](https://bitbucket.org/MergingTechnologies/ravenna
 ## Network ##
 ### Switches ###
 We recommend to use a switch supporting multicast traffic (RFC 1112), multicast forwarding, IGMPv2 (RFC 2236), IGMP snooping (RFC 4541).
-A list of tested switch is available [here](https://confluence.merging.com/display/PUBLICDOC/Network+Switches+for+RAVENNA+-+AES67)
+A list of tested switch is available [here](https://merging.atlassian.net/wiki/spaces/PUBLICDOC/pages/4817447/Network+Switches+for+RAVENNA+-+AES67)
 ### Throughput ###
 1Gb/s switch and NIC is recommended (all Merging products can only be connected to a 1Gb/s port, except MERGING+PLAYER that support 100Mb/s).
 Note : In case of 100 Mb/s link, the bandwidth allows for up to 2 channels at 384kHz or 8 channels at 192kHz
@@ -151,7 +151,7 @@ Once the Butler is successfully launched, the web page configuration web page ca
 
 <local IP of interface_name\>:9090
 
-The web page documentation is available [here](https://confluence.merging.com/pages/viewpage.action?pageId=33260125)
+The web page documentation is available [here](https://merging.atlassian.net/wiki/spaces/PUBLICDOC/pages/4819571/Merging+RAVENNA+Advanced+Pages+User+Guide.)
 
 ### Hardware Requirement ###
 * A PTP master device running on the network (this driver does not act as a PTP master). E.g. [Horus/Hapi/Anubis](https://www.merging.com/products/interfaces)
@@ -160,7 +160,7 @@ The web page documentation is available [here](https://confluence.merging.com/pa
 
 ### AES67 knowledge base ###
 * [Merging and AES67 devices](http://www.merging.com/uploads/assets/Installers/ravenna/Configure%20Merging%20and%20AES67%20Devices.pdf)
-* [Configure Merging and Dante devices in AES67](https://confluence.merging.com/display/DSI/Configure+Merging+and+Dante+devices+in+AES67+mode+UPDATE)
+* [Configure Merging and Dante devices in AES67](https://merging.atlassian.net/wiki/spaces/PUBLICDOC/pages/4820843/Configure+MERGING+and+third+party+DANTE+devices+in+AES67+mode)
 
 ## Test ##
 ### ALSA check ###
