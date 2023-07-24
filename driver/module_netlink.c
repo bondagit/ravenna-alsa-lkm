@@ -92,7 +92,7 @@ void recv_msg_from_user_land(struct sk_buff *skb)
     {
         if (rx_msg->dataSize)
         {
-            rx_msg->data = (char*)nlmsg_data(nlh) + sizeof(struct MT_ALSA_msg);
+            rx_msg->data = (char*)nlmsg_data(nlh) + sizeof(MT_ALSA_msg_pad);
         }
         /*tx_msg.id = rx_msg->id;
         tx_msg.errCode = 0;
@@ -115,7 +115,7 @@ int send_reply_to_user_land(struct MT_ALSA_msg* msg)
     if (daemon_pid_ == -1)
         return -5;
 
-    msg_header_size = sizeof(struct MT_ALSA_msg);
+    msg_header_size = sizeof(MT_ALSA_msg_pad);
     msg_size = msg_header_size + msg->dataSize;
     skb_out = nlmsg_new(msg_size, 0);
     if (!skb_out)
@@ -197,7 +197,7 @@ int send_msg_to_user_land(struct MT_ALSA_msg* tx_msg, struct MT_ALSA_msg* rx_msg
     if (daemon_pid_ == -1)
         return -5;
 
-    msg_header_size = sizeof(struct MT_ALSA_msg);
+    msg_header_size = sizeof(MT_ALSA_msg_pad);
     msg_size = msg_header_size + tx_msg->dataSize;
     skb_out = nlmsg_new(msg_size, 0); // freed by nlmsg_unicast
     if (!skb_out)

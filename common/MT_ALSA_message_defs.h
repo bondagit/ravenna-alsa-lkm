@@ -84,4 +84,10 @@ struct MT_ALSA_msg
     // data are right here when sending through netlink
 };
 
+typedef union {
+    struct MT_ALSA_msg alsa_msg;
+    unsigned char padding[24]; // ensure that the struct has the same size in 32 and 64 bits
+} MT_ALSA_msg_pad;
+
+
 #endif // MT_ALSA_MESSAGE_DEFINES_INCLUDED
