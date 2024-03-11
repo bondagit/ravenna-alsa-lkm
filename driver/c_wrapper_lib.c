@@ -151,7 +151,8 @@ int CW_socket_tx_packet(void* skb, unsigned int data_len, const char* iface)
             irqCheckOnce = 1;
         }
     }
-    skb_reset_network_header(skb_ptr);
+    skb_reset_mac_header(skb_ptr);
+    skb_set_network_header(skb_ptr, ETH_HLEN);
 
 //#define NO_TX
 #ifdef NO_TX
