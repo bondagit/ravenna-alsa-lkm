@@ -2167,8 +2167,8 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
         goto _err;
 
     // driver ID and name strings
-    strlcpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
-    strlcpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+    strscpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
+    strscpy(card->shortname, CARD_NAME, sizeof(card->shortname));
     strlcat(card->longname, card->shortname, sizeof(card->longname));
 
 

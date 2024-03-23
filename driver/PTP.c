@@ -69,56 +69,6 @@ void get_ptp_global_times(TClock_PTP* self, uint64_t* pui64GlobalSAC, uint64_t* 
     spin_unlock_irqrestore((spinlock_t*)self->m_csSAC_Time_Lock, flags);
 }
 
-
-//////////////////////////////////////////////////////////////
-//static
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-uint32_t get_FS(uint32_t ui32SamplingRate)
-{
-	// TODO: move this helper to MTAL
-	switch(ui32SamplingRate)
-	{
-		case 384000:
-		case 352800:
-			return 8;
-		case 192000:
-		case 176400:
-			return 4;
-		case 96000:
-		case 88200:
-			return 2;
-		default:
-			// TODO: should assert
-			//MTAL_DP("Caudio_streamer_clock::get_FS error: unknown SamplingRate = %u\n", ui32SamplingRate);
-		case 48000:
-		case 44100:
-			return 1;
-	}
-}
-
-//////////////////////////////////////////////////////////////
-uint32_t get_samplerate_base(uint32_t ui32SamplingRate)
-{
-	switch(ui32SamplingRate)
-	{
-		case 384000:
-		case 192000:
-		case 96000:
-		case 48000:
-			return 48000;
-
-		default:
-			// TODO: should assert
-			//MTAL_DP("Caudio_streamer_clock::get_samplerate_base error: unknown SamplingRate = %u\n", ui32SamplingRate);
-		case 352800:
-		case 176400:
-		case 88200:
-		case 44100:
-			return 44100;
-	}
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
@@ -134,18 +84,10 @@ static uint64_t GetSeconds(uint8_t bySeconds[6])
 	return ui64;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/*static*/ void SetSeconds(uint64_t ui64Time, uint8_t bySeconds[6])
-{
-    uint32_t dw;
-	for(dw = 0; dw < 6; dw++)
-	{
-		bySeconds[dw] = (ui64Time >> (40 - 8 * dw)) & 0xFF;
-	}
-}
 
 ///////////////////////////////////////////////////////////////////////////////
-/*static*/ void DumpPTPV2MsgHeader(TV2MsgHeader* pV2MsgHeader)
+#if 0
+static void DumpPTPV2MsgHeader(TV2MsgHeader* pV2MsgHeader)
 {
     int i;
 	MTAL_DP("PTP v2 Msg Header\n");
@@ -161,12 +103,12 @@ static uint64_t GetSeconds(uint8_t bySeconds[6])
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/*static*/ void DumpV2TimeRepresentation(TV2TimeRepresentation* pOriginTimestamp)
+static void DumpV2TimeRepresentation(TV2TimeRepresentation* pOriginTimestamp)
 {
 	MTAL_DP("\tOriginTimestamp.Seconds: %llu\n", GetSeconds(pOriginTimestamp->bySeconds));
 	MTAL_DP("\tOriginTimestamp.Nanoseconds: %d\n", (int32_t)MTAL_SWAP32(pOriginTimestamp->i32Nanoseconds));
 }
-
+#endif
 
 
 //////////////////////////////////////////////////////////////

@@ -59,7 +59,7 @@
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Merging Technologies <alsa@merging.com>");
 MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver"); // see modinfo
-MODULE_VERSION("bondagit-1.7");
+MODULE_VERSION("bondagit-1.8");
 //MODULE_SUPPORTED_DEVICE("{{ALSA,Merging RAVENNA}}");
 
 
@@ -69,7 +69,7 @@ static int hooked = 0;
 
 /** @brief function to be called by the netfilter hook
  */
-unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
+static unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
     int err = 0, rc = 0;
     struct iphdr *ip_header = NULL;
@@ -189,6 +189,7 @@ static inline uint64_t llu_mod(uint64_t numerator, uint64_t denominator)
     return rest;
 }
 
+#if 0
 /// on ARM7 (marvell toolset) 32bit the following function have to be define
 uint64_t __aeabi_uldivmod(uint64_t numerator, uint64_t denominator)
 {
@@ -217,6 +218,7 @@ uint64_t __umoddi3(uint64_t numerator, uint64_t denominator)
 {
     return llu_mod(numerator, denominator);
 }
+#endif
 
 /** @brief LKM initialization
  */

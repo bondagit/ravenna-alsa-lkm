@@ -66,7 +66,7 @@ static void __tasklet_hrtimer_trampoline(unsigned long data)
 		hrtimer_restart(&ttimer->timer);
 }
 
-void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
+static void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 			  enum hrtimer_restart (*function)(struct hrtimer *),
 			  clockid_t which_clock, enum hrtimer_mode mode)
 {
@@ -91,7 +91,7 @@ static uint64_t min_period_allowed;
 static int stop_;
 static struct tasklet_hrtimer my_hrtimer_;
 
-enum hrtimer_restart timer_callback(struct hrtimer *timer)
+static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 {
     int ret_overrun;
     ktime_t period;

@@ -64,11 +64,6 @@ void my_free(void *p)
 	return kfree(p);
 }
 
-void __cxa_pure_virtual(void)
-{
-    printk(KERN_ERR "pure virtual call!\n");
-}
-
 void *malloc (size_t __size)
 {
     //printk(KERN_INFO "malloc %lu\n", __size);

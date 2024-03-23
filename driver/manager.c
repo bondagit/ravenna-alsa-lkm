@@ -1316,12 +1316,6 @@ uint32_t get_live_in_jitter_buffer_offset(void* user, const uint64_t ui64Current
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-int pdate_live_in_audio_data_format(void* user, uint32_t ulChannelId, char const * pszCodec)
-{
-    return 1;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
 unsigned char get_live_in_mute_pattern(void* user, uint32_t ulChannelId)
 {
     struct TManager* self = (struct TManager*)user;
