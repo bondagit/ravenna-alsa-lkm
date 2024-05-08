@@ -73,15 +73,15 @@ void get_ptp_global_times(TClock_PTP* self, uint64_t* pui64GlobalSAC, uint64_t* 
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-static uint64_t GetSeconds(uint8_t bySeconds[6])
+static uint64_t GetSeconds(uint8_t * bySeconds)
 {
     uint32_t dw;
-	uint64_t ui64 = 0;
-	for(dw = 0; dw < 6; dw++)
-	{
-		ui64 += bySeconds[dw] << (40 - 8 * dw);
-	}
-	return ui64;
+    uint64_t ui64 = 0;
+    for(dw = 0; dw < 6; dw++)
+    {
+        ui64 += (uint64_t)(bySeconds[dw]) << (40 - 8 * dw);
+    }
+    return ui64;
 }
 
 
@@ -273,9 +273,10 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
 	switch(pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F)
 	{
-		case PTP_ANNOUNCE_MESSAGE:
+	case PTP_ANNOUNCE_MESSAGE:
         {
 			TPTPV2MsgAnnouncePacket* pPTPV2MsgAnnouncePacket = (TPTPV2MsgAnnouncePacket*)pUDPPacketBase;
+			printk("PTP_ANNOUNCE_MESSAGE\n");
 			if(ui32PacketSize < sizeof(TPTPV2MsgAnnouncePacket))
 			{
 				MTAL_DP("too short announce PTP packet size = %d should be at least %u\n", ui32PacketSize,  (uint32_t)sizeof(TPTPV2MsgAnnouncePacket));
@@ -368,7 +369,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			MTAL_RtTraceEvent(RTTRACEEVENT_PTP_SYNC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);*/
 
 			TPTPV2MsgSyncPacket* pPTPV2MsgSyncPacket = (TPTPV2MsgSyncPacket*)pUDPPacketBase;
-			///MTAL_DP("PTP_SYNC_MESSAGE\n");
+			printk("PTP_SYNC_MESSAGE\n");
 			if(ui32PacketSize < sizeof(TPTPV2MsgSyncPacket))
 			{
 				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgSyncPacket));
@@ -449,7 +450,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgFollowUpPacket));
 				return DR_PACKET_NOT_USED;
 			}
-			///MTAL_DP("PTP_FOLLOWUP_MESSAGE\n");
+			printk("PTP_FOLLOWUP_MESSAGE\n");
 			//DumpV2TimeRepresentation(&pPTPV2MsgFollowUpPacket->V2MsgFollowUp.PreciseOriginTimestamp);
             
             //######################################################
@@ -889,7 +890,7 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
             //ui64Q = (uint64_t)((int64_t)ui64CurrentRTXClockTime - self->m_i64TIC_PTPToRTXClockOffset) * (self->m_ui32SamplingRate / 100) / 100000 / self->m_ui32FrameSize;
             //MTAL_DP("2.ui64Q = %I64u \n", ui64Q);
 
-            //MTAL_DP("Q : %I64u R: %u ", ui64Q, ui32R);
+            //printk("Q : %llu R: %u\n", ui64Q, ui32R);
             if(ui32R < 4 * self->m_ui32SamplingRate / 44100) // to avoid using timestamps outside 80us of theoretical time
             {
                 ui64CurrentTICCount = ui64Q + 1; // we add 1 because ui64Q is the count for the previous frame
@@ -905,20 +906,20 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
                 // For debug
                 /*if (self->m_ui64LastTIC_Count != ui64Q)
                 {
-                    MTAL_DP("self->m_ui64LastTIC_Count(%llu) != ui64Q(%llu) | ui32R[%llu]\n", self->m_ui64LastTIC_Count, ui64Q, ui32R);
+                    printk("self->m_ui64LastTIC_Count(%llu) != ui64Q(%llu) | ui32R[%u]\n", self->m_ui64LastTIC_Count, ui64Q, ui32R);
                 }*/
-				ui64CurrentTICCount = self->m_ui64LastTIC_Count + 1;
+                ui64CurrentTICCount = self->m_ui64LastTIC_Count + 1;
                 //iTICCountUpdateMethod = 3;
             }
         }
 
-		ui64AbsoluteTime = self->m_ui64TIC_NextAbsoluteTime;
+        ui64AbsoluteTime = self->m_ui64TIC_NextAbsoluteTime;
         spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
-	}
+    }
 
     //MTAL_DP("TIC Intervale = %llu ui64Period = %llu", self->m_pmiTICInterval.GetLastUsedInterval(), ui64Period);
 
-	self->m_ui64TICSAC = (ui64CurrentTICCount - 1) * self->m_ui32FrameSize;
+    self->m_ui64TICSAC = (ui64CurrentTICCount - 1) * self->m_ui32FrameSize;
     {
         unsigned long flags;
         spin_lock_irqsave((spinlock_t*)self->m_csSAC_Time_Lock, flags);

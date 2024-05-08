@@ -146,7 +146,7 @@ typedef struct
 {
 	uint8_t	byType;
 	uint8_t	ucLength;
-	uint8_t	ucData[1];
+	uint8_t	ucData[15];
 } TRTCP_SourceDescriptionItem; //SDES
 
 typedef struct
