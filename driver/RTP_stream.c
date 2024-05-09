@@ -158,7 +158,7 @@ int rtp_stream_init(TRTP_stream* pRTP_stream, TEtherTubeNetfilter* pEth_netfilte
 				snprintf(cCNAME, sizeof(cCNAME), "%d.%d.%d.%d", ui32SrcIP >> 24, (ui32SrcIP >> 16)  & 0xFF, (ui32SrcIP >> 8)  & 0xFF, ui32SrcIP & 0xFF);
 			#endif
 
-			uiItemSize = sizeof(TRTCP_SourceDescriptionItem) - 1 + (unsigned int)strlen(cCNAME); //  -1: because TRTCP_SourceDescriptionChunk already contains one byte for data
+			uiItemSize = sizeof(TRTCP_SourceDescriptionItem);
 			uiEndItemSize = 1;
 			uiPadding = (uiItemSize + uiEndItemSize) & 0x3;
 
