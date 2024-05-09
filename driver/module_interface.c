@@ -111,7 +111,7 @@ static unsigned int nf_hook_func(unsigned int hooknum, struct sk_buff *skb, cons
             return NF_ACCEPT;
         }
     }
-
+    //printk("ifname = %s\n", in->name);
     if (skb_mac_header(skb) == skb_network_header(skb)) {
         rc = nf_rx_packet(skb_network_header(skb) - ETH_HLEN, skb->len + ETH_HLEN, in->name, 0);
     }

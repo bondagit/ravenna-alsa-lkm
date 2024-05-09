@@ -40,6 +40,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/if.h>
 
 ////////////////////////////////////////////////////////////////////////
 // CEtherTubeNICExport
@@ -243,6 +244,44 @@ void netfilter_hook_fct(TEtherTubeNetfilter* self, void* nf_hook_fct, void* nf_h
     self->nf_hook_struct_ = nf_hook_struct;
 }
 
+static int isalpha(int c)
+{
+    return ((unsigned)c|32)-'a' < 26;
+}
+
+static int isdigit(int c)
+{
+    return (unsigned)c-'0' < 10;
+}
+
+static int isspace(int c)
+{
+    return c == ' ' || (unsigned)c-'\t' < 5;
+}
+
+static int isalnum(int c)
+{
+    return isalpha(c) || isdigit(c);
+}
+
+// check if the network interface name contains some unexpected char
+static bool dev_valid_name(const char *name)
+{
+    if (*name == '\0')
+        return false;
+    if (strnlen(name, IFNAMSIZ) == IFNAMSIZ)
+        return false;
+    if (!strcmp(name, ".") || !strcmp(name, ".."))
+        return false;
+
+    while (*name) {
+        if (*name == '/' || *name == ':' || isspace(*name) || !isalnum(*name))
+            return false;
+        name++;
+    }
+    return true;
+}
+
 //#include <linux/netfilter.h>
 ////////////////////////////////////////////////////////////////////////
 int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const char* ifname, int mac_header)
@@ -267,9 +306,10 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
             return 1;
         }
         // roonOS provides an empty string !
-        if (strlen(ifname) != 0 && strcmp(ifname, self->ifname_used_) != 0)
+	// Linux kernel can provide empty or corrupted interface name string !
+        if (dev_valid_name(ifname) && strcmp(ifname, self->ifname_used_) != 0)
         {
-            //MTAL_DP_INFO("2: %s, %s\n", ifname, self->ifname_used_);
+            //printk("2: %s, %s\n", ifname, self->ifname_used_);
             return 1;
         }
         if (packet == NULL)
