@@ -244,14 +244,9 @@ void netfilter_hook_fct(TEtherTubeNetfilter* self, void* nf_hook_fct, void* nf_h
     self->nf_hook_struct_ = nf_hook_struct;
 }
 
-static int isalpha(int c)
+static int isprint(int c)
 {
-    return ((unsigned)c|32)-'a' < 26;
-}
-
-static int isdigit(int c)
-{
-    return (unsigned)c-'0' < 10;
+    return c >= ' ' && c <= '~';
 }
 
 static int isspace(int c)
@@ -259,10 +254,6 @@ static int isspace(int c)
     return c == ' ' || (unsigned)c-'\t' < 5;
 }
 
-static int isalnum(int c)
-{
-    return isalpha(c) || isdigit(c);
-}
 
 // check if the network interface name contains some unexpected char
 static bool dev_valid_name(const char *name)
@@ -275,7 +266,7 @@ static bool dev_valid_name(const char *name)
         return false;
 
     while (*name) {
-        if (*name == '/' || *name == ':' || isspace(*name) || !isalnum(*name))
+        if (*name == '/' || *name == ':' || isspace(*name) || !isprint(*name))
             return false;
         name++;
     }
