@@ -276,7 +276,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 	case PTP_ANNOUNCE_MESSAGE:
         {
 			TPTPV2MsgAnnouncePacket* pPTPV2MsgAnnouncePacket = (TPTPV2MsgAnnouncePacket*)pUDPPacketBase;
-			printk("PTP_ANNOUNCE_MESSAGE\n");
+			//printk("PTP_ANNOUNCE_MESSAGE\n");
 			if(ui32PacketSize < sizeof(TPTPV2MsgAnnouncePacket))
 			{
 				MTAL_DP("too short announce PTP packet size = %d should be at least %u\n", ui32PacketSize,  (uint32_t)sizeof(TPTPV2MsgAnnouncePacket));
@@ -369,7 +369,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			MTAL_RtTraceEvent(RTTRACEEVENT_PTP_SYNC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), 0);*/
 
 			TPTPV2MsgSyncPacket* pPTPV2MsgSyncPacket = (TPTPV2MsgSyncPacket*)pUDPPacketBase;
-			printk("PTP_SYNC_MESSAGE\n");
+			//printk("PTP_SYNC_MESSAGE\n");
 			if(ui32PacketSize < sizeof(TPTPV2MsgSyncPacket))
 			{
 				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgSyncPacket));
@@ -450,7 +450,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgFollowUpPacket));
 				return DR_PACKET_NOT_USED;
 			}
-			printk("PTP_FOLLOWUP_MESSAGE\n");
+			//printk("PTP_FOLLOWUP_MESSAGE\n");
 			//DumpV2TimeRepresentation(&pPTPV2MsgFollowUpPacket->V2MsgFollowUp.PreciseOriginTimestamp);
             
             //######################################################
