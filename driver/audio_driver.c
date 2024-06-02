@@ -1158,7 +1158,18 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
 };
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+static int mr_alsa_audio_pcm_capture_copy_iter(  struct snd_pcm_substream *substream,
+                                            int channel, unsigned long pos,
+                                            struct iov_iter *iter,
+                                            unsigned long count)
+ {
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
+    unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
+    return mr_alsa_audio_pcm_capture_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, iter_iov_addr(iter), count / bytes_to_frame_factor);
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 static int mr_alsa_audio_pcm_capture_copy_user(  struct snd_pcm_substream *substream,
                                             int channel, unsigned long pos,
                                             void __user *src,
@@ -1260,7 +1271,18 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
 /// We use it here to do all the de-interleaving, format conversion and DSD re-packing
 /// The intermediate buffer is actually the alsa (dma) buffer, allocated in hw_params()
 /// The incoming data (src) is user land memory pointer, so copy_from_user() must be used for memory copy
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+static int mr_alsa_audio_pcm_playback_copy_iter(  struct snd_pcm_substream *substream,
+                                            int channel, unsigned long pos,
+                                            struct iov_iter *iter,
+                                            unsigned long count)
+{
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
+    unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
+    return mr_alsa_audio_pcm_playback_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, iter_iov_addr(iter), count / bytes_to_frame_factor);
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 static int mr_alsa_audio_pcm_playback_copy_user(  struct snd_pcm_substream *substream,
                                             int channel, unsigned long pos,
                                             void __user *src,
@@ -2346,7 +2368,10 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    .copy = mr_alsa_audio_pcm_playback_copy_iter,
+    .fill_silence = mr_alsa_audio_pcm_playback_fill_silence,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
     .copy_user = mr_alsa_audio_pcm_playback_copy_user,
     //.copy_kernel = mr_alsa_audio_pcm_playback_copy,
     .fill_silence = mr_alsa_audio_pcm_playback_fill_silence,
@@ -2368,7 +2393,10 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    .copy = mr_alsa_audio_pcm_capture_copy_iter,
+    .fill_silence = NULL,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
     .copy_user = mr_alsa_audio_pcm_capture_copy_user,
     //.copy_kernel = mr_alsa_audio_pcm_capture_copy,
     .fill_silence = NULL,
@@ -2675,8 +2703,13 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
         goto _err;
 
     // driver ID and name strings
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    strscpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
+    strscpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+#else
     strlcpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
     strlcpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+#endif
     strlcat(card->longname, card->shortname, sizeof(card->longname));
 
 
