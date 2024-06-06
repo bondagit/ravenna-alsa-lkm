@@ -189,7 +189,7 @@ static inline uint64_t llu_mod(uint64_t numerator, uint64_t denominator)
     return rest;
 }
 
-#if 0
+#if defined (__arm__)
 /// on ARM7 (marvell toolset) 32bit the following function have to be define
 uint64_t __aeabi_uldivmod(uint64_t numerator, uint64_t denominator)
 {
