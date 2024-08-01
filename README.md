@@ -1,5 +1,7 @@
 # ALSA RAVENNA/AES67 Driver note #
 
+> Please note, this is an improved fork of Merging Technologies' [driver on Bitbucket](https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm/src/).
+
 ## License ##
 
 Although the Kernel part of this software is licensed under [GNU GPL](https://www.gnu.org/licenses/gpl-3.0.en.html), the User land part (Butler) is divided into two licenses according to the following application :
