@@ -1629,10 +1629,11 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     if(interleaved)
     {
         /// mute all channels directly in the Ravenna Ring Buffer
-        unsigned int samples = count;
+        unsigned long samples = count;
         int chn = 0;
         for(chn = 0; chn < runtime->channels; ++chn)
         {
+            samples = count;
             out = chip->playback_buffer + chn * ravBuffer_csize + pos * strideOut;
             if(dsdmode == 0)
             {
@@ -1681,7 +1682,7 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     else
     {
         /// mute the specified channel in the Ravenna Ring Buffer
-        unsigned int samples = count;
+        unsigned long samples = count;
         out = chip->playback_buffer + channel * ravBuffer_csize + pos * strideOut;
         if(dsdmode == 0)
         {
@@ -2752,11 +2753,22 @@ static int mr_alsa_audio_chip_remove(struct platform_device *devptr)
     return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+static void mr_alsa_audio_chip_remove_void(struct platform_device *devptr)
+{
+    mr_alsa_audio_chip_remove(devptr);
+}
+#endif
+
 
 
 static struct platform_driver mr_alsa_audio_driver = {
     .probe      = mr_alsa_audio_chip_probe,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+    .remove     = mr_alsa_audio_chip_remove_void,
+#else
     .remove     = mr_alsa_audio_chip_remove,
+#endif
     .driver     = {
         .name   = SND_MR_ALSA_AUDIO_DRIVER,
         .pm = MR_ALSA_AUDIO_PM_OPS,
