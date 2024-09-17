@@ -2203,12 +2203,19 @@ _err:
     return err;
 }
 
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 static int mr_alsa_audio_chip_remove(struct platform_device *devptr)
+#else
+static void mr_alsa_audio_chip_remove(struct platform_device *devptr)
+#endif
 {
     struct snd_card *card;
     card = platform_get_drvdata(devptr);
     snd_card_free(card);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
     return 0;
+#endif
 }
 
 
