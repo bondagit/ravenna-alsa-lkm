@@ -1811,6 +1811,45 @@ static int mr_alsa_audio_pcm_ack(struct snd_pcm_substream *substream)
     return 0;
 }
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+// snd_pcm_lib_alloc_vmalloc_buffer() is removed in kernel 6.12
+int mr_snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream, size_t size)
+{
+    struct snd_pcm_runtime *runtime;
+
+    runtime = substream->runtime;
+    if (runtime->dma_area) {
+        if (runtime->dma_bytes >= size)
+            return 0; /* already large enough */
+        vfree(runtime->dma_area);
+    }
+    runtime->dma_area = vzalloc(size);
+    if (!runtime->dma_area)
+        return -ENOMEM;
+    runtime->dma_bytes = size;
+    return 1;
+}
+
+// snd_pcm_lib_free_vmalloc_buffer() is removed in kernel 6.12
+int mr_snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream)
+{
+    struct snd_pcm_runtime *runtime;
+
+    runtime = substream->runtime;
+    vfree(runtime->dma_area);
+    runtime->dma_area = NULL;
+    return 0;
+}
+
+// snd_pcm_lib_get_vmalloc_page() is removed in kernel 6.1
+struct page *mr_snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream, unsigned long offset)
+{
+    return vmalloc_to_page(substream->runtime->dma_area + offset);
+}
+#endif
+
+
 /// hw_params callback
 /// This is called when the hardware parameter (hw_params) is set up by the application, that is, once when
 /// the buffer size, the period size, the format, etc. are defined for the pcm substream.
@@ -1911,7 +1950,11 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     if(bufferBytes != (nbPeriods * ptp_frame_size * nbCh * snd_pcm_format_physical_width(format) >> 3))
         printk(KERN_INFO "mr_alsa_audio_pcm_hw_params : wrong bufferBytes (%u instead of %u)...\n",bufferBytes, (nbPeriods * ptp_frame_size * snd_pcm_format_physical_width(format) >> 3));
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    err = mr_snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
+#else
     err = snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
+#endif
 
     spin_unlock_irq(&chip->lock);
 
@@ -1938,7 +1981,11 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
         printk(KERN_DEBUG "entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
         spin_lock_irq(&chip->lock);
         //if(runtime->dma_area != NULL)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+            err = mr_snd_pcm_lib_free_vmalloc_buffer(substream);
+#else
             err = snd_pcm_lib_free_vmalloc_buffer(substream);
+#endif
         spin_unlock_irq(&chip->lock);
     }
     return err;
@@ -2380,7 +2427,11 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .copy =     mr_alsa_audio_pcm_playback_copy,
     .silence =  mr_alsa_audio_pcm_playback_silence,
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    .page =     mr_snd_pcm_lib_get_vmalloc_page,
+#else
     .page =     snd_pcm_lib_get_vmalloc_page,
+#endif
     .ack =      mr_alsa_audio_pcm_ack,
 };
 
@@ -2405,7 +2456,11 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .copy =     mr_alsa_audio_pcm_capture_copy,
     .silence =  NULL, //mr_alsa_audio_pcm_silence,
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    .page =     mr_snd_pcm_lib_get_vmalloc_page,
+#else
     .page =     snd_pcm_lib_get_vmalloc_page,
+#endif
     .ack =      mr_alsa_audio_pcm_ack,
 };
 
