@@ -179,7 +179,7 @@ static uint32_t GetFeatures()
     #include <asm/uaccess.h>
 #endif
 
-void MTConvertInit() //Init_Converter()
+void MTConvertInit(void) //Init_Converter()
 {
     if(g_bInitialized)
     {

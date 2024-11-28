@@ -1158,7 +1158,18 @@ static struct snd_pcm_hardware mr_alsa_audio_pcm_hardware_capture =
 };
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+static int mr_alsa_audio_pcm_capture_copy_iter(  struct snd_pcm_substream *substream,
+                                            int channel, unsigned long pos,
+                                            struct iov_iter *iter,
+                                            unsigned long count)
+ {
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
+    unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
+    return mr_alsa_audio_pcm_capture_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, iter_iov_addr(iter), count / bytes_to_frame_factor);
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 static int mr_alsa_audio_pcm_capture_copy_user(  struct snd_pcm_substream *substream,
                                             int channel, unsigned long pos,
                                             void __user *src,
@@ -1260,7 +1271,18 @@ static int mr_alsa_audio_pcm_capture_copy_internal(  struct snd_pcm_substream *s
 /// We use it here to do all the de-interleaving, format conversion and DSD re-packing
 /// The intermediate buffer is actually the alsa (dma) buffer, allocated in hw_params()
 /// The incoming data (src) is user land memory pointer, so copy_from_user() must be used for memory copy
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+static int mr_alsa_audio_pcm_playback_copy_iter(  struct snd_pcm_substream *substream,
+                                            int channel, unsigned long pos,
+                                            struct iov_iter *iter,
+                                            unsigned long count)
+{
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    bool interleaved = (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) || (runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) ? 1 : 0;
+    unsigned long bytes_to_frame_factor = runtime->channels * snd_pcm_format_physical_width(runtime->format) >> 3;
+    return mr_alsa_audio_pcm_playback_copy(substream, interleaved ? -1 : channel, pos / bytes_to_frame_factor, iter_iov_addr(iter), count / bytes_to_frame_factor);
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 static int mr_alsa_audio_pcm_playback_copy_user(  struct snd_pcm_substream *substream,
                                             int channel, unsigned long pos,
                                             void __user *src,
@@ -1607,10 +1629,11 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     if(interleaved)
     {
         /// mute all channels directly in the Ravenna Ring Buffer
-        unsigned int samples = count;
+        unsigned long samples = count;
         int chn = 0;
         for(chn = 0; chn < runtime->channels; ++chn)
         {
+            samples = count;
             out = chip->playback_buffer + chn * ravBuffer_csize + pos * strideOut;
             if(dsdmode == 0)
             {
@@ -1659,7 +1682,7 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     else
     {
         /// mute the specified channel in the Ravenna Ring Buffer
-        unsigned int samples = count;
+        unsigned long samples = count;
         out = chip->playback_buffer + channel * ravBuffer_csize + pos * strideOut;
         if(dsdmode == 0)
         {
@@ -1788,6 +1811,45 @@ static int mr_alsa_audio_pcm_ack(struct snd_pcm_substream *substream)
     return 0;
 }
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+// snd_pcm_lib_alloc_vmalloc_buffer() is removed in kernel 6.12
+int mr_snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream, size_t size)
+{
+    struct snd_pcm_runtime *runtime;
+
+    runtime = substream->runtime;
+    if (runtime->dma_area) {
+        if (runtime->dma_bytes >= size)
+            return 0; /* already large enough */
+        vfree(runtime->dma_area);
+    }
+    runtime->dma_area = vzalloc(size);
+    if (!runtime->dma_area)
+        return -ENOMEM;
+    runtime->dma_bytes = size;
+    return 1;
+}
+
+// snd_pcm_lib_free_vmalloc_buffer() is removed in kernel 6.12
+int mr_snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream)
+{
+    struct snd_pcm_runtime *runtime;
+
+    runtime = substream->runtime;
+    vfree(runtime->dma_area);
+    runtime->dma_area = NULL;
+    return 0;
+}
+
+// snd_pcm_lib_get_vmalloc_page() is removed in kernel 6.1
+struct page *mr_snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream, unsigned long offset)
+{
+    return vmalloc_to_page(substream->runtime->dma_area + offset);
+}
+#endif
+
+
 /// hw_params callback
 /// This is called when the hardware parameter (hw_params) is set up by the application, that is, once when
 /// the buffer size, the period size, the format, etc. are defined for the pcm substream.
@@ -1888,7 +1950,11 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     if(bufferBytes != (nbPeriods * ptp_frame_size * nbCh * snd_pcm_format_physical_width(format) >> 3))
         printk(KERN_INFO "mr_alsa_audio_pcm_hw_params : wrong bufferBytes (%u instead of %u)...\n",bufferBytes, (nbPeriods * ptp_frame_size * snd_pcm_format_physical_width(format) >> 3));
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    err = mr_snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
+#else
     err = snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
+#endif
 
     spin_unlock_irq(&chip->lock);
 
@@ -1915,7 +1981,11 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
         printk(KERN_DEBUG "entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
         spin_lock_irq(&chip->lock);
         //if(runtime->dma_area != NULL)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+            err = mr_snd_pcm_lib_free_vmalloc_buffer(substream);
+#else
             err = snd_pcm_lib_free_vmalloc_buffer(substream);
+#endif
         spin_unlock_irq(&chip->lock);
     }
     return err;
@@ -2346,7 +2416,10 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    .copy = mr_alsa_audio_pcm_playback_copy_iter,
+    .fill_silence = mr_alsa_audio_pcm_playback_fill_silence,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
     .copy_user = mr_alsa_audio_pcm_playback_copy_user,
     //.copy_kernel = mr_alsa_audio_pcm_playback_copy,
     .fill_silence = mr_alsa_audio_pcm_playback_fill_silence,
@@ -2354,7 +2427,11 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .copy =     mr_alsa_audio_pcm_playback_copy,
     .silence =  mr_alsa_audio_pcm_playback_silence,
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    .page =     mr_snd_pcm_lib_get_vmalloc_page,
+#else
     .page =     snd_pcm_lib_get_vmalloc_page,
+#endif
     .ack =      mr_alsa_audio_pcm_ack,
 };
 
@@ -2368,7 +2445,10 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    .copy = mr_alsa_audio_pcm_capture_copy_iter,
+    .fill_silence = NULL,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
     .copy_user = mr_alsa_audio_pcm_capture_copy_user,
     //.copy_kernel = mr_alsa_audio_pcm_capture_copy,
     .fill_silence = NULL,
@@ -2376,7 +2456,11 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .copy =     mr_alsa_audio_pcm_capture_copy,
     .silence =  NULL, //mr_alsa_audio_pcm_silence,
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+    .page =     mr_snd_pcm_lib_get_vmalloc_page,
+#else
     .page =     snd_pcm_lib_get_vmalloc_page,
+#endif
     .ack =      mr_alsa_audio_pcm_ack,
 };
 
@@ -2675,8 +2759,13 @@ static int mr_alsa_audio_chip_probe(struct platform_device *devptr)
         goto _err;
 
     // driver ID and name strings
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
+    strscpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
+    strscpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+#else
     strlcpy(card->driver, SND_MR_ALSA_AUDIO_DRIVER, sizeof(card->driver));
     strlcpy(card->shortname, CARD_NAME, sizeof(card->shortname));
+#endif
     strlcat(card->longname, card->shortname, sizeof(card->longname));
 
 
@@ -2719,11 +2808,22 @@ static int mr_alsa_audio_chip_remove(struct platform_device *devptr)
     return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+static void mr_alsa_audio_chip_remove_void(struct platform_device *devptr)
+{
+    mr_alsa_audio_chip_remove(devptr);
+}
+#endif
+
 
 
 static struct platform_driver mr_alsa_audio_driver = {
     .probe      = mr_alsa_audio_chip_probe,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+    .remove     = mr_alsa_audio_chip_remove_void,
+#else
     .remove     = mr_alsa_audio_chip_remove,
+#endif
     .driver     = {
         .name   = SND_MR_ALSA_AUDIO_DRIVER,
         .pm = MR_ALSA_AUDIO_PM_OPS,

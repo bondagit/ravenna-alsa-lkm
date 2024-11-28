@@ -91,7 +91,11 @@ void free (void *__ptr)
     vfree(__ptr);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)
+#include <linux/stdarg.h>
+#else
 #include <stdarg.h>
+#endif
 int MTAL_LK_print(const char *fmt, ...)
 {
     va_list args;
