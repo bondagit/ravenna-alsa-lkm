@@ -1381,7 +1381,9 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     if(bufferBytes != (nbPeriods * ptp_frame_size * nbCh * snd_pcm_format_physical_width(format) >> 3))
         printk(KERN_INFO "mr_alsa_audio_pcm_hw_params : wrong bufferBytes (%u instead of %u)...\n",bufferBytes, (nbPeriods * ptp_frame_size * snd_pcm_format_physical_width(format) >> 3));
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
     err = snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
+#endif
 
     spin_unlock_irq(&chip->lock);
 
@@ -1390,6 +1392,7 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
 }
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
 /// hw_free callback
 /// This is called to release the resources allocated via hw_params. For example, releasing the buffer via
 /// snd_pcm_lib_malloc_pages() is done by calling the following: snd_pcm_lib_free_pages(substream);
@@ -1402,17 +1405,15 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
     if (substream)
     {
         struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
-        //struct snd_pcm_runtime *runtime = substream->runtime;
 
-        err = 0;
         printk(KERN_DEBUG "entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
         spin_lock_irq(&chip->lock);
-        //if(runtime->dma_area != NULL)
-            err = snd_pcm_lib_free_vmalloc_buffer(substream);
+        err = snd_pcm_lib_free_vmalloc_buffer(substream);
         spin_unlock_irq(&chip->lock);
     }
     return err;
 }
+#endif
 
 
 
@@ -1850,11 +1851,15 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_playback_ops = {
     .close =    mr_alsa_audio_pcm_close,
     .ioctl =    snd_pcm_lib_ioctl,
     .hw_params =    mr_alsa_audio_pcm_hw_params,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
     .hw_free =  mr_alsa_audio_pcm_hw_free,
+#endif
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-    .page =     snd_pcm_lib_get_vmalloc_page,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
+    .page =     snd_pcm_lib_get_vmalloc_page
+#endif
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -1863,11 +1868,15 @@ static struct snd_pcm_ops mr_alsa_audio_pcm_capture_ops = {
     .close =    mr_alsa_audio_pcm_close,
     .ioctl =    snd_pcm_lib_ioctl,
     .hw_params =    mr_alsa_audio_pcm_hw_params,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
     .hw_free =  mr_alsa_audio_pcm_hw_free,
+#endif
     .prepare =  mr_alsa_audio_pcm_prepare,
     .trigger =  mr_alsa_audio_pcm_trigger,
     .pointer =  mr_alsa_audio_pcm_pointer,
-    .page =     snd_pcm_lib_get_vmalloc_page,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
+    .page =     snd_pcm_lib_get_vmalloc_page
+#endif
 };
 
 
@@ -2006,6 +2015,7 @@ static int mr_alsa_audio_create_pcm(struct snd_card *card,
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory failed...\n");
         return err;
     }
+    snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
     
     return err;
 }

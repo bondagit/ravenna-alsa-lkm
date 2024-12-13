@@ -318,8 +318,9 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
                         break;
                     }
                 }
-                if (ret == 0)
+                if (ret == 0) {
                     MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sources collection\n");
+                }
                 break;
             }
         }
@@ -367,8 +368,9 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
 						break;
 					}
 				}
-				if (ret == 0)
+				if (ret == 0) {
 					MTAL_DP("remove_RTP_stream ERROR: CRTP_audio_stream not found in the sinks collection\n");
+				}
 				break;
 			}
 		}
