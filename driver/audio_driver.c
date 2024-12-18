@@ -2015,7 +2015,9 @@ static int mr_alsa_audio_create_pcm(struct snd_card *card,
         printk(KERN_ERR "mr_alsa_audio_preallocate_memory failed...\n");
         return err;
     }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
     snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
+#endif
     
     return err;
 }
