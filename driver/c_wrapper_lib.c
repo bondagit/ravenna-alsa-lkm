@@ -87,6 +87,7 @@ int CW_get_mac_addr_of(unsigned char *addr, const char* iface)
     if (!dev)
         return -1;
     memcpy(addr, dev->dev_addr, ETH_ALEN);
+    dev_put(dev);
     return 0;
 }
 
@@ -134,6 +135,7 @@ int CW_socket_tx_packet(void* skb, unsigned int data_len, const char* iface)
 
     if (data_len == 0)
     {
+        dev_put(dev);
         return -10;
     }
 
@@ -168,6 +170,7 @@ int CW_socket_tx_packet(void* skb, unsigned int data_len, const char* iface)
         dev_kfree_skb(skb_ptr);
     }
 
+    dev_put(dev);
     return xmit_ret_code;
 }
 
