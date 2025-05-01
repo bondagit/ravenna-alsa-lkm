@@ -45,8 +45,14 @@
 #else
     #if defined(MTAL_WIN)
         #pragma warning(disable : 4996)
-        #include <iphlpapi.h>
+		#include <iphlpapi.h>
         #pragma comment(lib, "Iphlpapi.lib")
+		#include <IcmpAPI.h>		//Include order matters!
+		
+		#include <vector>
+		#include <chrono>
+		#include <thread>
+
     #elif (defined(MTAL_LINUX) || defined(MTAL_MAC))
         #include <stdlib.h> // malloc
 
@@ -55,7 +61,6 @@
 
         #include <arpa/inet.h>
         #include <sys/socket.h>
-        #include <sys/sysctl.h>
         #include <ifaddrs.h>
         //#include <net/if_dl.h>
         #include <net/if.h>
@@ -63,10 +68,14 @@
         //#include <net/if_types.h>
         #include <net/route.h>
         #include <netinet/if_ether.h>
+
+		#include <chrono>
+		#include <thread>
     #endif
 
     // OS specific
     #if defined(MTAL_MAC)
+        #include <sys/sysctl.h>
         #include <net/if_dl.h>
         #include <net/if_types.h>
     #elif defined(MTAL_LINUX)
@@ -155,33 +164,37 @@ static int GetMACFromARPCache(unsigned int uiIP, uint8_t ui8MAC[6])
 
     if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &needed, NULL, 0) < 0)
     {
-        MTAL_DP("error in route-sysctl-estimate");
+		MTAL_DP("MTAL: error in route-sysctl-estimate");
         return 0;
     }
 
     if ((buf = (char*)malloc(needed)) == NULL)
     {
-        MTAL_DP("error in malloc");
+		MTAL_DP("MTAL: error in malloc");
         return 0;
     }
 
     if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &needed, NULL, 0) < 0)
     {
-        MTAL_DP("retrieval of routing table");
+		MTAL_DP("MTAL: retrieval of routing table");
         return 0;
     }
 
+	//MTAL_DP("Walk table to find 0x%X\n", addr);
     for (next = buf; next < buf + needed; next += rtm->rtm_msglen)
     {
         rtm = (struct rt_msghdr *)next;
         sin = (struct sockaddr_inarp *)(rtm + 1);
         sdl = (struct sockaddr_dl *)(sin + 1);
 
+		//MTAL_DP("MTAL: addr(0x%X), s_addr(0x%X), sdl_alen = %u \n", addr, sin->sin_addr.s_addr, sdl->sdl_alen);
         if (addr != sin->sin_addr.s_addr || sdl->sdl_alen < 6)
             continue;
 
         u_char *cp = (u_char*)LLADDR(sdl);
 
+		//MTAL_DP("MTAL: found\n");
+		
         //res = [NSString stringWithFormat:@"%02X:%02X:%02X:%02X:%02X:%02X", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]];
         memcpy(ui8MAC, cp, 6);
 
@@ -240,6 +253,52 @@ static int GetMACFromARPCache(unsigned int uiIP, uint8_t ui8MAC[6])
 	file.close();
 	return iRet;
 }
+	#elif defined(UNDER_RTSS)
+	#elif defined(MTAL_WIN)
+//////////////////////////////////////////////////////////////////////////////////////////////
+static int GetMACFromARPCache(unsigned int uiIP, uint8_t ui8MAC[6])
+{
+	int iRet = 0;
+	uiIP = _byteswap_ulong(uiIP);
+	DWORD dwSize = 0;
+
+	// Initial call to get the required buffer size
+	GetIpNetTable(NULL, &dwSize, FALSE);
+
+	// Use a vector for safe dynamic allocation
+	std::vector<uint8_t> vBuffer(dwSize);
+	MIB_IPNETTABLE* pIpNetTable = reinterpret_cast<MIB_IPNETTABLE*>(vBuffer.data());
+
+	// Retrieve ARP table
+	DWORD dwRetVal = GetIpNetTable(pIpNetTable, &dwSize, FALSE);	
+	if (dwRetVal == NO_ERROR)
+	{
+		for (DWORD i = 0; i < pIpNetTable->dwNumEntries; i++)
+		{
+			MIB_IPNETROW row = pIpNetTable->table[i];
+			if (row.dwType == MIB_IPNET_TYPE_DYNAMIC || row.dwType == MIB_IPNET_TYPE_STATIC)
+			{
+				if (row.dwAddr == uiIP)
+				{
+					for (int j = 0; j < 6; j++)
+						ui8MAC[j] = row.bPhysAddr[j];
+					
+					// Convert IP to readable format
+					struct in_addr ipAddr;
+					ipAddr.S_un.S_addr = row.dwAddr;
+					MTAL_DP("IP -> MAC found in ARP Table : %s -> %02X:%02X:%02X:%02X:%02X:%02X\n", inet_ntoa(ipAddr), ui8MAC[0], ui8MAC[1], ui8MAC[2], ui8MAC[3], ui8MAC[4], ui8MAC[5]);
+										
+					iRet = 1;
+					break;
+				}
+			}
+		}
+	}
+	else
+		MTAL_DP("GetIpNetTable failed with error: %d\n", dwRetVal);
+		
+	return iRet;
+}
     #endif
 
     #if defined(MTAL_MAC) || defined(MTAL_LINUX)
@@ -271,7 +330,7 @@ static int SendICMPEchoRequestPacket(unsigned int uiIP, bool bComputeChecksum)
     // Create a raw socket with ICMP protocol
     if ((send = socket(PF_INET, SOCK_DGRAM, IPPROTO_ICMP)) < 0)
     {
-        MTAL_DP("Could not process socket() [send].\n");
+        MTAL_DP("MTAL: Could not process socket() [send].\n");
         return EXIT_FAILURE;
     }
 
@@ -281,16 +340,96 @@ static int SendICMPEchoRequestPacket(unsigned int uiIP, bool bComputeChecksum)
     // Define time to life
     if(setsockopt(send, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
     {
-        MTAL_DP("Could not process setsockopt().\n");
+        MTAL_DP("MTAL: Could not process setsockopt().\n");
         return 0;
     }
 
     if(sendto(send, buffer, sizeof(TICMPEchoRequest) + 4, 0, (struct sockaddr *) &dst, sizeof(dst)) < 0)
     {
-        MTAL_DP("Could not process sendto().\n", errno);
+        MTAL_DP("MTAL: Could not process sendto().\n", errno);
         return 0;
     }
+	
+	close(send);
     return 1;
+}
+	#elif defined(UNDER_RTSS)
+	#elif defined(MTAL_WIN)
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+static int SendICMPEchoRequestPacket(unsigned int uiIP, bool bComputeChecksum)
+{
+	int iRet = 0;
+
+	// Create ICMP handle (using IcmpCreateFile)
+	HANDLE hIcmpFile = IcmpCreateFile();
+	if (hIcmpFile == INVALID_HANDLE_VALUE)
+		MTAL_DP("IcmpCreatefile returned error: %d\n", GetLastError());
+	else
+	{
+		unsigned int uiReplyBufferSize = sizeof(ICMP_ECHO_REPLY) + 8;
+		auto vReplyBuffer = std::vector<char>(uiReplyBufferSize);
+		LPVOID ReplyBuffer = reinterpret_cast<LPVOID>(vReplyBuffer.data());
+
+		DWORD dwRetVal = IcmpSendEcho2(
+			hIcmpFile,				// ICMP handle
+			NULL,					// Event handle for async completion
+			NULL,					// Callback function
+			NULL,					// Callback parameter
+			_byteswap_ulong(uiIP),	// Destination IP (Google DNS)
+			NULL,					// Data buffer
+			NULL,					// Data size
+			NULL,					// No special options
+			ReplyBuffer,			// Reply buffer
+			uiReplyBufferSize,      // Reply buffer size
+			1000					// Timeout (1 sec)
+		);
+
+		if (dwRetVal != 0)
+		{
+			PICMP_ECHO_REPLY pEchoReply = (PICMP_ECHO_REPLY)ReplyBuffer;
+			switch (pEchoReply->Status)
+			{
+			case IP_DEST_HOST_UNREACHABLE:
+				MTAL_DP("ICMP: Destination host was unreachable\n");
+				break;
+			case IP_DEST_NET_UNREACHABLE:
+				MTAL_DP("ICMP: Destination Network was unreachable\n");
+				break;
+			case IP_REQ_TIMED_OUT:
+				MTAL_DP("ICMP: Request timed out\n");
+				break;
+			case IP_SUCCESS:
+				iRet = 1;
+				MTAL_DP("ICMP echo sent successfully.\n");
+				break;
+			default:
+				MTAL_DP("ICMP echo fail: status %d\n", pEchoReply->Status);
+				break;
+			}
+		}
+		else
+		{
+			MTAL_DP("Call to IcmpSendEcho2 failed. ");
+			DWORD dwError = GetLastError();
+			switch (dwError)
+			{
+			case IP_BUF_TOO_SMALL:
+				MTAL_DP("ReplyBufferSize too small\n");
+				break;
+			case IP_REQ_TIMED_OUT:
+				MTAL_DP("Request timed out\n");
+				break;
+			default:
+				MTAL_DP("Error sending ICMP Echo: %d\n", dwError);
+				break;
+			}
+		}
+
+		if (!IcmpCloseHandle(hIcmpFile))
+			MTAL_DP("Error closing ICMP handle: %d\n", GetLastError());
+	}
+	return iRet;
 }
     #endif
 #endif
@@ -313,66 +452,40 @@ static uint8_t s_byIPV4mcast[6] = {0x01, 0x00, 0x5e, 0, 0, 0};
 	{
 		#ifdef UNDER_RTSS
 		#elif defined(MTAL_KERNEL)
-		#elif defined(MTAL_WIN)
-		{
-			ULONG MacAddr[2];       /* for 6-byte hardware addresses */
-			ULONG PhysAddrLen = 6;  /* default to length of six bytes */
-
-			//IPAddr DestIp = inet_addr("169.254.40.64");
-
-			DWORD dwRetVal = SendARP(MTAL_SWAP32(uiIP), INADDR_ANY, &MacAddr, &PhysAddrLen);
-			if(dwRetVal == NO_ERROR && PhysAddrLen == 6)
-			{
-				memcpy(ui8MAC, &MacAddr, 6);
-				return 1;
-			}
-			else
-			{
-				printf("Error: SendArp failed with error: %d", dwRetVal);
-				switch (dwRetVal)
-				{
-					case ERROR_GEN_FAILURE:
-						printf(" (ERROR_GEN_FAILURE)\n");
-						break;
-					case ERROR_INVALID_PARAMETER:
-						printf(" (ERROR_INVALID_PARAMETER)\n");
-						break;
-					case ERROR_INVALID_USER_BUFFER:
-						printf(" (ERROR_INVALID_USER_BUFFER)\n");
-						break;
-					case ERROR_BAD_NET_NAME:
-						printf(" (ERROR_GEN_FAILURE)\n");
-						break;
-					case ERROR_BUFFER_OVERFLOW:
-						printf(" (ERROR_BUFFER_OVERFLOW)\n");
-						break;
-					case ERROR_NOT_FOUND:
-						printf(" (ERROR_NOT_FOUND)\n");
-						break;
-					default:
-						printf("\n");
-						break;
-				}
-			}
-        }
-		#elif defined(MTAL_MAC) || defined(MTAL_LINUX)
+		#elif defined(MTAL_WIN) || defined(MTAL_MAC) || defined(MTAL_LINUX)
         {
-            int iRes = GetMACFromARPCache(uiIP, ui8MAC);
+			int iRes = GetMACFromARPCache(uiIP, ui8MAC);
             if(iRes == 0)
             { // not found
-                // send packet to remote to force address resolution
+				// send packet to remote to force address resolution
+				#if defined(MTAL_WIN)
+				struct in_addr ipAddr;
+				ipAddr.S_un.S_addr = _byteswap_ulong(uiIP);
+				MTAL_DP("MAC not found in ARP cache for IP %s, trying to send ICMP echo packet\n", inet_ntoa(ipAddr));
+				#endif
 				if (SendICMPEchoRequestPacket(uiIP, true) != 1)
+				{
+					#if defined(MTAL_WIN)
+					MTAL_DP("Overall issue while sending ICMP echo packet to %s. Aborting.\n", inet_ntoa(ipAddr));
+					#endif
 					return 0;
+				}					
 
-				
+				#if defined(MTAL_WIN)
+				MTAL_DP("ICMP echo sent to %s, now trying to see if ARP cache got populated.\n", inet_ntoa(ipAddr));
+				#endif
 				int iRetryCounter = 100;
 				while (iRes == 0 && iRetryCounter-- > 0)
 				{
 					// need some time until cache is updated
-					usleep(10000); // 10ms
-
-					//
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));	//10ms
 					iRes = GetMACFromARPCache(uiIP, ui8MAC);
+				}
+				if (iRes)
+				{
+					#if defined(MTAL_WIN)
+					MTAL_DP("ARP cache got populated and remote MAC was retrieved\n");
+					#endif
 				}
             }
             return iRes;
