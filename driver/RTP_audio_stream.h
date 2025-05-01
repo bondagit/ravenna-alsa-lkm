@@ -104,8 +104,10 @@ void GetStats_SinkAheadTime(TRTP_audio_stream* self, TSinkAheadTime* pSinkAheadT
 uint32_t GetStats_SinkJitter(TRTP_audio_stream* self);
 
 
-int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBase);
-int SendRTPAudioPackets(TRTP_audio_stream* self);
+int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBase); // Note: cannot used AttachedStream() because both sink ordered lists are not locked
+	
+int SendRTPAudioPackets(TRTP_audio_stream* self); // Note: can used AttachedStream() because both sink ordered lists are locked
+int SendRTPAudioPacket(TRTP_audio_stream* self, const uint64_t ui64CurrentSAC, const uint32_t ui32Offset, const uint32_t ui32NbOfSamplesInThisPacket, const unsigned short usOutgoingSeqNum);
 
 int IsLivesInMustBeMuted(TRTP_audio_stream* self);
 void PrepareBufferLives(TRTP_audio_stream* self);
@@ -117,6 +119,7 @@ uint32_t GetNbOfLivesOut(TRTP_audio_stream* self);
 typedef struct
 {
 	TRTP_audio_stream m_RTPAudioStream;
+	unsigned char m_byNICId;
     volatile int m_bActive;
     volatile int m_nReaderCount;
 } TRTP_audio_stream_handler;

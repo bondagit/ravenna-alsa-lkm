@@ -32,7 +32,11 @@
 #ifndef MODULE_TIMER_H_INCLUDED
 #define MODULE_TIMER_H_INCLUDED
 
+#include <linux/hrtimer.h>
+
 #include "MTAL_stdint.h"
+
+enum hrtimer_restart timer_callback(struct hrtimer* timer);
 
 int init_clock_timer(void);
 void kill_clock_timer(void);

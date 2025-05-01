@@ -136,6 +136,11 @@ int CW_socket_tx_packet(void* skb, unsigned int data_len, const char* iface)
     {
         return -10;
     }
+    if (dev == NULL)
+    {
+        dev_kfree_skb(skb_ptr);
+        return -11;
+    }
 
     skb_ptr->pkt_type = PACKET_OUTGOING;
     //skb->ip_summed = CHECKSUM_NONE; // do not change anything ?
@@ -195,7 +200,11 @@ int CW_socket_tx_buffer(void* user_data, unsigned int data_len, const char* ifac
         //skb->ip_summed = CHECKSUM_NONE; // do not change anything ?
         skb->dev = dev;
         
+#ifdef NO_TX
+        dev_kfree_skb(skb);
+#else
         xmit_ret_code = dev_queue_xmit(skb);
+#endif
 
         if (xmit_ret_code != 0)
         {

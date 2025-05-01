@@ -64,6 +64,13 @@
 
 #define MR_ALSA_SUBSTREAM_MAX 128
 
+//#define ALSA_DEBUG
+#ifdef ALSA_DEBUG
+#define ALSA_DEBUG_PRINT(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#else
+#define ALSA_DEBUG_PRINT(fmt, ...) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#endif
+
 
 /// reminder:
 //#define SNDRV_PCM_FORMAT_DSD_U8         ((__force snd_pcm_format_t) 48) /* DSD, 1-byte samples DSD (x8) */
@@ -244,7 +251,7 @@ static int mr_alsa_audio_output_gain_get(struct snd_kcontrol *kcontrol,// TODO P
     if(chip == NULL)
         return -EINVAL;
 
-    //spin_lock_irq(&chip->lock);
+    ////spin_lock(&chip->lock);
     if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
     {
         err = -EINVAL;
@@ -261,7 +268,7 @@ static int mr_alsa_audio_output_gain_get(struct snd_kcontrol *kcontrol,// TODO P
         // }
         err = 0;
     }
-    //spin_unlock_irq(&chip->lock);
+    ////spin_unlock(&chip->lock);
     return err;
 }
 static int mr_alsa_audio_output_gain_put(struct snd_kcontrol *kcontrol,// TODO Playback Volume control
@@ -275,25 +282,25 @@ static int mr_alsa_audio_output_gain_put(struct snd_kcontrol *kcontrol,// TODO P
     chip = snd_kcontrol_chip(kcontrol);
     if(chip == NULL)
         return -EINVAL;
-    //spin_lock_irq(&chip->lock);
+    ////spin_lock(&chip->lock);
     if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
     {
         err = -EINVAL;
     }
     else
     {
-        //printk(KERN_DEBUG "mr_alsa_audio_output_gain_put: numid= %u; name=  %s; iface= %u; sub= %u; index= %u\n", ucontrol->id.numid, ucontrol->id.name, ucontrol->id.iface, ucontrol->id.subdevice, ucontrol->id.index);
+        //ALSA_DEBUG_PRINT("mr_alsa_audio_output_gain_put: numid= %u; name=  %s; iface= %u; sub= %u; index= %u\n", ucontrol->id.numid, ucontrol->id.name, ucontrol->id.iface, ucontrol->id.subdevice, ucontrol->id.index);
         value = ucontrol->value.integer.value[0];
         //printk(KERN_INFO "mr_alsa_audio_output_gain_put: value[0] = %d\n", value);
         if(chip->current_playback_volume != (int32_t)value)
         {
             chip->current_playback_volume = (int32_t)value;
             err = chip->mr_alsa_audio_ops->notify_master_volume_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
-            //spin_unlock_irq(&chip->lock);
+            ////spin_unlock(&chip->lock);
             return 1;
         }
     }
-    //spin_unlock_irq(&chip->lock);
+    ////spin_unlock(&chip->lock);
     return err;
 }
 
@@ -344,7 +351,7 @@ static int mr_alsa_audio_output_switch_get( struct snd_kcontrol *kcontrol,
     if(chip == NULL)
         return -EINVAL;
 
-    //spin_lock_irq(&chip->lock);
+    ////spin_lock(&chip->lock);
     if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
     {
         err = -EINVAL;
@@ -361,7 +368,7 @@ static int mr_alsa_audio_output_switch_get( struct snd_kcontrol *kcontrol,
         // }
         err = 0;
     }
-    //spin_unlock_irq(&chip->lock);
+    ////spin_unlock(&chip->lock);
 
     return err;
 }
@@ -378,7 +385,7 @@ static int mr_alsa_audio_output_switch_put( struct snd_kcontrol *kcontrol,
     if(chip == NULL)
         return -EINVAL;
 
-    //spin_lock_irq(&chip->lock);
+    ////spin_lock(&chip->lock);
     if(chip->ravenna_peer == NULL || chip->mr_alsa_audio_ops == NULL)
     {
         err = -EINVAL;
@@ -393,7 +400,7 @@ static int mr_alsa_audio_output_switch_put( struct snd_kcontrol *kcontrol,
             err = chip->mr_alsa_audio_ops->notify_master_switch_change(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, (int32_t)value);
         }
     }
-    //spin_unlock_irq(&chip->lock);
+    ////spin_unlock(&chip->lock);
 
     return err;
 }
@@ -544,7 +551,7 @@ static uint32_t mr_alsa_audio_get_capture_buffer_size_in_frames(void *rawchip)
     if (rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        //spin_lock_irq(&chip->lock);
+        ////spin_lock(&chip->lock);
         {
             struct snd_pcm_runtime *runtime = chip->capture_substream ? chip->capture_substream->runtime : NULL;
             if (chip->capture_buffer)
@@ -559,7 +566,7 @@ static uint32_t mr_alsa_audio_get_capture_buffer_size_in_frames(void *rawchip)
                 }
             }
         }
-        //spin_unlock_irq(&chip->lock);
+        ////spin_unlock(&chip->lock);
         //if(chip->capture_buffer)
         //    return MR_ALSA_RINGBUFFER_NB_FRAMES;
     }
@@ -570,7 +577,8 @@ static void mr_alsa_audio_lock_playback_buffer(void *rawchip, unsigned long *fla
     if(rawchip && flags)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irqsave(&chip->playback_lock, *flags);
+        //spin_lock_irqsave(&chip->playback_lock, *flags);
+        spin_lock(&chip->playback_lock);
     }
 }
 static void mr_alsa_audio_unlock_playback_buffer(void *rawchip, unsigned long *flags)
@@ -578,7 +586,8 @@ static void mr_alsa_audio_unlock_playback_buffer(void *rawchip, unsigned long *f
     if(rawchip && flags)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_unlock_irqrestore(&chip->playback_lock, *flags);
+        //spin_unlock_irqrestore(&chip->playback_lock, *flags);
+        spin_unlock(&chip->playback_lock);
     }
 }
 static void mr_alsa_audio_lock_capture_buffer(void *rawchip, unsigned long *flags)
@@ -586,7 +595,8 @@ static void mr_alsa_audio_lock_capture_buffer(void *rawchip, unsigned long *flag
     if(rawchip && flags)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irqsave(&chip->capture_lock, *flags);
+        //spin_lock_irqsave(&chip->capture_lock, *flags);
+        spin_lock(&chip->capture_lock);
     }
 }
 static void mr_alsa_audio_unlock_capture_buffer(void *rawchip, unsigned long *flags)
@@ -594,7 +604,8 @@ static void mr_alsa_audio_unlock_capture_buffer(void *rawchip, unsigned long *fl
     if(rawchip && flags)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_unlock_irqrestore(&chip->capture_lock, *flags);
+        //spin_unlock_irqrestore(&chip->capture_lock, *flags);
+        spin_unlock(&chip->capture_lock);
     }
 }
 
@@ -606,7 +617,7 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
         uint32_t ring_buffer_size = MR_ALSA_RINGBUFFER_NB_FRAMES; // init to the max size possible
         uint32_t ptp_frame_size;
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irq(&chip->lock);
+        //spin_lock(&chip->lock);
         chip->mr_alsa_audio_ops->get_interrupts_frame_size(chip->ravenna_peer, &ptp_frame_size);
         if(direction == 1 && chip->capture_substream != NULL)
         {
@@ -639,7 +650,7 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
                 atomic_set(&chip->dma_capture_offset, pos);
                 
                 chip->mr_alsa_audio_ops->get_input_jitter_buffer_offset(chip->ravenna_peer, &offset);
-                //printk(KERN_DEBUG "Interrupt Capture pos = %u \n", offset);
+                //ALSA_DEBUG_PRINT("Interrupt Capture pos = %u \n", offset);
             }
             
             /// Ravenna DSD always uses a rate of 352k with eventual zero padding to maintain a 32 bit alignment
@@ -693,7 +704,7 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
                 snd_pcm_period_elapsed(chip->playback_substream);
             }
         }
-        spin_unlock_irq(&chip->lock);
+        //spin_unlock(&chip->lock);
         return 0;
     }
     return -1;
@@ -705,9 +716,9 @@ static uint32_t mr_alsa_audio_pcm_get_playback_buffer_offset(void *rawchip)
     if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irq(&chip->lock);
+        //spin_lock(&chip->lock);
         offset = chip->playback_buffer_pos;
-        spin_unlock_irq(&chip->lock);
+        //spin_unlock(&chip->lock);
     }
     return offset;
 }
@@ -807,7 +818,7 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(alsa_sub);
     struct snd_pcm_runtime *runtime = alsa_sub->runtime;
     char cmdString[64];
-    printk(KERN_DEBUG "entering mr_alsa_audio_pcm_trigger (substream name=%s #%d) ...\n", alsa_sub->name, alsa_sub->number);
+    ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_trigger (substream name=%s #%d) ...\n", alsa_sub->name, alsa_sub->number);
     if(SNDRV_PCM_TRIGGER_START == cmd)
         strcpy(cmdString, "Start");
     else if(SNDRV_PCM_TRIGGER_PAUSE_RELEASE == cmd)
@@ -823,7 +834,7 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
     else
         strcpy(cmdString, "Unknown");
 
-    printk(KERN_DEBUG "mr_alsa_audio_pcm_trigger(%s), rate=%d format=%d channels=%d period_size=%lu\n",cmdString,
+    ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_trigger(%s), rate=%d format=%d channels=%d period_size=%lu\n",cmdString,
         runtime->rate, runtime->format, runtime->channels, runtime->period_size);
 
     switch (cmd) {
@@ -859,9 +870,9 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     struct snd_pcm_runtime *runtime = substream->runtime;
 
-    printk(KERN_DEBUG "entering mr_alsa_audio_pcm_prepare (substream name=%s #%d) ...\n", substream->name, substream->number);
+    ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_prepare (substream name=%s #%d) ...\n", substream->name, substream->number);
 
-    spin_lock_irq(&chip->lock);
+    //spin_lock(&chip->lock);
     if(runtime)
     {
         uint32_t runtime_dsd_rate = mr_alsa_audio_get_dsd_sample_rate(runtime->format, runtime->rate);
@@ -871,10 +882,10 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         {
             printk(KERN_ERR "mr_alsa_audio_pcm_prepare: ravenna_peer is NULL\n");
             printk(KERN_ERR "leaving mr_alsa_audio_pcm_prepare (failed) ... \n");
-            spin_unlock_irq(&chip->lock);
+            //spin_unlock(&chip->lock);
             return -EINVAL;
         }
-        printk(KERN_DEBUG "mr_alsa_audio_pcm_prepare: rate=%d format=%d channels=%d period_size=%lu, nb periods=%u\n", runtime->rate, runtime->format, runtime->channels, runtime->period_size, runtime->periods);
+        ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_prepare: rate=%d format=%d channels=%d period_size=%lu, nb periods=%u\n", runtime->rate, runtime->format, runtime->channels, runtime->period_size, runtime->periods);
         chip->mr_alsa_audio_ops->get_sample_rate(chip->ravenna_peer, &chip->current_rate);
         chip->current_dsd = mr_alsa_audio_get_dsd_mode(chip->current_rate);
 
@@ -897,7 +908,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         /// Number of channels
         if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
         {
-            printk(KERN_DEBUG "mr_alsa_audio_pcm_prepare for playback stream\n");
+            ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_prepare for playback stream\n");
             if(chip->ravenna_peer)
             {
                 chip->current_nboutputs = runtime->channels;
@@ -906,7 +917,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
                 if(err < 0)
                 {
                     printk(KERN_ERR "mr_alsa_audio_pcm_prepare for playback stream failed\n");
-                    spin_unlock_irq(&chip->lock);
+                    //spin_unlock(&chip->lock);
                     return -EINVAL;
                 }
             }
@@ -938,7 +949,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
             chip->mr_alsa_audio_ops->get_input_jitter_buffer_offset(chip->ravenna_peer, &offset);
             
             
-            printk(KERN_DEBUG "mr_alsa_audio_pcm_prepare for capture stream\n");
+            ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_prepare for capture stream\n");
             if(chip->ravenna_peer)
             {
                 chip->current_nbinputs = runtime->channels;
@@ -946,7 +957,7 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
                 if(err < 0)
                 {
                     printk(KERN_ERR "mr_alsa_audio_pcm_prepare for capture stream failed\n");
-                    spin_unlock_irq(&chip->lock);
+                    //spin_unlock(&chip->lock);
                     return -EINVAL;
                 }
             }
@@ -967,8 +978,8 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
     {
         printk(KERN_ERR "Error in mr_alsa_audio_pcm_prepare: runtime is NULL\n");
     }
-    spin_unlock_irq(&chip->lock);
-    printk(KERN_DEBUG "Leaving mr_alsa_audio_pcm_prepare..\n");
+    //spin_unlock(&chip->lock);
+    ALSA_DEBUG_PRINT("Leaving mr_alsa_audio_pcm_prepare..\n");
     return err;
 }
 
@@ -1347,7 +1358,7 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
        return 0;
     }
 
-    //printk(KERN_DEBUG "entering mr_alsa_audio_pcm_playback_copy (substream name=%s #%d) (runtime channels %d) access %d...\n", substream->name, substream->number, runtime->channels, runtime->access));
+    //ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_playback_copy (substream name=%s #%d) (runtime channels %d) access %d...\n", substream->name, substream->number, runtime->channels, runtime->access));
 
     /*if(snd_BUG_ON(chip->playback_buffer_rav_sac > chip->playback_buffer_alsa_sac))
     {
@@ -1621,7 +1632,7 @@ static int mr_alsa_audio_pcm_playback_silence(  struct snd_pcm_substream *substr
     /// so respective ring buffers might have different scale and size
     pos *= chip->nb_playback_interrupts_per_period;
 
-    printk(KERN_DEBUG "mr_alsa_audio_pcm_playback_silence called for %lu frames at pos %lu\n", count, pos);
+    ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_playback_silence called for %lu frames at pos %lu\n", count, pos);
 
     if(sil_pat == NULL)
         sil_pat = &def_sil_pat[0];
@@ -1743,7 +1754,7 @@ static void mr_alsa_audio_pcm_capture_ack_transfer(struct snd_pcm_substream *sub
     
     ring_buffer_size = chip->current_dsd ? MR_ALSA_RINGBUFFER_NB_FRAMES : runtime->period_size * runtime->periods;
     
-    //printk(KERN_DEBUG "Transfer Capture pos = %u, size = %zu (ring_buffer_size = %u, bytes_to_frame_factor = %zu, jitter_buffer_byte_len = %d)\n", pos, bytes, ring_buffer_size, bytes_to_frame_factor, jitter_buffer_byte_len);
+    //ALSA_DEBUG_PRINT("Transfer Capture pos = %u, size = %zu (ring_buffer_size = %u, bytes_to_frame_factor = %zu, jitter_buffer_byte_len = %d)\n", pos, bytes, ring_buffer_size, bytes_to_frame_factor, jitter_buffer_byte_len);
     
     chip->capture_buffer_pos += bytes / bytes_to_frame_factor;
     if (chip->capture_buffer_pos >= ring_buffer_size)
@@ -1885,8 +1896,8 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     uint32_t dsd_rate = mr_alsa_audio_get_dsd_sample_rate(format, rate);
     uint32_t dsd_mode = mr_alsa_audio_get_dsd_mode(dsd_rate);
 
-    printk(KERN_DEBUG "mr_alsa_audio_pcm_hw_params (enter): rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
-    spin_lock_irq(&chip->lock);
+    ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_hw_params (enter): rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
+    //spin_lock(&chip->lock);
     
     #ifdef MUTE_CHECK
         playback_mute_detected = false;
@@ -1927,8 +1938,8 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
         /// while DSD in ALSA uses a continuous 8, 16 or 32 bit aligned stream with at 352k, 176k or 88k
         /// so respective ring buffers might have different scale and size
         chip->nb_playback_interrupts_per_period = ((dsd_mode != 0)? (MR_ALSA_PTP_FRAME_RATE_FOR_DSD / rate) : 1);
-        if(nbPeriods * ptp_frame_size * chip->nb_playback_interrupts_per_period != MR_ALSA_RINGBUFFER_NB_FRAMES)
-            printk(KERN_INFO "mr_alsa_audio_pcm_hw_params (playback): wrong nbPeriods (%u instead of %u)...\n",nbPeriods, MR_ALSA_RINGBUFFER_NB_FRAMES / (ptp_frame_size * chip->nb_playback_interrupts_per_period));
+        //if(nbPeriods * ptp_frame_size * chip->nb_playback_interrupts_per_period != MR_ALSA_RINGBUFFER_NB_FRAMES)
+            //printk(KERN_INFO "mr_alsa_audio_pcm_hw_params (playback): wrong nbPeriods (%u instead of %u)...\n",nbPeriods, MR_ALSA_RINGBUFFER_NB_FRAMES / (ptp_frame_size * chip->nb_playback_interrupts_per_period));
     }
     else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
@@ -1956,9 +1967,9 @@ static int mr_alsa_audio_pcm_hw_params( struct snd_pcm_substream *substream,
     err = snd_pcm_lib_alloc_vmalloc_buffer(substream, bufferBytes);
 #endif
 
-    spin_unlock_irq(&chip->lock);
+    //spin_unlock(&chip->lock);
 
-    printk(KERN_DEBUG "mr_alsa_audio_pcm_hw_params done: rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
+    ALSA_DEBUG_PRINT("mr_alsa_audio_pcm_hw_params done: rate=%d format=%d channels=%d period_size=%u, nb_periods=%u\n, buffer_bytes=%u\n", rate, format, nbCh, periodSize, nbPeriods, bufferBytes);
     return err;
 }
 
@@ -1974,19 +1985,19 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
     
     if (substream)
     {
-        struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
+        //struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
         //struct snd_pcm_runtime *runtime = substream->runtime;
 
         err = 0;
-        printk(KERN_DEBUG "entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
-        spin_lock_irq(&chip->lock);
+        ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
+        //spin_lock(&chip->lock);
         //if(runtime->dma_area != NULL)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
             err = mr_snd_pcm_lib_free_vmalloc_buffer(substream);
 #else
             err = snd_pcm_lib_free_vmalloc_buffer(substream);
 #endif
-        spin_unlock_irq(&chip->lock);
+        //spin_unlock(&chip->lock);
     }
     return err;
 }
@@ -2202,7 +2213,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
     //period_time_us_min = (minPTPFrameSize * 1000000) / 48000; // TODO finde max and Min according the Horus Frame size limitation
     //period_time_us_max = 1 + (minPTPFrameSize * 1000000) / 44100;
 
-    printk(KERN_DEBUG "entering mr_alsa_audio_pcm_open (substream name=%s #%d) ...\n", substream->name, substream->number);
+    ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_open (substream name=%s #%d) ...\n", substream->name, substream->number);
     chip->mr_alsa_audio_ops->get_sample_rate(chip->ravenna_peer, &chip->current_rate);
     chip->current_dsd = mr_alsa_audio_get_dsd_mode(chip->current_rate);
 
@@ -2266,7 +2277,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
         /// synchronizes controls values (Playback volume and switch)
         chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)substream->stream, &chip->current_playback_volume);
         err = chip->mr_alsa_audio_ops->get_master_switch_value(chip->ravenna_peer, (int)substream->stream, &chip->current_playback_switch);
-        if(err != 0)
+        if(err < 0)
             printk(KERN_WARNING "mr_alsa_audio_pcm_open: get_master_switch_value error\n");
         /*else
             printk("mr_alsa_audio_pcm_open: get_master_switch_value returns %d\n", chip->current_playback_switch);*/
@@ -2320,6 +2331,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
 
         /// channels
         chip->mr_alsa_audio_ops->get_nb_inputs(chip->ravenna_peer, &chip->current_nbinputs);
+        printk("NB OF INPUT %u\n", chip->current_nbinputs);
     }
 
     /// constraints stuff
@@ -2342,7 +2354,7 @@ static int mr_alsa_audio_pcm_open(struct snd_pcm_substream *substream)
     ///Periods
 
     /// Update the Period Sizes Static array accordingly
-    printk(KERN_DEBUG "\nCurrent PTPFrame Size = %u\n", ptp_frame_size);
+    ALSA_DEBUG_PRINT("\nCurrent PTPFrame Size = %u\n", ptp_frame_size);
     for(idx = 0; idx < ARRAY_SIZE(g_supported_period_sizes); ++idx)
     {
         g_supported_period_sizes[idx] = min(minPTPFrameSize << idx, maxPTPFrameSize);
@@ -2386,8 +2398,8 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
     struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
     unsigned long flags;
 
-    printk(KERN_DEBUG "entering mr_alsa_audio_pcm_close (substream name=%s #%d) ...\n", substream->name, substream->number);
-    spin_lock_irq(&chip->lock);
+    ALSA_DEBUG_PRINT("entering mr_alsa_audio_pcm_close (substream name=%s #%d) ...\n", substream->name, substream->number);
+    //spin_lock(&chip->lock);
     if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
         mr_alsa_audio_lock_playback_buffer(chip, &flags);
@@ -2402,7 +2414,7 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
         chip->capture_substream = NULL;
         mr_alsa_audio_unlock_capture_buffer(chip, &flags);
     }
-    spin_unlock_irq(&chip->lock);
+    //spin_unlock(&chip->lock);
     return 0;
 }
 
@@ -2488,7 +2500,7 @@ static int mr_alsa_audio_create_controls(   struct snd_card *card,
                                             struct mr_alsa_audio_chip *chip)
 {
     int err = 0;
-    spin_lock_irq(&chip->lock);
+    //spin_lock(&chip->lock);
     chip->mr_alsa_audio_ops->get_master_volume_value(chip->ravenna_peer, (int)SNDRV_PCM_STREAM_PLAYBACK, &chip->current_playback_volume);
     chip->playback_volume_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_gain, chip);
     err = snd_ctl_add(card, chip->playback_volume_control);
@@ -2503,7 +2515,7 @@ static int mr_alsa_audio_create_controls(   struct snd_card *card,
         chip->playback_switch_control = snd_ctl_new1(&mr_alsa_audio_ctrl_output_switch, chip);
         err = snd_ctl_add(card, chip->playback_switch_control);
     }
-    spin_unlock_irq(&chip->lock);
+    //spin_unlock(&chip->lock);
     return err;
 }
 
@@ -2637,9 +2649,9 @@ static int mr_alsa_audio_create_alsa_devices(   struct snd_card *card,
     chip->playback_pid = -1;
     chip->capture_pid = -1;
     chip->capture_substream = NULL;
-    spin_lock_init(&chip->capture_lock);
+    //spin_lock_init(&chip->capture_lock);
     chip->playback_substream = NULL;
-    spin_lock_init(&chip->playback_lock);
+    //spin_lock_init(&chip->playback_lock);
 
     chip->playback_volume_control = NULL;
     chip->playback_switch_control = NULL;
@@ -2691,7 +2703,7 @@ static int mr_alsa_audio_chip_create(   struct snd_card *card,
 {
 
     int ret = 0;
-    spin_lock_init(&chip->lock);
+    //spin_lock_init(&chip->lock);
     chip->card = card;
     chip->ravenna_peer = ravenna_peer;
     chip->mr_alsa_audio_ops = ops;

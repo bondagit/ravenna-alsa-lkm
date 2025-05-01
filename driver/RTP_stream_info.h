@@ -101,6 +101,8 @@ typedef struct
 
 	unsigned int	m_uiId; // it is the standard_session_sink::id()
 
+	bool			m_bIsPrimaryPort;	//ST2022-7
+
 	uint32_t		m_aui32Routing[MAX_CHANNELS_BY_RTP_STREAM]; //[StreamChannelId] = PhysicalChannelId; ~0 means not used
 } TRTP_stream_info;
 
@@ -187,6 +189,10 @@ public:
 		return get_key((TRTP_stream_info*)this);
 	}
 
+	static inline uint64_t MakeKey(unsigned char byNICId, uint32_t ui32DestIP, unsigned short usDestPort)
+	{
+		return make_key(byNICId, ui32DestIP, usDestPort);
+	}
 	
 
 	void Set802_1Q(bool b802_1Q) { m_b802_1Q = b802_1Q; }
@@ -279,6 +285,8 @@ public:
 	void SetDeviceStreamId(unsigned int uiId) {m_uiId = uiId;} // it is the standard_session_sink::id()
 	inline unsigned int	GetDeviceStreamId() const {return m_uiId;}
 
+	void SetIsPrimaryPort(bool bIsPrimaryPort) { m_bIsPrimaryPort = bIsPrimaryPort; }
+	bool IsPrimaryPort() const { return m_bIsPrimaryPort; }
 
 	bool SetRouting(uint32_t ui32StreamChannelId, uint32_t ui32PhysicalChannelId) {
 		return set_routing((TRTP_stream_info*)this, ui32StreamChannelId, ui32PhysicalChannelId) ? true : false;

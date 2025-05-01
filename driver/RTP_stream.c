@@ -75,7 +75,7 @@ int rtp_stream_init(TRTP_stream* pRTP_stream, TEtherTubeNetfilter* pEth_netfilte
 {
 	pRTP_stream->m_pEth_netfilter = pEth_netfilter;
 	memcpy(&pRTP_stream->m_RTP_stream_info, pRTP_stream_info, sizeof(TRTP_stream_info));
-	dump(&pRTP_stream->m_RTP_stream_info);
+	//dump(&pRTP_stream->m_RTP_stream_info);
 
 	// Optimization: prepare RTP out packet in advance
 	if (pRTP_stream->m_RTP_stream_info.m_bSource)

@@ -38,34 +38,38 @@
 
 #define DEBUG_CHECK					1
 
+
 // Init it with memset 0
 typedef struct
 {
-	TEtherTubeNetfilter*			m_pEth_netfilter;
+	TEtherTubeNetfilter* m_pEth_netfilter;
 
-	TRTP_stream_info		m_RTP_stream_info;
+	TRTP_stream_info m_RTP_stream_info;
 
-	TRTPPacketBase			m_RTPPacketBaseOutgoing;
-	TRTCPPacketBase			m_RTCPPacketBase;
+	TRTPPacketBase m_RTPPacketBaseOutgoing;
+	TRTCPPacketBase m_RTCPPacketBase;
 
-	unsigned short				m_usOutgoingSeqNum;
+	// ST2022-7
+	void* m_pAttachedStream;
+
+	unsigned short m_usOutgoingSeqNum;
 
 	// RTCP SR (Sender report)
-	void*						m_pvRTCP_SourceDescription;
-	uint32_t					m_ulRTCP_SourceDescriptionSize;
+	void* m_pvRTCP_SourceDescription;
+	uint32_t m_ulRTCP_SourceDescriptionSize;
 
-	uint32_t					m_ulSenderRTPTimestamp;
-	uint32_t					m_ulSenderOctetCount;
-	uint32_t					m_ulSenderPacketCount;
+	uint32_t m_ulSenderRTPTimestamp;
+	uint32_t m_ulSenderOctetCount;
+	uint32_t m_ulSenderPacketCount;
 
 	// RTCP RR (Receiver report)
 
-	uint64_t					m_ui64LastAudioSampleReceivedSAC;
+	uint64_t m_ui64LastAudioSampleReceivedSAC;
 
 // Debug
-	unsigned short				m_usIncomingSeqNum;
-	uint32_t                    m_ui32LastRTPSAC;
-	uint32_t                    m_ui32LastRTPLengthInSamples;
+	unsigned short m_usIncomingSeqNum;
+	uint32_t m_ui32LastRTPSAC;
+	uint32_t m_ui32LastRTPLengthInSamples;
 } TRTP_stream;
 
 

@@ -145,7 +145,7 @@ int GetPTPTimeStamp(TEtherTubeNetfilter* self, uint64_t* pui64TimeStamp)
 ////////////////////////////////////////////////////////////////////////
 int EnableEtherTube(TEtherTubeNetfilter* self, int bEnable)
 {
-    MTAL_DP_INFO("EtherTubeNetfilter %s\n", bEnable ? "ENABLE" : "DISABLE");
+    //MTAL_DP_INFO("EtherTubeNetfilter %s\n", bEnable ? "ENABLE" : "DISABLE");
     self->etherTubeEnable_ = bEnable;
     return 1;
 }
@@ -159,9 +159,10 @@ int IsEtherTubeEnabled(TEtherTubeNetfilter* self)
 ////////////////////////////////////////////////////////////////////////
 // CEtherTubeNIC
 ////////////////////////////////////////////////////////////////////////
-int InitEtherTube(TEtherTubeNetfilter* self, struct TManager* pManager)
+int InitEtherTube(TEtherTubeNetfilter* self, struct TManager* pManager, unsigned char nic_id)
 {
     self->manager_ptr_ = pManager;
+    self->nic_id = nic_id;
     //self->nf_hook_fct_ = NULL;
     //self->nf_hook_struct_ = NULL;
     //strcpy(self->ifname_used_, "eth0");
@@ -201,8 +202,8 @@ int DestroyEtherTube(TEtherTubeNetfilter* self)
 int Start(TEtherTubeNetfilter* self, const char *ifname)
 {
     int ret = 1;
-    unsigned long flags;
-    spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+    //unsigned long flags;
+    spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
 
     if (ifname)
     {
@@ -215,17 +216,17 @@ int Start(TEtherTubeNetfilter* self, const char *ifname)
         MTAL_DP_INFO("Start ifname=0\n");
         ret = 0;
     }
-    spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+    spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////
 int Stop(TEtherTubeNetfilter* self)
 {
-    unsigned long flags;
-    spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+    //unsigned long flags;
+    spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     self->started_ = 0;
-    spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+    spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     return 1;
 }
 
@@ -249,8 +250,8 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
 {
     {
         int ret = 0;
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+        //unsigned long flags;
+        spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
         do
         {
             if (!self->etherTubeEnable_ || !self->started_)
@@ -261,7 +262,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
             }
         }
         while (0);
-        spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+        spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
         if (ret == 1)
         {
             return 1;
@@ -284,7 +285,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
         }
     }
 
-    switch (DispatchPacket(self->manager_ptr_, packet, packet_size))
+    switch (DispatchPacket(self->manager_ptr_, packet, packet_size, self->nic_id))
     {
         case DR_RTP_PACKET_USED:
         case DR_PTP_PACKET_USED:

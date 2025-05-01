@@ -66,7 +66,7 @@
 
 struct TManager
 {
-    TEtherTubeNetfilter m_EthernetFilter;
+    TEtherTubeNetfilter m_EthernetFilter[_MAX_NICS];
     TClock_PTP m_PTP;
     TRTP_streams_manager m_RTP_streams_manager;
 
@@ -105,39 +105,6 @@ struct TManager
 };
 
 
-
-
-/// Put functions to be called by RTP audio stream to Manager
-/*typedef struct
-{
-	void* user;
-
-    int (*GetMACAddress)(TManager* user, unsigned char *Addr, uint32_t ui32Length);
-	int (*AcquireTransmitPacket)(TManager* user, void** pHandle, void** ppvPacket, uint32_t* pPacketSize);
-	int (*TransmitAcquiredPacket)(TManager* user, void* ppHandle, void* pPacket, uint32_t PacketSize);
-
-	uint64_t (*get_global_SAC)(TManager* user);
-	uint64_t (*get_global_time)(TManager* user); // return the time when the audio frame TIC occured
-	void (*get_global_times)(TManager* user, uint64_t* pui64GlobalSAC, uint64_t* pui64GlobalTime, uint64_t* pui64GlobalPerformanceCounter);
-	uint32_t (*get_frame_size)(TManager* user);
-
-	void (*get_audio_engine_sample_format)(TManager* user, enum EAudioEngineSampleFormat* pnSampleFormat);
-	void* (*get_live_in_jitter_buffer)(TManager* user, uint32_t ulChannelId);		// Note: buffer type is retrieved through get_audio_engine_sample_format
-	void* (*get_live_out_jitter_buffer)(TManager* user, uint32_t ulChannelId);	// Note: buffer type is retrieved through get_audio_engine_sample_format
-	uint32_t (*get_live_jitter_buffer_length)(TManager* user);
-	uint32_t (*get_live_in_jitter_buffer_offset)(TManager* user, const uint64_t ui64CurrentSAC); // const {return static_cast<uint32_t>(ui64CurrentSAC % get_live_jitter_buffer_length());}
-	uint32_t (*get_live_out_jitter_buffer_offset)(TManager* user, const uint64_t ui64CurrentSAC); // const {return static_cast<uint32_t>(ui64CurrentSAC % get_live_jitter_buffer_length());}
-
-	int (*update_live_in_audio_data_format)(TManager* user, uint32_t ulChannelId, char const * pszCodec); // {return 1;}
-
-	unsigned char (*get_live_in_mute_pattern)(TManager* user, uint32_t ulChannelId);
-	unsigned char (*get_live_out_mute_pattern)(TManager* user, uint32_t ulChannelId);
-} rtp_audio_stream_ops;
-*/
-
-
-
-
 bool init(struct TManager* self, int* errorCode);
 void destroy(struct TManager* self);
 
@@ -147,7 +114,7 @@ bool stop(struct TManager* self);
 bool startIO(struct TManager* self);
 bool stopIO(struct TManager* self);
 
-bool SetInterfaceName(struct TManager* self, const char* cInterfaceName);
+bool SetInterfaceName(struct TManager* self, const char* cInterfaceName, const int iEthFilterIndex);
 bool SetSamplingRate(struct TManager* self, uint32_t SamplingRate);
 bool SetDSDSamplingRate(struct TManager* self, uint32_t SamplingRate);
 bool SetTICFrameSizeAt1FS(struct TManager* self, uint64_t TICFrameSize);
@@ -175,19 +142,12 @@ bool GetHALToTICDelta(struct TManager* self, THALToTICDelta* pHALToTICDelta);
 
 void UpdateFrameSize(struct TManager* self);
 
-int AllocateStatusBuffer(struct TManager* self);
-void FreeStatusBuffer(struct TManager* self);
 void MuteInputBuffer(struct TManager* self);
 void MuteOutputBuffer(struct TManager* self);
 
 
 uint32_t GetTICFrameSizeAt1FS(struct TManager* self);
 uint32_t GetMaxTICFrameSize(struct TManager* self);
-
-// Buffers access
-void* GetStatusBuffer(struct TManager* self);
-void LockStatusBuffer(struct TManager* self);
-void UnLockStatusBuffer(struct TManager* self);
 
 // Caudio_streamer_clock_PTP_callback
 // C++ style
@@ -197,7 +157,7 @@ void AudioFrameTIC(void* user);
 //static void AudioFrameTIC_(void* self) { return ((CManager*)self)->AudioFrameTIC(); }
 //static uint32_t GetIPAddress_(void* self) { return ((CManager*)self)->GetIPAddress(); }
 // CEtherTubeAdviseSink
-EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize);
+EDispatchResult DispatchPacket(struct TManager* self, void* pBuffer, uint32_t packetsize, unsigned char nicId);
 //static EDispatchResult DispatchPacket_(void* self, void* pBuffer, uint32_t packetsize)  { return ((CManager*)self)->DispatchPacket(pBuffer, packetsize); }
 
 

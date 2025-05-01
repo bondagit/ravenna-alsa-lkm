@@ -186,8 +186,8 @@ extern "C"
 // Helper
 //static uint64_t GetSeconds(uint8_t byseconds[6]);
 //static void SetSeconds(uint64_t ui64time, uint8_t byseconds[6]);
-//static void dumpptpv2msgheader(tv2msgheader* pv2msgheader);
-//static void dumpv2timerepresentation(tv2timerepresentation* porigintimestamp);
+//static void DumpPTPV2MsgHeader(TV2MsgHeader* pV2MsgHeader);
+//static void DumpV2TimeRepresentation(TV2TimeRepresentation* pOriginTimestamp);
 
 
 #if defined(__cplusplus)

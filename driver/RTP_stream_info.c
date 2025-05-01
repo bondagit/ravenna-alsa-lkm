@@ -43,6 +43,9 @@
 #include "MTAL_DP.h"
 #include "MTAL_EthUtils.h"
 
+#ifdef ZMAN_FAMILY
+#include "../../Ravenna/device/src/zman/tools/multicast_ip_filter/include/MulticastIPFilter.hpp"
+#endif
 
 ////////////////////////////////////////////////////////////////////
 int check_struct_version(TRTP_stream_info* rtp_stream_info)
@@ -169,7 +172,8 @@ int is_valid(TRTP_stream_info* rtp_stream_info)
 		return 0;
 	}
 
-	#ifdef MT_EMBEDDED
+#ifdef MT_EMBEDDED
+	#if defined(HORUS_FAMILY)
 	{
 		// rejects 224.x.x.x
 		if (rtp_stream_info->m_ui32DestIP >> 24 == 224)
@@ -188,7 +192,19 @@ int is_valid(TRTP_stream_info* rtp_stream_info)
 			return 0;
 		}
 	}
+	#elif defined(ZMAN_FAMILY)
+	{
+		device::zman::mcast_ip_filter::MultiCastIPFilter multiCastIPFilter;
+		if (multiCastIPFilter.is_multicast_address_used(rtp_stream_info->m_ui32DestIP))
+		{
+			MTAL_DP("Illegal Dest IP: ");
+			MTAL_DumpIPAddress(rtp_stream_info->m_ui32DestIP, false);
+			MTAL_DP("\nSuch IP is already used by the CPU and cannot be used for RTP streams.\n");
+			return 0;
+		}		
+	}
 	#endif
+#endif
 
 	// UDP
 

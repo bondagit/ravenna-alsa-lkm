@@ -125,7 +125,9 @@ Use the -d option to run it in a daemon mode.
 #### Config file ####
 Next to the Butler binary, you will find the merging_ravenna_daemon.conf file providing the following options :
 
-* interface_name : Network interface name used by RAVENNA/AES67 network. e.g eth0, eth2, enc0, br1...
+* interface_name : Network interface name used for RAVENNA/AES67 and Control network. e.g eth0
+* media_interfaces_name : Network interfaces name used for RAVENNA/AES67 network (no control). When 2 interfaces are specified, it enables SMPTE ST 2022-7 support. e.g eth0,eth2
+* control_interfaces_name : Network interface name used for Control network. e.g eth1
 * device_name : By default the name is "Merging ALSA-AES67 (on <hostname\>". This can be changed but the name has to be unique on the network (used by Zeroconf) and white spaces are not supported
 * web_app_port : Port number on which the RAVENNA/AES67 webserver will listen to
 * web_app_path : Path of the webapp folder provided in the package. Should terminate by webapp/advanced
@@ -143,7 +145,7 @@ To ensure a correct operation of the driver, check that the following port are o
 
 * web server : port set in the config file TCP (default is 9090)
 * mdns : 5353 UDP
-* AES67 discovery : 9875 UDP
+* AES67 discovery (SAP): 9875 UDP
 * PTP : 319 UDP and 320 UDP
 
 ### Configuration ###

@@ -32,79 +32,36 @@
 
 #pragma once
 
-#if defined(NT_DRIVER) || defined(OSX_KEXT) || defined(__KERNEL__)
-#else
-	#if WIN32
-		#include <unordered_map>
-	#elif LINUX==1 || OSX==1
-		#include <boost/tr1/unordered_map.hpp>
-	#endif
-	#include <list>
-#endif //NT_DRIVER
-
 #include "EtherTubeInterfaces.h"
 #include "MTAL_DP.h"
 #include "RTP_audio_stream.h"
 #include "RTP_stream_info.h"
 
-#ifdef UNDER_RTSS
-	///////////////////////////////////////////////////////////////////////////
-	// CRTPStreamsOutgoingThread
-	///////////////////////////////////////////////////////////////////////////
-	class CRTP_streams_manager;
-	class CRTPStreamsOutgoingThread : public CMTAL_WorkingThread
-	{
-	public:
-		CRTPStreamsOutgoingThread(CRTP_streams_manager& RTP_streams_manager);
-		~CRTPStreamsOutgoingThread();
-
-		int Init();
-		void Destroy();
-
-		HRESULT WaitOnDone();
-
-		// virtuals
-		void ThreadEnter();
-		void ThreadProcess();
-
-	protected:
-		HANDLE m_hDoneEvent;
-
-
-		CRTP_streams_manager& m_RTP_streams_manager;
-	};
-#endif //UNDER_RTSS
+#define _MAX_NICS 2	
 
 //////////////////////////////////////////////////////////////
 typedef struct {
 	// CRTP_audio_streams
 	// Sources
-#ifdef UNDER_RTSS
-	CRTPStreamsOutgoingThread m_RTPStreamsOutgoingThread;
-#endif
+
 	// Sources are only used by RTXCore Process so we not have to use a multi-processor mutex (CMTAL_RTSSDLLMutex)
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
     void* m_csSourceRTPStreams;
-#else
-	mutable CMTAL_CriticalSection m_csSourceRTPStreams;
-#endif
 
     volatile unsigned short	m_usNumberOfRTPSourceStreams;
-    TRTP_audio_stream_handler m_apRTPSourceStreams[MAX_SOURCE_STREAMS*2]; // double the size because remove/add all stream, we potentially need object that are being use. We then ensure that object are able to be used
-    TRTP_audio_stream_handler* m_apRTPSourceOrderedStreams[MAX_SOURCE_STREAMS];
+    TRTP_audio_stream_handler m_apRTPSourceStreams[MAX_SOURCE_STREAMS * _MAX_NICS * 2]; // double the size because remove/add all stream, we potentially need object that are being use. We then ensure that object are able to be used
+    TRTP_audio_stream_handler* m_apRTPSourceOrderedStreams[MAX_SOURCE_STREAMS * _MAX_NICS];
 
 	uint32_t m_ui32RTCPPacketCountdown;	// in [audio frame]
 
 	// Sinks
-#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-    void* m_csSinkRTPStreams;
-#else
-	mutable CMTAL_CriticalSection m_csSinkRTPStreams;
-#endif
+	void* m_csSinkRTPStreams;
+    //void* m_acsSinkRTPStreams[_MAX_NICS]; // ST2022-7: we use two locks to be able to receive concurrently on both NICS
 
-	unsigned short m_usNumberOfRTPSinkStreams;
-	TRTP_audio_stream_handler m_apRTPSinkStreams[MAX_SINK_STREAMS*2]; // double the size because remove/add all stream, we potentially need object that are being use. We then ensure that object are able to be used
-	TRTP_audio_stream_handler* m_apRTPSinkOrderedStreams[MAX_SINK_STREAMS];
+	unsigned short m_usNumberOfNICS;
+
+	unsigned short m_ausNumberOfRTPSinkStreams[_MAX_NICS];
+	TRTP_audio_stream_handler m_apRTPSinkStreams[MAX_SINK_STREAMS * _MAX_NICS * 2]; // double the size because remove/add all stream, we potentially need object that are being use. We then ensure that object are able to be used
+	TRTP_audio_stream_handler* m_apRTPSinkOrderedStreams[_MAX_NICS][MAX_SINK_STREAMS];
 
 
 	//f10bCMTAL_PerfMonMinMax<uint32_t> m_pmmmLastProcessedRTPDeltaFromTIC;
@@ -112,26 +69,26 @@ typedef struct {
 
 
 	rtp_audio_stream_ops* m_pManager;
-	TEtherTubeNetfilter* m_pEth_netfilter;
+	TEtherTubeNetfilter* m_pEth_netfilter[_MAX_NICS];
 
 } TRTP_streams_manager;
 
 
 //////////////////////////////////////////////////////////////
+//int init_(TRTP_streams_manager* self, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter);
 int init_(TRTP_streams_manager* self, rtp_audio_stream_ops* pManager, TEtherTubeNetfilter* pEth_netfilter);
 void destroy_(TRTP_streams_manager* self);
 
-#ifdef NT_DRIVER
-	EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize, int bDispatchLevel);
-#else
-	EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize);
-#endif //NT_DRIVER
+EDispatchResult process_UDP_packet(TRTP_streams_manager* self, unsigned char byNICId, TUDPPacketBase* pUDPPacketBase, uint32_t packetsize);
 
 int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo, uint64_t* phRTPStream);
 int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream);
 void remove_all_RTP_streams(TRTP_streams_manager* self);
 int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_name* pRTP_stream_update_name);
 int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_stream_status* pstream_status);
+
+void attached_stream(TRTP_streams_manager* self, TRTP_stream* pRTPStream);
+void detached_stream(TRTP_streams_manager* self, TRTP_stream* pRTPStream);
 
 uint8_t GetNumberOfSources(TRTP_streams_manager* self);
 uint8_t GetNumberOfSinks(TRTP_streams_manager* self);

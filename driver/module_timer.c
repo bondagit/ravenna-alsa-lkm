@@ -86,8 +86,8 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
     ///ret_overrun = hrtimer_forward(timer, kt_now, period);
     ret_overrun = hrtimer_forward_now(timer, period);
     // comment it when running in VM
-    if(ret_overrun > 1)
-        printk(KERN_INFO "Timer overrun ! (%d times)\n", ret_overrun);
+    if(ret_overrun > 5)
+        printk(KERN_DEBUG "Timer overrun ! (%d times)\n", ret_overrun);
     return HRTIMER_RESTART;
 
 }

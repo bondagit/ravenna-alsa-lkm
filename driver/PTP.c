@@ -59,14 +59,14 @@
 //////////////////////////////////////////////////////////////
 void get_ptp_global_times(TClock_PTP* self, uint64_t* pui64GlobalSAC, uint64_t* pui64GlobalTime, uint64_t* pui64GlobalPerformanceCounter) // get the time and the SAC atomically
 {
-    unsigned long flags;
-    spin_lock_irqsave((spinlock_t*)self->m_csSAC_Time_Lock, flags);
+    ////unsigned long flags;
+    spin_lock/*_irqsave*/((spinlock_t*)self->m_csSAC_Time_Lock/*, flags*/);
 
     *pui64GlobalSAC = self->m_ui64GlobalSAC;
     *pui64GlobalTime = self->m_ui64GlobalTime;
     *pui64GlobalPerformanceCounter = self->m_ui64GlobalPerformanceCounter;
 
-    spin_unlock_irqrestore((spinlock_t*)self->m_csSAC_Time_Lock, flags);
+    spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csSAC_Time_Lock/*, flags*/);
 }
 
 
@@ -74,50 +74,51 @@ void get_ptp_global_times(TClock_PTP* self, uint64_t* pui64GlobalSAC, uint64_t* 
 //static
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
-uint32_t get_FS(uint32_t ui32SamplingRate)
-{
-	// TODO: move this helper to MTAL
-	switch(ui32SamplingRate)
-	{
-		case 384000:
-		case 352800:
-			return 8;
-		case 192000:
-		case 176400:
-			return 4;
-		case 96000:
-		case 88200:
-			return 2;
-		default:
-			// TODO: should assert
-			MTAL_DP("Caudio_streamer_clock::get_FS error: unknown SamplingRate = %u\n", ui32SamplingRate);
-		case 48000:
-		case 44100:
-			return 1;
-	}
-}
-
-//////////////////////////////////////////////////////////////
-uint32_t get_samplerate_base(uint32_t ui32SamplingRate)
-{
-	switch(ui32SamplingRate)
-	{
-		case 384000:
-		case 192000:
-		case 96000:
-		case 48000:
-			return 48000;
-
-		default:
-			// TODO: should assert
-			MTAL_DP("Caudio_streamer_clock::get_samplerate_base error: unknown SamplingRate = %u\n", ui32SamplingRate);
-		case 352800:
-		case 176400:
-		case 88200:
-		case 44100:
-			return 44100;
-	}
-}
+//uint32_t get_FS(uint32_t ui32SamplingRate)
+//{
+//	// TODO: move this helper to MTAL
+//	switch(ui32SamplingRate)
+//	{
+//		case 384000:
+//		case 352800:
+//			return 8;
+//		case 192000:
+//		case 176400:
+//			return 4;
+//		case 96000:
+//		case 88200:
+//			return 2;
+//		case 48000:
+//		case 44100:
+//			return 1;
+//		default:
+//			// TODO: should assert
+//			MTAL_DP("Caudio_streamer_clock::get_FS error: unknown SamplingRate = %u\n", ui32SamplingRate);
+//			return 1;
+//	}
+//}
+//
+////////////////////////////////////////////////////////////////
+//uint32_t get_samplerate_base(uint32_t ui32SamplingRate)
+//{
+//	switch(ui32SamplingRate)
+//	{
+//		case 384000:
+//		case 192000:
+//		case 96000:
+//		case 48000:
+//			return 48000;
+//		case 352800:
+//		case 176400:
+//		case 88200:
+//		case 44100:
+//			return 44100;
+//		default:
+//			// TODO: should assert
+//			MTAL_DP("Caudio_streamer_clock::get_samplerate_base error: unknown SamplingRate = %u\n", ui32SamplingRate);
+//			return 48000;
+//	}
+//}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -127,45 +128,46 @@ static uint64_t GetSeconds(uint8_t bySeconds[6])
 {
     uint32_t dw;
 	uint64_t ui64 = 0;
-	for(dw = 0; dw < 6; dw++)
+	for (dw = 0; dw < 6; dw++)
 	{
-		ui64 += bySeconds[dw] << (40 - 8 * dw);
+		// FIXED: shift exponent 40 is too large for 32-bit type 'int'
+		ui64 += (uint64_t)bySeconds[dw] << (40 - 8 * dw);
 	}
 	return ui64;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/*static*/ void SetSeconds(uint64_t ui64Time, uint8_t bySeconds[6])
-{
-    uint32_t dw;
-	for(dw = 0; dw < 6; dw++)
-	{
-		bySeconds[dw] = (ui64Time >> (40 - 8 * dw)) & 0xFF;
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-/*static*/ void DumpPTPV2MsgHeader(TV2MsgHeader* pV2MsgHeader)
-{
-    int i;
-	MTAL_DP("PTP v2 Msg Header\n");
-
-	MTAL_DP("\tMessageLength: %d\n", MTAL_SWAP16(pV2MsgHeader->wMessageLength));
-	MTAL_DP("\tClockIdentity: 0x");	for(i =0; i < 8; i++) MTAL_DP("%02x", pV2MsgHeader->SourcePortId.byClockIdentity[i]); MTAL_DP("\n");
-
-	MTAL_DP("\tSourcePortId: %d\n", MTAL_SWAP16(pV2MsgHeader->SourcePortId.ui16PortNumber));
-
-
-	MTAL_DP("\tSequence Id: %d\n", MTAL_SWAP16(pV2MsgHeader->wSequenceId));
-	MTAL_DP("\tControl: %d\n", pV2MsgHeader->byControl);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-/*static*/ void DumpV2TimeRepresentation(TV2TimeRepresentation* pOriginTimestamp)
-{
-	MTAL_DP("\tOriginTimestamp.Seconds: %llu\n", GetSeconds(pOriginTimestamp->bySeconds));
-	MTAL_DP("\tOriginTimestamp.Nanoseconds: %d\n", (int32_t)MTAL_SWAP32(pOriginTimestamp->i32Nanoseconds));
-}
+/////////////////////////////////////////////////////////////////////////////////
+//static void SetSeconds(uint64_t ui64Time, uint8_t bySeconds[6])
+//{
+//    uint32_t dw;
+//	for (dw = 0; dw < 6; dw++)
+//	{
+//		bySeconds[dw] = (ui64Time >> (40 - 8 * dw)) & 0xFF;
+//	}
+//}
+//
+/////////////////////////////////////////////////////////////////////////////////
+//static void DumpPTPV2MsgHeader(TV2MsgHeader* pV2MsgHeader)
+//{
+//    int i;
+//	MTAL_DP("PTP v2 Msg Header\n");
+//
+//	MTAL_DP("\tMessageLength: %d\n", MTAL_SWAP16(pV2MsgHeader->wMessageLength));
+//	MTAL_DP("\tClockIdentity: 0x");	for(i =0; i < 8; i++) MTAL_DP("%02x", pV2MsgHeader->SourcePortId.byClockIdentity[i]); MTAL_DP("\n");
+//
+//	MTAL_DP("\tSourcePortId: %d\n", MTAL_SWAP16(pV2MsgHeader->SourcePortId.ui16PortNumber));
+//
+//
+//	MTAL_DP("\tSequence Id: %d\n", MTAL_SWAP16(pV2MsgHeader->wSequenceId));
+//	MTAL_DP("\tControl: %d\n", pV2MsgHeader->byControl);
+//}
+//
+/////////////////////////////////////////////////////////////////////////////////
+//static void DumpV2TimeRepresentation(TV2TimeRepresentation* pOriginTimestamp)
+//{
+//	MTAL_DP("\tOriginTimestamp.Seconds: %llu\n", GetSeconds(pOriginTimestamp->bySeconds));
+//	MTAL_DP("\tOriginTimestamp.Nanoseconds: %d\n", (int32_t)MTAL_SWAP32(pOriginTimestamp->i32Nanoseconds));
+//}
 
 
 
@@ -259,9 +261,9 @@ void destroy_ptp(TClock_PTP* self)
 ///////////////////////////////////////////////////////////////////////////////
 void ResetPTPLock(TClock_PTP* self, bool bUseMutex)
 {
-    unsigned long flags;
+    //unsigned long flags;
 	if(bUseMutex)
-		spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+		spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 
 	{
 		MTAL_DP("ResetPTPLock()\n");
@@ -272,7 +274,7 @@ void ResetPTPLock(TClock_PTP* self, bool bUseMutex)
 	}
 
 	if(bUseMutex)
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -441,7 +443,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             // Check PTP Clock identity
             if (*(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
-                //MTAL_DP("PTP sync packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
+                //MTAL_DP("PTP sync packet filtered wrong ClockIdentity %llx expected %llx\n", *(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
             }
             //######################################################
@@ -467,11 +469,11 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			{
 				// Atomicity
                 {
-                    unsigned long flags;
-                    spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+                    //unsigned long flags;
+                    spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 
 					self->m_ui64DeltaT2 = ui64T2 - self->m_ui64T2;
-					//MTAL_DP("%I64u Delta T2= %I64u\n", ui64T2, ui64T2 - self->m_ui64T2);
+					//MTAL_DP("%llu Delta T2= %llu\n", ui64T2, ui64T2 - self->m_ui64T2);
 
 					/*MTAL_RtTraceEvent(RTTRACEEVENT_PTP_SYNC, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 					MTAL_RtTraceEvent(RTTRACEEVENT_PTP_SYNC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), (PVOID)(unsigned int)self->m_ui64DeltaT2);*/
@@ -481,7 +483,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 					self->m_ui64T2 = ui64T2;
 					self->m_ui64TIC_LastRTXClockTimeAtT2 = self->m_ui64TIC_LastRTXClockTime;
 
-                    spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+                    spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 				}
 
 				//MTAL_DP("Flags: 0x%x\n", MTAL_SWAP16(pPTPV2MsgSyncPacket->V2MsgHeader.wFlags));
@@ -517,7 +519,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             // Check PTP Clock identity
             if (*(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
-                //MTAL_DP("PTP follow_up packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
+                //MTAL_DP("PTP follow_up packet filtered wrong ClockIdentity %llx expected %llx\n", *(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
             }
             //######################################################
@@ -576,7 +578,7 @@ void ResetPTPMaster(TClock_PTP* self)
 // from Sync or Follow_up
 void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 {
-    unsigned long flags;
+    //unsigned long flags;
 	uint64_t ui64DeltaT1 = ui64T1 - self->m_ui64T1;
 	if (ui64DeltaT1 == 0)
 	{
@@ -589,7 +591,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 	}*/
 	// Atomicity
 	{
-        spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+        spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 		if (self->m_usPTPLockCounter > 0)
 		{
 			self->m_usPTPLockCounter--;
@@ -626,7 +628,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 					//self->m_pmmmPTPStatDeltaTICFrame.NewPoint(i32DeltaTICFrame);
 
 					self->m_dTIC_CurrentPeriod = (self->m_dTIC_BasePeriod * self->m_ui64DeltaT2) / ui64DeltaT1; // [ps]
-					//MTAL_DP("self->m_ui64DeltaT2 = %I64u, ui64DeltaT1 = %I64u\n", self->m_ui64DeltaT2 , ui64DeltaT1);
+					//MTAL_DP("self->m_ui64DeltaT2 = %llu, ui64DeltaT1 = %llu\n", self->m_ui64DeltaT2 , ui64DeltaT1);
 					MTAL_DP("self->m_dTIC_CurrentPeriod = %ull , self->m_dTIC_BasePeriod = %ull\n", self->m_dTIC_CurrentPeriod , self->m_dTIC_BasePeriod);
 
 					self->m_ui64TIC_NextAbsoluteTime = self->m_ui64TIC_LastRTXClockTimeAtT2 + i32DeltaTICFrame + (5 * self->m_dTIC_CurrentPeriod / PS_2_REF_UNIT);
@@ -638,8 +640,8 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 		if (self->m_usPTPLockCounter == 0)
 		{
 			self->m_i64TIC_PTPToRTXClockOffset = (int64_t)self->m_ui64T2 - (int64_t)ui64T1;
-			//MTAL_DP("self->m_ui64T1 = %I64u\n", self->m_ui64T1);
-			//MTAL_DP("self->m_ui64T2 = %I64u\n", self->m_ui64T2);
+			//MTAL_DP("self->m_ui64T1 = %llu\n", self->m_ui64T1);
+			//MTAL_DP("self->m_ui64T2 = %llu\n", self->m_ui64T2);
 			///MTAL_DP("self->m_i64TIC_PTPToRTXClockOffset = %llu\n", self->m_i64TIC_PTPToRTXClockOffset);
 
 
@@ -695,7 +697,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 				}
 
 				//MTAL_DP("self->m_ui64T2 = %llu\n", self->m_ui64T2);
-				//MTAL_DP("self->m_ui64TIC_LastRTXClockTimeAtT2 = %I64u\n", self->m_ui64TIC_LastRTXClockTimeAtT2);
+				//MTAL_DP("self->m_ui64TIC_LastRTXClockTimeAtT2 = %llu\n", self->m_ui64TIC_LastRTXClockTimeAtT2);
 				//MTAL_DP("i32DeltaTICFrame = %d\n", i32DeltaTICFrame);
 
                 if (i32DeltaTICFrame > i32MidPeriod)
@@ -758,17 +760,17 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
                     self->m_usTICLockCounter = TIC_LOCK_HYSTERESIS;
                 }
 
-                //MTAL_DP("%I64u / %I64u = %e\n", self->m_ui64TIC_PTPClockTimeFromOrigin ,self->m_ui64TIC_RTXClockTimeFromOrigin, (double)self->m_ui64TIC_PTPClockTimeFromOrigin / (double)self->m_ui64TIC_RTXClockTimeFromOrigin - 1.);
+                //MTAL_DP("%llu / %llu = %e\n", self->m_ui64TIC_PTPClockTimeFromOrigin ,self->m_ui64TIC_RTXClockTimeFromOrigin, (double)self->m_ui64TIC_PTPClockTimeFromOrigin / (double)self->m_ui64TIC_RTXClockTimeFromOrigin - 1.);
 			} while (0);
 		}
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	}
 
-	//MTAL_DP("Delta T1= %I64u\n", ui64T1 - self->m_ui64T1);
-	//MTAL_DP("self->m_ui64PTPClockTimeFromOrigin %I64u,  self->m_ui64TC_RTXClockOriginTime= %I64u PTP/RTX = %I64u = %e\n", self->m_ui64PTPClockTimeFromOrigin, self->m_ui64RTXClockTimeFromOrigin, (uint64_t)(CInt128(self->m_ui64PTPClockTimeFromOrigin) / CInt128(self->m_ui64RTXClockTimeFromOrigin)), (double)self->m_ui64PTPClockTimeFromOrigin / (double)self->m_ui64RTXClockTimeFromOrigin);
+	//MTAL_DP("Delta T1= %llu\n", ui64T1 - self->m_ui64T1);
+	//MTAL_DP("self->m_ui64PTPClockTimeFromOrigin %llu,  self->m_ui64TC_RTXClockOriginTime= %llu PTP/RTX = %llu = %e\n", self->m_ui64PTPClockTimeFromOrigin, self->m_ui64RTXClockTimeFromOrigin, (uint64_t)(CInt128(self->m_ui64PTPClockTimeFromOrigin) / CInt128(self->m_ui64RTXClockTimeFromOrigin)), (double)self->m_ui64PTPClockTimeFromOrigin / (double)self->m_ui64RTXClockTimeFromOrigin);
 
 	// Atomicity
-    spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+    spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	if (self->m_usPTPLockCounter == 0)
 	{
 		// Stats
@@ -781,7 +783,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 			}
 		}
 	}
-    spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+    spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 
 	self->m_ui64T1 = ui64T1;
 }
@@ -909,13 +911,13 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 	/////// debug
 	if (abs((int)((signed)self->m_ui64TIC_NextAbsoluteTime - (signed)ui64CurrentRTXClockTime)) > self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT)
 	{
-		MTAL_DP("Wake up late of 1/2 period. Now(%llu), Asked(%llu), Diff(%i) [100us] neg means earlier\n", ui64CurrentRTXClockTime, self->m_ui64TIC_NextAbsoluteTime, (int)((signed)ui64CurrentRTXClockTime - (signed)self->m_ui64TIC_NextAbsoluteTime));
+		printk(KERN_DEBUG "Wake up late of 1/2 period. Now(%llu), Asked(%llu), Diff(%i) [100us] neg means earlier\n", ui64CurrentRTXClockTime, self->m_ui64TIC_NextAbsoluteTime, (int)((signed)ui64CurrentRTXClockTime - (signed)self->m_ui64TIC_NextAbsoluteTime));
 	}
 
 	// Atomicity
 	{
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+        //unsigned long flags;
+        spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 		// Stat; compute must be protected by self->m_csPTPTime for atomicity
         /*{
             CMTAL_PerfMonInterval pmiTICIntervalTmp
@@ -942,15 +944,15 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
             //}
             //print_coutner++;
 
-            //MTAL_DP("ui64CurrentRTXClockTime = %I64u\n", ui64CurrentRTXClockTime);
-            //MTAL_DP("self->m_i64TIC_PTPToRTXClockOffset = %I64i\n", self->m_i64TIC_PTPToRTXClockOffset);
+            //MTAL_DP("ui64CurrentRTXClockTime = %llu\n", ui64CurrentRTXClockTime);
+            //MTAL_DP("self->m_i64TIC_PTPToRTXClockOffset = %lld\n", self->m_i64TIC_PTPToRTXClockOffset);
 
-            //MTAL_DP("ui64Q = %I64u ui32R = %u\n", ui64Q, ui32R);
+            //MTAL_DP("ui64Q = %llu ui32R = %u\n", ui64Q, ui32R);
 
             //ui64Q = (uint64_t)((int64_t)ui64CurrentRTXClockTime - self->m_i64TIC_PTPToRTXClockOffset) * (self->m_ui32SamplingRate / 100) / 100000 / self->m_ui32FrameSize;
-            //MTAL_DP("2.ui64Q = %I64u \n", ui64Q);
+            //MTAL_DP("2.ui64Q = %llu \n", ui64Q);
 
-            //MTAL_DP("Q : %I64u R: %u ", ui64Q, ui32R);
+            //MTAL_DP("Q : %llu R: %u ", ui64Q, ui32R);
             if(ui32R < 4 * self->m_ui32SamplingRate / 44100) // to avoid using timestamps outside 80us of theoretical time
             {
                 ui64CurrentTICCount = ui64Q + 1; // we add 1 because ui64Q is the count for the previous frame
@@ -974,21 +976,21 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         }
 
 		ui64AbsoluteTime = self->m_ui64TIC_NextAbsoluteTime;
-        spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+        spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	}
 
     //MTAL_DP("TIC Intervale = %llu ui64Period = %llu", self->m_pmiTICInterval.GetLastUsedInterval(), ui64Period);
 
 	self->m_ui64TICSAC = (ui64CurrentTICCount - 1) * self->m_ui32FrameSize;
     {
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->m_csSAC_Time_Lock, flags);
+        //unsigned long flags;
+        spin_lock/*_irqsave*/((spinlock_t*)self->m_csSAC_Time_Lock/*, flags*/);
         {
             self->m_ui64GlobalPerformanceCounter = MTAL_LK_GetCounterTime();
             self->m_ui64GlobalTime = ui64CurrentRTXClockTime;
             self->m_ui64GlobalSAC = self->m_ui64TICSAC;
         }
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSAC_Time_Lock, flags);
+        spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csSAC_Time_Lock/*, flags*/);
     }
 
     // Call AudioTICFrame
@@ -997,13 +999,13 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 	// Check the link status
 	if(!IsLinkUp(self->m_pEtherTubeNIC) && GetLockStatus(self) != PTPLS_UNLOCKED)
 	{
-        unsigned long flags;
-		spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+        //unsigned long flags;
+		spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 		{
 			MTAL_DP("PTP detects that the link is down\n");
 			ResetPTPLock(self, false);
 		}
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	}
 
 	// PTP watch dog
@@ -1011,15 +1013,15 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         uint64_t ui64WatchDogElapse = ui64CurrentRTXClockTime - self->m_ui64LastWatchDogTime;
         if(ui64WatchDogElapse >= PTP_WATCHDOG_ELAPSE)
         {
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+            //unsigned long flags;
+            spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
             if(self->m_wLastWatchDogSyncSequenceId == self->m_wLastSyncSequenceId && GetLockStatus(self) != PTPLS_UNLOCKED)
             {
                 MTAL_DP("Didn't received PTP sync since 2s\n");
                 MTAL_DP("ui64WatchDogElapse = %llu = %llu - %llu\n", ui64WatchDogElapse, ui64CurrentRTXClockTime, self->m_ui64LastWatchDogTime);
                 ResetPTPLock(self, false);
             }
-            spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+            spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
             self->m_wLastWatchDogSyncSequenceId = self->m_wLastSyncSequenceId;
             self->m_ui64LastWatchDogTime = ui64CurrentRTXClockTime;
         }
@@ -1030,8 +1032,8 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 	{
 		//MTAL_DP("iTICCountUpdateMethod = %i\n", iTICCountUpdateMethod);
 		MTAL_DP("LastTICCounter = %llu ui64TICCounter = %llu (Timer period = %llu [100us])\n", self->m_ui64LastTIC_Count, ui64CurrentTICCount, ui64CurrentRTXClockTime-g_ui64LastCurrentRTXClockTime);
-		//MTAL_DP("\tTIC_RTXClockTimeFromOrigin %I64u  TIC_PTPClockTimeFromOrigin %I64u\n", self->m_ui64TIC_RTXClockTimeFromOrigin, self->m_ui64TIC_PTPClockTimeFromOrigin);
-		//MTAL_DP("\t ui64CurrentRTXClockTimeDbg %I64u - self->m_ui64TIC_RTXClockOriginTime %I64u =  %I64u\n", ui64CurrentRTXClockTimeDbg, self->m_ui64TIC_RTXClockOriginTime, ui64CurrentRTXClockTime);
+		//MTAL_DP("\tTIC_RTXClockTimeFromOrigin %llu  TIC_PTPClockTimeFromOrigin %llu\n", self->m_ui64TIC_RTXClockTimeFromOrigin, self->m_ui64TIC_PTPClockTimeFromOrigin);
+		//MTAL_DP("\t ui64CurrentRTXClockTimeDbg %llu - self->m_ui64TIC_RTXClockOriginTime %llu =  %llu\n", ui64CurrentRTXClockTimeDbg, self->m_ui64TIC_RTXClockOriginTime, ui64CurrentRTXClockTime);
 
 		//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC_DROP, (PVOID)(RT_TRACE_EVENT_OCCURENCE), 0);
 		self->m_uiTIC_DropCounter++;
@@ -1081,7 +1083,7 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 			}
         }
         /////// debug
-		//MTAL_DP("PTP GlobalSAC : self->m_ui64GlobalSAC = 0x%I64x\n", self->m_ui64GlobalSAC);
+		//MTAL_DP("PTP GlobalSAC : self->m_ui64GlobalSAC = 0x%llx\n", self->m_ui64GlobalSAC);
         //MTAL_DP("Delta absolute time %llu; Timer CPU time period %llu\n", ui64AbsoluteTime, (ui64AbsoluteTime - g_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - g_ui64LastCurrentRTXClockTime);
         g_ui64LastAbsoluteTime = ui64AbsoluteTime;
         g_ui64LastCurrentRTXClockTime = ui64CurrentRTXClockTime;
@@ -1098,14 +1100,14 @@ bool StartAudioFrameTICTimer(TClock_PTP* self, uint32_t ulFrameSize, uint32_t ul
 
 	// Atomicity
 	{
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
+        //unsigned long flags;
+        spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
         self->m_ui32FrameSize = ulFrameSize;
         self->m_ui32SamplingRate = ulSamplingRate;
         self->m_bAudioFrameTICTimerStarted = true;
 		self->m_dTIC_CurrentPeriod = self->m_dTIC_BasePeriod = (self->m_ui32FrameSize * 1000000000000) / self->m_ui32SamplingRate; // [ps]
 		set_base_period(self->m_dTIC_BasePeriod/1000);
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
+		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	}
 	MTAL_DP("1.self->m_dTIC_BasePeriod = %llu	[ps]\n", self->m_dTIC_BasePeriod);
 	MTAL_DP("self->m_ui32FrameSize = %u self->m_ui32SamplingRate = %u\n", self->m_ui32FrameSize, self->m_ui32SamplingRate);
@@ -1196,63 +1198,63 @@ void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus)
 	pPTPStatus->i32ClockJitter = 0; // TODO
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/*void GetPTPStats(TClock_PTP* self, TPTPStats* pPTPStats)
-{
-	if(!pPTPStats)
-	{
-		return;
-	}
-
-	memset(pPTPStats, 0, sizeof(TPTPStats));
-	{
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
-
-		pPTPStats->fPTPSyncRatio = self->m_pmmmPTPStatRatio.GetMax();
-		self->m_pmmmPTPStatRatio.ResetAtNextPoint();
-
-		pPTPStats->ui32PTPSyncMinArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetMin() / 10; // [us]
-		pPTPStats->ui32PTPSyncAvgArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetAvg() / 10; // [us]
-		pPTPStats->ui32PTPSyncMaxArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetMax() / 10; // [us]
-		self->m_pmmmPTPStatSyncInterval.ResetAtNextPoint();
-
-		pPTPStats->ui32PTPFollowMinArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetMin() / 10; // [us]
-		pPTPStats->ui32PTPFollowAvgArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetAvg() / 10; // [us]
-		pPTPStats->ui32PTPFollowMaxArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetMax() / 10; // [us]
-		self->m_pmmmPTPStatFollowInterval.ResetAtNextPoint();
-
-
-
-		pPTPStats->i32PTPMinDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetMin() / 10; // [us]
-		pPTPStats->i32PTPAvgDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetAvg() / 10; // [us]
-		pPTPStats->i32PTPMaxDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetMax() / 10; // [us]
-		self->m_pmmmPTPStatDeltaTICFrame.ResetAtNextPoint();
-
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void GetTICStats(TClock_PTP* self, TTICStats* pTICStats)
-{
-	if(!pTICStats)
-	{
-		return;
-	}
-
-	memset(pTICStats, 0, sizeof(TTICStats));
-	{
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
-
-		pTICStats->ui32TICMinDelta = (uint32_t)self->m_pmiTICInterval.GetMin(); // us
-		pTICStats->ui32TICMaxDelta = (uint32_t)self->m_pmiTICInterval.GetMax(); // [us]
-		self->m_pmiTICInterval.ResetAtNextPoint();
-
-		spin_unlock_irqrestore((spinlock_t*)self->m_csPTPTime, flags);
-	}
-}*/
+/////////////////////////////////////////////////////////////////////////////////
+//void GetPTPStats(TClock_PTP* self, TPTPStats* pPTPStats)
+//{
+//	if(!pPTPStats)
+//	{
+//		return;
+//	}
+//
+//	memset(pPTPStats, 0, sizeof(TPTPStats));
+//	{
+//        //unsigned long flags;
+//        spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+//
+//		pPTPStats->fPTPSyncRatio = self->m_pmmmPTPStatRatio.GetMax();
+//		self->m_pmmmPTPStatRatio.ResetAtNextPoint();
+//
+//		pPTPStats->ui32PTPSyncMinArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetMin() / 10; // [us]
+//		pPTPStats->ui32PTPSyncAvgArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetAvg() / 10; // [us]
+//		pPTPStats->ui32PTPSyncMaxArrivalDelta = self->m_pmmmPTPStatSyncInterval.GetMax() / 10; // [us]
+//		self->m_pmmmPTPStatSyncInterval.ResetAtNextPoint();
+//
+//		pPTPStats->ui32PTPFollowMinArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetMin() / 10; // [us]
+//		pPTPStats->ui32PTPFollowAvgArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetAvg() / 10; // [us]
+//		pPTPStats->ui32PTPFollowMaxArrivalDelta	= self->m_pmmmPTPStatFollowInterval.GetMax() / 10; // [us]
+//		self->m_pmmmPTPStatFollowInterval.ResetAtNextPoint();
+//
+//
+//
+//		pPTPStats->i32PTPMinDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetMin() / 10; // [us]
+//		pPTPStats->i32PTPAvgDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetAvg() / 10; // [us]
+//		pPTPStats->i32PTPMaxDeltaTICFrame = self->m_pmmmPTPStatDeltaTICFrame.GetMax() / 10; // [us]
+//		self->m_pmmmPTPStatDeltaTICFrame.ResetAtNextPoint();
+//
+//		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+//	}
+//}
+//
+/////////////////////////////////////////////////////////////////////////////////
+//void GetTICStats(TClock_PTP* self, TTICStats* pTICStats)
+//{
+//	if(!pTICStats)
+//	{
+//		return;
+//	}
+//
+//	memset(pTICStats, 0, sizeof(TTICStats));
+//	{
+//        //unsigned long flags;
+//        spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+//
+//		pTICStats->ui32TICMinDelta = (uint32_t)self->m_pmiTICInterval.GetMin(); // us
+//		pTICStats->ui32TICMaxDelta = (uint32_t)self->m_pmiTICInterval.GetMax(); // [us]
+//		self->m_pmiTICInterval.ResetAtNextPoint();
+//
+//		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+//	}
+//}
 
 ///////////////////////////////////////////////////////////////////////////////
 uint64_t get_ptp_global_SAC(TClock_PTP* self)

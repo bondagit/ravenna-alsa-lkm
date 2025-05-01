@@ -64,6 +64,7 @@ typedef struct
 
     void* nf_tx_skb_ptr_;
 
+    unsigned char nic_id;
     char ifname_used_[16];
 
     volatile int etherTubeEnable_;
@@ -100,7 +101,7 @@ extern "C"
 /*extern*/ int IsEtherTubeEnabled(TEtherTubeNetfilter* self);
 
 /*__attribute__((deprecated))*/ //int Init(unsigned char /*byNICNum*/) { return false; }
-/*extern*/ int InitEtherTube(TEtherTubeNetfilter* self, struct TManager* pManager); // new method
+/*extern*/ int InitEtherTube(TEtherTubeNetfilter* self, struct TManager* pManager, unsigned char nic_id); // new method
 /*extern*/ int DestroyEtherTube(TEtherTubeNetfilter* self);
 
 /*__attribute__((deprecated))*/ //int Start() { return false; }
