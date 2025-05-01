@@ -74,6 +74,7 @@ void MTConvertFloatToInt32_24r(float *pSrc, int32_t *pDest, uint32_t dwLength);
 
 void MTConvertInt16ToFloat(int16_t *pSrc, float *pDest, uint32_t dwLength);
 void MTConvertInt24ToFloat(TRIBYTE *pSrc, float *pDest, uint32_t dwLength);
+void MTConvertInt24ToInt32(TRIBYTE * pSrc, int32_t * pDest, uint32_t dwLength);
 void MTConvert32BitInt24ToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength);
 void MTConvertInt32ToFloat(int32_t * pSrc, float * pDest, uint32_t dwLength);
 void MTConvertInt32_24rToFloat(int32_t *pSrc, float *pDest, uint32_t dwLength);
@@ -135,6 +136,10 @@ void MTConvertMappedInt8ToBigEndianDSD64_32Interleave(void** ppfUninterleave, co
 void MTConvertBigEndianDSD64_32ToMappedInt8DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 void MTConvertMappedInt16ToBigEndianDSD128_32Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
 void MTConvertBigEndianDSD128_32ToMappedInt16DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
+
+void MTConvertMappedInt16ToBigEndianDSD128Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
+void MTConvertBigEndianDSD128ToMappedInt16DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
+
 void MTConvertMappedInt32ToBigEndianDSD256Interleave(void** ppfUninterleave, const uint32_t dwOffsetInUninterleaveBuffer, void* pvBigEndianInterleave, const uint32_t dwNbOfChannels, const uint32_t dwNbOfSamplesByChannels);
 void MTConvertBigEndianDSD256ToMappedInt32DeInterleave(void* pvBigEndianInterleave, void** ppfUninterleave, uint32_t dwOffsetInUninterleaveBuffer, uint32_t dwNbOfChannels, uint32_t dwNbOfSamplesByChannels);
 
@@ -152,7 +157,7 @@ void MTConvertDSD256FloatToDoPDSD256_352_8Interleaved(uint8_t * pui8DoPMarker, f
 void MTConvertDoPDSD128_352_8ToDSD128FloatDeInterleave(float const * pfSource, float* pfDestination, uint32_t dwNbOfChannels, uint32_t ui32DestinationFrameSize, uint32_t ui32NbOfSamplesToProcess);
 void MTConvertDSD128FloatToDoPDSD128_352_8Interleaved(uint8_t * pui8DoPMarker, float const * pfSource, float* pfDestination, uint32_t ui32NbOfChannels, uint32_t ui32SourceFrameSize, uint32_t ui32NbOfSamplesToProcess);
 
-void MTConvertDoPDSD64_176_4ToDSD128FloatDeInterleave(float const * pfSource, float* pfDestination, uint32_t ui32NbOfChannels, uint32_t ui32DestinationFrameSize, uint32_t ui32NbOfSamplesToProcess);
+void MTConvertDoPDSD64_176_4ToDSD64FloatDeInterleave(float const * pfSource, float* pfDestination, uint32_t ui32NbOfChannels, uint32_t ui32DestinationFrameSize, uint32_t ui32NbOfSamplesToProcess);
 void MTConvertDSD64FloatToDoPDSD64_176_4Interleaved(uint8_t * pui8DoPMarker, float const * pfSource, float* pfDestination, uint32_t ui32NbOfChannels, uint32_t ui32SourceFrameSize, uint32_t ui32NbOfSamplesToProcess);
 #endif
 
