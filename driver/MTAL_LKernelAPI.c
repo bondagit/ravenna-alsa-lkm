@@ -54,21 +54,6 @@
 #include <linux/printk.h>
 
 
-void *my_alloc(size_t s) {
-    //printk(KERN_INFO "my_alloc %lu\n", s);
-	return kmalloc(s, GFP_ATOMIC/*GFP_KERNEL*/);
-}
-void my_free(void *p)
-{
-    //printk(KERN_INFO "my_free\n");
-	return kfree(p);
-}
-
-void __cxa_pure_virtual(void)
-{
-    printk(KERN_ERR "pure virtual call!\n");
-}
-
 void *malloc (size_t __size)
 {
     //printk(KERN_INFO "malloc %lu\n", __size);
@@ -104,86 +89,6 @@ int MTAL_LK_print(const char *fmt, ...)
     res = vprintk(fmt, args);
     va_end(args);
     return res;
-}
-
-MTAL_LK_spinlock_ptr MTAL_LK_spinlock_alloc(void)
-{
-    spinlock_t* psl = (spinlock_t*)kmalloc(sizeof(spinlock_t), GFP_ATOMIC/*GFP_KERNEL*/);
-    //printk(KERN_INFO "Spinlock alloc\n");
-    memset(psl, 0, sizeof(spinlock_t));
-    return (MTAL_LK_spinlock_ptr)psl;
-}
-
-void MTAL_LK_spinlock_free(MTAL_LK_spinlock_ptr lock)
-{
-    //printk(KERN_INFO "Spinlock free\n");
-    if(lock != 0)
-        kfree((void*)lock);
-}
-
-void MTAL_LK_spin_lock_init(MTAL_LK_spinlock_ptr lock)
-{
-    spin_lock_init((spinlock_t*)lock);
-}
-
-void MTAL_LK_spin_lock_irqsave(MTAL_LK_spinlock_ptr lock, unsigned long* flags)
-{
-    // warning the line below is a macro and the pseudo flag parameter is assigned inside the macro
-    spin_lock_irqsave((spinlock_t*)lock, *flags);
-}
-
-void MTAL_LK_spin_unlock_irqrestore(MTAL_LK_spinlock_ptr lock, unsigned long flags)
-{
-    spin_unlock_irqrestore((spinlock_t*)lock, flags);
-}
-
-void MTAL_LK_spin_lock(MTAL_LK_spinlock_ptr lock)
-{
-    spin_lock((spinlock_t*)lock);
-}
-
-void MTAL_LK_spin_unlock(MTAL_LK_spinlock_ptr lock)
-{
-    spin_unlock((spinlock_t*)lock);
-}
-
-////////////////////////////////////////////////
-MTAL_LK_rwlock_ptr MTAL_LK_rwlock_alloc(void)
-{
-    rwlock_t* psl = (rwlock_t*)kmalloc(sizeof(rwlock_t), GFP_KERNEL);
-    memset(psl, 0, sizeof(rwlock_t));
-    return (MTAL_LK_rwlock_ptr)psl;
-}
-
-void MTAL_LK_rwlock_free(MTAL_LK_rwlock_ptr rwlock)
-{
-    if(rwlock != 0)
-        kfree((void*)rwlock);
-}
-
-void MTAL_LK_rwlock_init(MTAL_LK_rwlock_ptr rwlock)
-{
-    rwlock_init((rwlock_t*)rwlock);
-}
-
-void MTAL_LK_read_lock_irqsave(MTAL_LK_rwlock_ptr rwlock, unsigned long* flags)
-{
-    read_lock_irqsave((rwlock_t*)rwlock, *flags);
-}
-
-void MTAL_LK_read_unlock_irqrestore(MTAL_LK_rwlock_ptr rwlock, unsigned long flags)
-{
-    read_unlock_irqrestore((rwlock_t*)rwlock, flags);
-}
-
-void MTAL_LK_write_lock_irqsave(MTAL_LK_rwlock_ptr rwlock, unsigned long* flags)
-{
-    write_lock_irqsave((rwlock_t*)rwlock, *flags);
-}
-
-void MTAL_LK_write_unlock_irqrestore(MTAL_LK_rwlock_ptr rwlock, unsigned long flags)
-{
-    write_unlock_irqrestore((rwlock_t*)rwlock, flags);
 }
 
 uint64_t MTAL_LK_GetCounterTime(void) // 100 ns precision

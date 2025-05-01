@@ -54,8 +54,7 @@ extern "C"
     #define NULL 0UL
 #endif // NULL
 
-extern void *my_alloc(size_t size);
-extern void my_free(void *p);
+
 extern void *malloc (size_t __size);
 extern void *calloc (size_t __nmemb, size_t __size);
 //extern void *realloc (void *__ptr, size_t __size);
@@ -65,26 +64,6 @@ extern void free (void *__ptr);
 extern int snprintf(char *buf, size_t size, const char *fmt, ...);
 extern int MTAL_LK_print(const char *fmt, ...);
 
-typedef void* MTAL_LK_spinlock_ptr;
-
-extern MTAL_LK_spinlock_ptr MTAL_LK_spinlock_alloc(void);
-extern void MTAL_LK_spinlock_free(MTAL_LK_spinlock_ptr lock);
-extern void MTAL_LK_spin_lock_init(MTAL_LK_spinlock_ptr lock);
-extern void MTAL_LK_spin_lock_irqsave(MTAL_LK_spinlock_ptr lock, unsigned long* flags);
-extern void MTAL_LK_spin_unlock_irqrestore(MTAL_LK_spinlock_ptr lock, unsigned long flags);
-extern void MTAL_LK_spin_lock(MTAL_LK_spinlock_ptr lock);
-extern void MTAL_LK_spin_unlock(MTAL_LK_spinlock_ptr lock);
-
-
-typedef void* MTAL_LK_rwlock_ptr;
-
-extern MTAL_LK_rwlock_ptr MTAL_LK_rwlock_alloc(void);
-extern void MTAL_LK_rwlock_free(MTAL_LK_rwlock_ptr rwlock);
-extern void MTAL_LK_rwlock_init(MTAL_LK_rwlock_ptr rwlock);
-extern void MTAL_LK_read_lock_irqsave(MTAL_LK_rwlock_ptr rwlock, unsigned long* flags);
-extern void MTAL_LK_read_unlock_irqrestore(MTAL_LK_rwlock_ptr rwlock, unsigned long flags);
-extern void MTAL_LK_write_lock_irqsave(MTAL_LK_rwlock_ptr rwlock, unsigned long* flags);
-extern void MTAL_LK_write_unlock_irqrestore(MTAL_LK_rwlock_ptr rwlock, unsigned long flags);
 
 extern uint64_t MTAL_LK_GetCounterTime(void); // 100 ns precision
 extern uint64_t MTAL_LK_GetCounterFreq(void); // not sure what's the point of that one
