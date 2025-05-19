@@ -70,6 +70,9 @@ typedef struct
     volatile int etherTubeEnable_;
     volatile int started_;
 
+    //atomic_t etherTubeEnable_;
+    //atomic_t started_;
+
     rtp_stream_ops m_c_callbacks_;
 
 } TEtherTubeNetfilter;

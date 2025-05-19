@@ -11,6 +11,9 @@
 *  Date           : 14/04/2016
 *  Modification   : Linux driver port, removed floating point, 
 *                   changed time ref unit, stabiliy increased
+*  Modified by    : Baume Florian
+*  Date           : 19/05/2025
+*  Modification   : ST-2022-7 support
 *  Known problems : None
 *
 * Copyright(C) 2017 Merging Technologies
@@ -45,7 +48,7 @@
 #include "MTAL_DP.h"
 
 #define PTP_LOCK_HYSTERESIS		4
-#define PTP_WATCHDOG_ELAPSE		20000000	// we assume to receive at least one sync each 2s
+#define PTP_WATCHDOG_ELAPSE		20000 // we assume to receive at least one sync each 2s
 #define TIC_LOCK_HYSTERESIS		5
 
 //REF_UNIT is cent of microseconde (100us)
@@ -172,9 +175,9 @@ static uint64_t GetSeconds(uint8_t bySeconds[6])
 
 
 //////////////////////////////////////////////////////////////
-bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_ops* audio_streamer_clock_PTP_callback_ptr)
+bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEth_netfilter, clock_ptp_ops* audio_streamer_clock_PTP_callback_ptr)
 {
-    self->m_pEtherTubeNIC = NULL;
+    self->m_pEth_netfilter = NULL;
 
 	self->m_ui64GlobalSAC = 0;
 	self->m_ui64GlobalTime = 0;
@@ -184,7 +187,6 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_op
 
 	self->m_bInitialized = false;
 	self->m_audio_streamer_clock_PTP_callback_ptr = audio_streamer_clock_PTP_callback_ptr;
-	self->m_bAudioFrameTICTimerStarted = false;
 
 	self->m_ui64TICSAC = 0;
 
@@ -204,9 +206,9 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_op
 	//self->m_ui64TIC_Counter = 0;
 	self->m_i64TIC_PTPToRTXClockOffset = 0;
 
-	self->m_ui64TIC_LastRTXClockTime = 0; // [100ns]
-	self->m_ui64TIC_LastRTXClockTimeAtT2 = 0; // [100ns]
-	self->m_ui64TIC_NextAbsoluteTime = 0; // [100ns]
+	self->m_ui64TIC_LastRTXClockTime = 0; // [100us]
+	self->m_ui64TIC_LastRTXClockTimeAtT2 = 0; // [100us]
+	self->m_ui64TIC_NextAbsoluteTime = 0; // [100us]
 	self->m_dTIC_NextAbsoluteTime_frac = 0;
 	self->m_dTIC_BasePeriod = 64 * 1000000000000 / 48000; // [ps] in that case we loose 0.33333...
 	self->m_dTIC_CurrentPeriod = self->m_dTIC_BasePeriod;
@@ -224,7 +226,7 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_op
 	self->m_ui8PTPClockDomain = 0;
 
     //////////////
-    self->m_pEtherTubeNIC = pEtherTubeNIC;
+    self->m_pEth_netfilter = pEth_netfilter;
 	// PTP Master
 	SetPTPMasterPortNumber(self, 1); // by default we are using Master 1
 
@@ -243,6 +245,8 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_op
     self->m_ui32PTPConfigChangedCounter = self->m_ui32LastPTPConfigChangedCounter = 0;
     ResetPTPMaster(self);
     //######################################################
+
+	self->m_maxClkJitter = 0; // [us]
 
 	return true;
 }
@@ -266,7 +270,7 @@ void ResetPTPLock(TClock_PTP* self, bool bUseMutex)
 		spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 
 	{
-		MTAL_DP("ResetPTPLock()\n");
+		MTAL_DP("[%u] ResetPTPLock()\n", self->m_pEth_netfilter->nic_id);
 		self->m_usPTPLockCounter = PTP_LOCK_HYSTERESIS;
 
 		self->m_dTIC_IGR = 0;
@@ -280,11 +284,11 @@ void ResetPTPLock(TClock_PTP* self, bool bUseMutex)
 ///////////////////////////////////////////////////////////////////////////////
 void SetPTPMasterPortNumber(TClock_PTP* self, unsigned short const usPTPMasterPortNumber)
 {
-	MTAL_DP("Caudio_streamer_clock_PTP::SetPTPMasterPortNumber %u\n", usPTPMasterPortNumber);
+	MTAL_DP("[%u] SetPTPMasterPortNumber %u\n", self->m_pEth_netfilter->nic_id, usPTPMasterPortNumber);
 	self->m_usPTPMasterPortNumber = usPTPMasterPortNumber;
 
 	// Enable PTP stamping for Master self->m_usPTPMasterPortNumber
-	EnablePTPTimeStamping(self->m_pEtherTubeNIC, true, self->m_usPTPMasterPortNumber);
+	EnablePTPTimeStamping(self->m_pEth_netfilter, true, self->m_usPTPMasterPortNumber);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -303,7 +307,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
 	if(ui32PacketSize < sizeof(TPTPPacketBase))
 	{
-		MTAL_DP("too short PTP packet size = %u should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPPacketBase));
+		MTAL_DP("[%u] too short PTP packet size = %u should be at least %u\n", self->m_pEth_netfilter->nic_id, ui32PacketSize, (uint32_t)sizeof(TPTPPacketBase));
 		return DR_PACKET_NOT_USED;
 	}
 
@@ -313,7 +317,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 		uint16_t ui16CheckSum = MTAL_ComputeUDPChecksum(&pPTPPacketBase->UDPHeader, MTAL_SWAP16(pUDPPacketBase->UDPHeader.usLen), (unsigned short*)&pPTPPacketBase->IPV4Header.ui32SrcIP, (unsigned short*)&pPTPPacketBase->IPV4Header.ui32DestIP);
 		if (ui16CheckSum != 0)
 		{
-			MTAL_DP("Bad checksum 0x%x\n", ui16CheckSum);
+			MTAL_DP("[%u] Bad checksum 0x%x\n", self->m_pEth_netfilter->nic_id, ui16CheckSum);
 			MTAL_DP("PTP type: 0%x seq_id: %u\n", pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F, pPTPPacketBase->V2MsgHeader.wSequenceId);
 			MTAL_DP("\n");
 
@@ -326,7 +330,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
 	if((pPTPPacketBase->V2MsgHeader.byReserved1AndVersionPTP & 0xF) != 2)	// PTP version 2s
 	{
-		MTAL_DP("Incompatible PTP version\n");
+		MTAL_DP("[%u] Incompatible PTP version\n", self->m_pEth_netfilter->nic_id);
 		return DR_PACKET_NOT_USED;
 	}
 
@@ -337,7 +341,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			TPTPV2MsgAnnouncePacket* pPTPV2MsgAnnouncePacket = (TPTPV2MsgAnnouncePacket*)pUDPPacketBase;
 			if(ui32PacketSize < sizeof(TPTPV2MsgAnnouncePacket))
 			{
-				MTAL_DP("too short announce PTP packet size = %d should be at least %u\n", ui32PacketSize,  (uint32_t)sizeof(TPTPV2MsgAnnouncePacket));
+				MTAL_DP("[%u] too short announce PTP packet size = %d should be at least %u\n", self->m_pEth_netfilter->nic_id, ui32PacketSize,  (uint32_t)sizeof(TPTPV2MsgAnnouncePacket));
 				return DR_PACKET_NOT_USED;
 			}
 
@@ -345,7 +349,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				uint16_t wDeltaSeq = MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId) - self->m_wLastAnnounceSequenceId;
 				if (wDeltaSeq > 1)
 				{
-					MTAL_DP("PTP Announce delta(%u) error\n", wDeltaSeq);
+					MTAL_DP("[%u] PTP Announce delta(%u) error\n", self->m_pEth_netfilter->nic_id, wDeltaSeq);
 					MTAL_DP("\tV2MsgHeader.wSequenceId = %d != m_wLastAnnounceSequenceId = %d + 1\n", MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId), self->m_wLastAnnounceSequenceId);
 				}
 				self->m_wLastAnnounceSequenceId = MTAL_SWAP16(pPTPV2MsgAnnouncePacket->V2MsgHeader.wSequenceId);
@@ -360,7 +364,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                 { // restart election
                     self->m_ui32LastPTPConfigChangedCounter = self->m_ui32PTPConfigChangedCounter;
                     
-                    MTAL_DP("PTPConfig has changed -> restart election\n");
+                    MTAL_DP("[%u] PTPConfig has changed -> restart election\n", self->m_pEth_netfilter->nic_id);
                     
                     ResetPTPLock(self, true);
                     ResetPTPMaster(self);
@@ -370,7 +374,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                 if (ui64_CurrentClockIdentity == self->m_ui64PTPMaster_ClockIdentity
                     && pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
                 { // restart election
-                    MTAL_DP("PTP Master domain no longer matches wanted domain -> restart election\n");
+                    MTAL_DP("[%u] PTP Master domain no longer matches wanted domain -> restart election\n", self->m_pEth_netfilter->nic_id);
                     ResetPTPLock(self, true);
                     ResetPTPMaster(self);
                 }
@@ -393,13 +397,13 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     }
                     if (self->m_ui64PTPMaster_AnnounceTime != 0 && ui64CurrentTime - self->m_ui64PTPMaster_AnnounceTime > PTPMASTER_ANNOUNCE_TIMEOUT)
                     { // too long time we didn't receive the announce -> restart election
-                        MTAL_DP("PTP Master announce timeout\n");
+                        MTAL_DP("[%u] PTP Master announce timeout\n", self->m_pEth_netfilter->nic_id);
                         bElectThisPTPMaster = true;
                     }
                     
                     if(bElectThisPTPMaster)
                     { // use this PTP Master
-                        MTAL_DP("Use this PTP Master\n");
+                        MTAL_DP("[%u] Use this PTP Master\n", self->m_pEth_netfilter->nic_id);
                         ResetPTPLock(self, true);
                         ResetPTPMaster(self);
                         
@@ -416,7 +420,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                 }
                 else
                 {
-                    MTAL_DP("Announced domain %d look for domain %d\n", pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber, self->m_PTPConfig.ui8Domain);
+                    MTAL_DP("[%u] Announced domain %d look for domain %d\n", self->m_pEth_netfilter->nic_id, pPTPV2MsgAnnouncePacket->V2MsgHeader.byDomainNumber, self->m_PTPConfig.ui8Domain);
                 }
             }
             //######################################################
@@ -434,7 +438,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			///MTAL_DP("PTP_SYNC_MESSAGE\n");
 			if(ui32PacketSize < sizeof(TPTPV2MsgSyncPacket))
 			{
-				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgSyncPacket));
+				MTAL_DP("[%u] too short PTP packet size = %d should be at least %u\n", self->m_pEth_netfilter->nic_id, ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgSyncPacket));
 				return DR_PACKET_NOT_USED;
 			}
 			//DumpV2TimeRepresentation(&pPTPV2MsgSyncPacket->V2MsgSync.OriginTimestamp);
@@ -450,7 +454,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
 			get_clock_time(&ui64T2); // retrieve the packet arrival time (RTX clock domain).
 			ui64T2 /= NS_2_REF_UNIT; // [100ns]
-			/*if(!GetPTPTimeStamp(self->m_pEtherTubeNIC, &ui64T2)) // [100ns]	// retrieve the packet arrival time (RTX clock domain).
+			/*if(!GetPTPTimeStamp(self->m_pEth_netfilter, &ui64T2)) // [100ns]	// retrieve the packet arrival time (RTX clock domain).
 			{
 				MTAL_DP("GetPTPTimeStamp failed\n");
 				return DR_PACKET_NOT_USED;
@@ -462,7 +466,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 				self->m_ui64DeltaT2 = 0;
 
 				ResetPTPLock(self, true);
-				MTAL_DP("PTP Sync delta(%u) error: -> reset PTP internal locked\n", wDeltaSeq);
+				MTAL_DP("[%u] PTP Sync delta(%u) error: -> reset PTP internal locked\n", self->m_pEth_netfilter->nic_id, wDeltaSeq);
 				MTAL_DP("\tV2MsgHeader.wSequenceId = %d != self->m_wLastSyncSequenceId = %d + 1\n", MTAL_SWAP16(pPTPV2MsgSyncPacket->V2MsgHeader.wSequenceId), self->m_wLastSyncSequenceId);
 			}
 			else
@@ -509,7 +513,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 			TPTPV2MsgFollowUpPacket* pPTPV2MsgFollowUpPacket = (TPTPV2MsgFollowUpPacket*)pUDPPacketBase;
 			if(ui32PacketSize < sizeof(TPTPV2MsgFollowUpPacket))
 			{
-				MTAL_DP("too short PTP packet size = %d should be at least %u\n", ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgFollowUpPacket));
+				MTAL_DP("[%u] too short PTP packet size = %d should be at least %u\n", self->m_pEth_netfilter->nic_id, ui32PacketSize, (uint32_t)sizeof(TPTPV2MsgFollowUpPacket));
 				return DR_PACKET_NOT_USED;
 			}
 			///MTAL_DP("PTP_FOLLOWUP_MESSAGE\n");
@@ -538,7 +542,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                 }
                 else
                 {
-                    MTAL_DP("This FollowUp(seq = %d) doesn't match the last sync(seq = %d) received\n",  MTAL_SWAP16(pPTPV2MsgFollowUpPacket->V2MsgHeader.wSequenceId), self->m_wLastSyncSequenceId);
+                    MTAL_DP("[%u] This FollowUp(seq = %d) doesn't match the last sync(seq = %d) received\n", self->m_pEth_netfilter->nic_id, MTAL_SWAP16(pPTPV2MsgFollowUpPacket->V2MsgHeader.wSequenceId), self->m_wLastSyncSequenceId);
                 }
                 self->m_wLastFollowUp = MTAL_SWAP16(pPTPV2MsgFollowUpPacket->V2MsgHeader.wSequenceId);
 
@@ -556,7 +560,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             break;
 		default:
 		{
-			MTAL_DP("Unknown PTPv2 message type\n");
+			MTAL_DP("[%u] Unknown PTPv2 message type\n", self->m_pEth_netfilter->nic_id);
 			break;
 		}
 	}
@@ -566,7 +570,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 //######################################################
 void ResetPTPMaster(TClock_PTP* self)
 {
-    MTAL_DP("ResetPTPMaster\n");
+    MTAL_DP("[%u] ResetPTPMaster\n", self->m_pEth_netfilter->nic_id);
     memset(&self->m_PTPMaster_Announce, 0, sizeof(TV2MsgAnnounce));
     self->m_ui64PTPMaster_AnnounceTime = 0;
     self->m_ui64PTPMaster_ClockIdentity = 0;
@@ -582,7 +586,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 	uint64_t ui64DeltaT1 = ui64T1 - self->m_ui64T1;
 	if (ui64DeltaT1 == 0)
 	{
-		MTAL_DP("ui64DeltaT1 = %llu, current TIC period not proceed in order to prevent a 0 division !!\n", ui64DeltaT1);
+		MTAL_DP("[%u] ui64DeltaT1 = %llu, current TIC period not proceed in order to prevent a 0 division !!\n", self->m_pEth_netfilter->nic_id, ui64DeltaT1);
 		return;
 	}
 	/*if(ui64DeltaT1 > 7000000)
@@ -597,11 +601,11 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 			self->m_usPTPLockCounter--;
 			if (self->m_usPTPLockCounter == 0)
 			{
-				MTAL_DP("PTP locked\n");
+				MTAL_DP("[%u] PTP locked\n", self->m_pEth_netfilter->nic_id);
 			}
 			else
 			{
-				MTAL_DP("PTP lock pending (%d)\n", self->m_usPTPLockCounter);
+				MTAL_DP("[%u] PTP lock pending (%d)\n", self->m_pEth_netfilter->nic_id, self->m_usPTPLockCounter);
 
 
 				if (self->m_usPTPLockCounter == 1)
@@ -629,7 +633,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 
 					self->m_dTIC_CurrentPeriod = (self->m_dTIC_BasePeriod * self->m_ui64DeltaT2) / ui64DeltaT1; // [ps]
 					//MTAL_DP("self->m_ui64DeltaT2 = %llu, ui64DeltaT1 = %llu\n", self->m_ui64DeltaT2 , ui64DeltaT1);
-					MTAL_DP("self->m_dTIC_CurrentPeriod = %ull , self->m_dTIC_BasePeriod = %ull\n", self->m_dTIC_CurrentPeriod , self->m_dTIC_BasePeriod);
+					MTAL_DP("[%u] self->m_dTIC_CurrentPeriod = %ull , self->m_dTIC_BasePeriod = %ull\n", self->m_pEth_netfilter->nic_id, self->m_dTIC_CurrentPeriod , self->m_dTIC_BasePeriod);
 
 					self->m_ui64TIC_NextAbsoluteTime = self->m_ui64TIC_LastRTXClockTimeAtT2 + i32DeltaTICFrame + (5 * self->m_dTIC_CurrentPeriod / PS_2_REF_UNIT);
 					self->m_dTIC_NextAbsoluteTime_frac = 0;
@@ -658,7 +662,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 			//if(abs(1 - self->m_dTIC_BasePeriod / self->m_dTIC_CurrentPeriod) > 0.2)
 			if (self->m_dTIC_CurrentPeriod == 0)
 			{
-				MTAL_DP("self->m_dTIC_CurrentPeriod = 0 (self->m_dTIC_BasePeriod = %llu; self->m_ui64DeltaT2 = %llu; ui64DeltaT1 = %llu)!!!", self->m_dTIC_BasePeriod, self->m_ui64DeltaT2, ui64DeltaT1);
+				MTAL_DP("[%u] self->m_dTIC_CurrentPeriod = 0 (self->m_dTIC_BasePeriod = %llu; self->m_ui64DeltaT2 = %llu; ui64DeltaT1 = %llu)!!!", self->m_pEth_netfilter->nic_id, self->m_dTIC_BasePeriod, self->m_ui64DeltaT2, ui64DeltaT1);
 				self->m_dTIC_CurrentPeriod = self->m_dTIC_BasePeriod;
 			}
 			else
@@ -666,8 +670,8 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 				if (abs((((signed)self->m_dTIC_CurrentPeriod - (signed)self->m_dTIC_BasePeriod) * 100) / (signed)self->m_dTIC_CurrentPeriod) > 20)
 				{
 					//bug: cannot print 2 doubles in one single MTAL_DP, in RTX, to investigate....
-					MTAL_DP("self->m_dTIC_CurrentPeriod = %llu , ", self->m_dTIC_CurrentPeriod);
-					MTAL_DP("self->m_dTIC_BasePeriod = %llu\n", self->m_dTIC_BasePeriod);
+					MTAL_DP("[%u] self->m_dTIC_CurrentPeriod = %llu , ", self->m_pEth_netfilter->nic_id, self->m_dTIC_CurrentPeriod);
+					MTAL_DP("[%u] self->m_dTIC_BasePeriod = %llu\n", self->m_pEth_netfilter->nic_id, self->m_dTIC_BasePeriod);
 					self->m_dTIC_CurrentPeriod = self->m_dTIC_BasePeriod;
 				}
 			}
@@ -692,7 +696,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 
 				if (i32DeltaTICFrame > 3 * i32MidPeriod || i32DeltaTICFrame < -3 * i32MidPeriod)
 				{
-					MTAL_DP("i32DeltaTICFrame(%d) is out of range. ProcessT1 is not procceed\n", i32DeltaTICFrame);
+					MTAL_DP("[%u] i32DeltaTICFrame(%d) is out of range. ProcessT1 is not procceed\n", self->m_pEth_netfilter->nic_id, i32DeltaTICFrame);
 					break;
 				}
 
@@ -752,7 +756,7 @@ void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
                     self->m_usTICLockCounter--;
                     if (self->m_usTICLockCounter == 0)
                     {
-                        MTAL_DP("TIC locked\n");
+                        MTAL_DP("[%u] TIC locked\n", self->m_pEth_netfilter->nic_id);
                     }
                 }
                 else if (abs(dPhaseAdj) > 1000000)
@@ -795,7 +799,7 @@ bool SendDelayReq(TClock_PTP* self, TPTPV2MsgFollowUpPacket* pPTPV2MsgFollowUpPa
 
 	// Ethernet
 	memcpy(self->m_PTPV2MsgDelayReqPacket.EthernetHeader.byDest, self->m_PTPV2MsgDelayReqPacket.EthernetHeader.bySrc, 6);
-	GetMACAddress(self->m_pEtherTubeNIC, self->m_PTPV2MsgDelayReqPacket.EthernetHeader.bySrc, 6);
+	GetMACAddress(self->m_pEth_netfilter, self->m_PTPV2MsgDelayReqPacket.EthernetHeader.bySrc, 6);
 #ifdef WIRESHARK_DEBUG
 	self->m_PTPV2MsgDelayReqPacket.EthernetHeader.byDest[5] = 0xFF;
 #endif //WIRESHARK_DEBUG
@@ -841,7 +845,7 @@ bool SendDelayReq(TClock_PTP* self, TPTPV2MsgFollowUpPacket* pPTPV2MsgFollowUpPa
 
 	self->m_PTPV2MsgDelayReqPacket.UDPHeader.usCheckSum = MTAL_SWAP16(MTAL_ComputeUDPChecksum(&self->m_PTPV2MsgDelayReqPacket.UDPHeader, sizeof(TPTPV2MsgFollowUpPacket) - sizeof(TEthernetHeader)  - sizeof(TIPV4Header), (uint16_t*)&self->m_PTPV2MsgDelayReqPacket.IPV4Header.ui32SrcIP, (uint16_t*)&self->m_PTPV2MsgDelayReqPacket.IPV4Header.ui32DestIP));
 
-	SendRawPacket(self->m_pEtherTubeNIC, &self->m_PTPV2MsgDelayReqPacket, sizeof(self->m_PTPV2MsgDelayReqPacket));
+	SendRawPacket(self->m_pEth_netfilter, &self->m_PTPV2MsgDelayReqPacket, sizeof(self->m_PTPV2MsgDelayReqPacket));
 
 	return true;
 }
@@ -886,24 +890,41 @@ void computeNextAbsoluteTime(TClock_PTP* self, uint32_t ui32FrameCount)
 ///////////////////////////////////////////////////////////////////////////////
 // Timer
 ///////////////////////////////////////////////////////////////////////////////
+void timerSetNextAbsoluteTime(TClock_PTP* self, uint64_t ui64NextAbsoluteTime)
+{
+	spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+	self->m_ui64TIC_NextAbsoluteTime = ui64NextAbsoluteTime / NS_2_REF_UNIT;
+	spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
-//int print_coutner = 0;
-uint64_t g_ui64LastCurrentRTXClockTime;
-uint64_t g_ui64LastAbsoluteTime;
-uint64_t g_ui64CurrentTimeMinus5Second = 0;
-///////////////////////////////////////////////////////////////////////////////
-void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
+void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime, uint64_t ui64RTXClockTime)
 {
 	// debug
 	//int iTICCountUpdateMethod = 0;
+	int32_t clkJitter;
 
 	// Set the timer to the next Frame
 	uint64_t ui64AbsoluteTime;
 	uint64_t ui64CurrentTICCount = 0;
 
 	uint64_t ui64CurrentRTXClockTime;
-    get_clock_time(&ui64CurrentRTXClockTime);
-    ui64CurrentRTXClockTime /= NS_2_REF_UNIT; // [100us]
+	//ui64CurrentRTXClockTime = ui64RTXClockTime / NS_2_REF_UNIT;
+	get_clock_time(&ui64CurrentRTXClockTime);
+
+	clkJitter = (int32_t)((signed)(self->m_ui64TIC_NextAbsoluteTime * 100) - (signed)(ui64CurrentRTXClockTime / 1000));
+	self->m_maxClkJitter = max(clkJitter, self->m_maxClkJitter);
+
+	ui64CurrentRTXClockTime /= NS_2_REF_UNIT; // [100us]
+
+	if (self == NULL)
+	{
+		return;
+	}
+	if (!self->m_bAudioFrameTICTimerStarted)
+	{
+		return;
+	}
 
 	//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_STOP), 0);
 	//MTAL_RtTraceEvent(RTTRACEEVENT_PTP_TIC, (PVOID)(RT_TRACE_EVENT_SIGNAL_START), (PVOID)(self->m_ui64TICSAC));
@@ -911,7 +932,14 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 	/////// debug
 	if (abs((int)((signed)self->m_ui64TIC_NextAbsoluteTime - (signed)ui64CurrentRTXClockTime)) > self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT)
 	{
-		printk(KERN_DEBUG "Wake up late of 1/2 period. Now(%llu), Asked(%llu), Diff(%i) [100us] neg means earlier\n", ui64CurrentRTXClockTime, self->m_ui64TIC_NextAbsoluteTime, (int)((signed)ui64CurrentRTXClockTime - (signed)self->m_ui64TIC_NextAbsoluteTime));
+		if (ui64CurrentRTXClockTime > self->m_ui64TIC_NextAbsoluteTime)
+		{
+			//if (bAudioFrameTIC)
+			if (GetLockStatus(self) == PTPLS_LOCKED)
+			{
+				printk(KERN_DEBUG "[%u] Wake up late of 1/2 period. Now(%llu), Asked(%llu), Diff(%i) [100us] neg means earlier (Current period = %llu)\n", self->m_pEth_netfilter->nic_id, ui64CurrentRTXClockTime, self->m_ui64TIC_NextAbsoluteTime, (int)((signed)ui64CurrentRTXClockTime - (signed)self->m_ui64TIC_NextAbsoluteTime), self->m_dTIC_CurrentPeriod);
+			}
+		}
 	}
 
 	// Atomicity
@@ -993,16 +1021,16 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csSAC_Time_Lock/*, flags*/);
     }
 
-    // Call AudioTICFrame
-	self->m_audio_streamer_clock_PTP_callback_ptr->AudioFrameTIC(self->m_audio_streamer_clock_PTP_callback_ptr->user);
+	//// Call AudioTICFrame now done in module_main
+	//self->m_audio_streamer_clock_PTP_callback_ptr->AudioFrameTIC(self->m_audio_streamer_clock_PTP_callback_ptr->user);
 
 	// Check the link status
-	if(!IsLinkUp(self->m_pEtherTubeNIC) && GetLockStatus(self) != PTPLS_UNLOCKED)
+	if(!IsLinkUp(self->m_pEth_netfilter) && GetLockStatus(self) != PTPLS_UNLOCKED)
 	{
         //unsigned long flags;
 		spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 		{
-			MTAL_DP("PTP detects that the link is down\n");
+			MTAL_DP("[%u] PTP detects that the link is down\n", self->m_pEth_netfilter->nic_id);
 			ResetPTPLock(self, false);
 		}
 		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
@@ -1017,8 +1045,8 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
             spin_lock/*_irqsave*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
             if(self->m_wLastWatchDogSyncSequenceId == self->m_wLastSyncSequenceId && GetLockStatus(self) != PTPLS_UNLOCKED)
             {
-                MTAL_DP("Didn't received PTP sync since 2s\n");
-                MTAL_DP("ui64WatchDogElapse = %llu = %llu - %llu\n", ui64WatchDogElapse, ui64CurrentRTXClockTime, self->m_ui64LastWatchDogTime);
+                MTAL_DP("[%u] Didn't received PTP sync since 2s\n", self->m_pEth_netfilter->nic_id);
+                MTAL_DP("[%u] ui64WatchDogElapse = %llu = %llu - %llu\n", self->m_pEth_netfilter->nic_id, ui64WatchDogElapse, ui64CurrentRTXClockTime, self->m_ui64LastWatchDogTime);
                 ResetPTPLock(self, false);
             }
             spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
@@ -1031,7 +1059,7 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 	if(GetLockStatus(self) == PTPLS_LOCKED && ui64CurrentTICCount != self->m_ui64LastTIC_Count + 1)
 	{
 		//MTAL_DP("iTICCountUpdateMethod = %i\n", iTICCountUpdateMethod);
-		MTAL_DP("LastTICCounter = %llu ui64TICCounter = %llu (Timer period = %llu [100us])\n", self->m_ui64LastTIC_Count, ui64CurrentTICCount, ui64CurrentRTXClockTime-g_ui64LastCurrentRTXClockTime);
+		MTAL_DP("[%u] LastTICCounter = %llu ui64TICCounter = %llu (Timer period = %llu [100us])\n", self->m_pEth_netfilter->nic_id, self->m_ui64LastTIC_Count, ui64CurrentTICCount, ui64CurrentRTXClockTime-self->m_ui64LastCurrentRTXClockTime);
 		//MTAL_DP("\tTIC_RTXClockTimeFromOrigin %llu  TIC_PTPClockTimeFromOrigin %llu\n", self->m_ui64TIC_RTXClockTimeFromOrigin, self->m_ui64TIC_PTPClockTimeFromOrigin);
 		//MTAL_DP("\t ui64CurrentRTXClockTimeDbg %llu - self->m_ui64TIC_RTXClockOriginTime %llu =  %llu\n", ui64CurrentRTXClockTimeDbg, self->m_ui64TIC_RTXClockOriginTime, ui64CurrentRTXClockTime);
 
@@ -1050,24 +1078,20 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
 		
         get_clock_time(&ui64CurrentTime);
         ui64CurrentTime /= NS_2_REF_UNIT; // [100us]
+		//ui64CurrentTime = ui64RTXClockTime / NS_2_REF_UNIT;;
 		
-		/*if (ui64CurrentTime - g_ui64CurrentTimeMinus5Second > 50000)
-		{
-			g_ui64CurrentTimeMinus5Second = ui64CurrentTime;
-			dropout_every_5second = true;
-			MTAL_DP("DEBUG DROPOUT triggered");
-		}*/
 		
         if (ui64AbsoluteTime <= ui64CurrentTime || dropout_every_5second)
         {
             if (ui64CurrentTime - ui64AbsoluteTime < self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT) // give a chance to be late of 200us
             {
-                MTAL_DP("%llu [100us] Overrun (upto Period / 2 (%llu [100us]), let try to catch up)\n", ui64CurrentTime - ui64AbsoluteTime, self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT);
+                MTAL_DP("[%u] %llu [100us] Overrun (upto Period / 2 (%llu [100us]), let try to catch up)\n", self->m_pEth_netfilter->nic_id, ui64CurrentTime - ui64AbsoluteTime, self->m_dTIC_CurrentPeriod / 2 / PS_2_REF_UNIT);
             }
 			else if (GetLockStatus(self) == PTPLS_LOCKED)
+			//if (GetLockStatus(self) == PTPLS_LOCKED)
             {
-                MTAL_DP("timerProcess elapsed time = %llu [100us]", ui64CurrentTime-ui64CurrentRTXClockTime);
-				MTAL_DP("Delta absolute time %llu; Timer CPU time period %llu\n", (ui64AbsoluteTime - g_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - g_ui64LastCurrentRTXClockTime);
+                MTAL_DP("[%u] timerProcess elapsed time = %llu [100us]", self->m_pEth_netfilter->nic_id, ui64CurrentTime-ui64CurrentRTXClockTime);
+				MTAL_DP("[%u] Delta absolute time %llu; Timer CPU time period %llu\n", self->m_pEth_netfilter->nic_id, (ui64AbsoluteTime - self->m_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - self->m_ui64LastCurrentRTXClockTime);
                 /*
 				MTAL_DP("%llu [us] Overrun ! Jump to 500 [ms] from now; ui64AbsoluteTime = %llu, ui64CurrentTime = %llu\n", (ui64CurrentTime-ui64AbsoluteTime)/10, ui64AbsoluteTime, ui64CurrentTime);
                 computeNextAbsoluteTime(self, self->m_ui32SamplingRate / self->m_ui32FrameSize / 2); // near 500ms jump
@@ -1084,9 +1108,9 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
         }
         /////// debug
 		//MTAL_DP("PTP GlobalSAC : self->m_ui64GlobalSAC = 0x%llx\n", self->m_ui64GlobalSAC);
-        //MTAL_DP("Delta absolute time %llu; Timer CPU time period %llu\n", ui64AbsoluteTime, (ui64AbsoluteTime - g_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - g_ui64LastCurrentRTXClockTime);
-        g_ui64LastAbsoluteTime = ui64AbsoluteTime;
-        g_ui64LastCurrentRTXClockTime = ui64CurrentRTXClockTime;
+        //MTAL_DP("Delta absolute time %llu; Timer CPU time period %llu\n", ui64AbsoluteTime, (ui64AbsoluteTime - self->m_ui64LastAbsoluteTime), ui64CurrentRTXClockTime - self->m_ui64LastCurrentRTXClockTime);
+        self->m_ui64LastAbsoluteTime = ui64AbsoluteTime;
+        self->m_ui64LastCurrentRTXClockTime = ui64CurrentRTXClockTime;
         /////////////
 
         *pui64NextRTXClockTime = ui64AbsoluteTime * NS_2_REF_UNIT;
@@ -1109,10 +1133,11 @@ bool StartAudioFrameTICTimer(TClock_PTP* self, uint32_t ulFrameSize, uint32_t ul
 		set_base_period(self->m_dTIC_BasePeriod/1000);
 		spin_unlock/*_irqrestore*/((spinlock_t*)self->m_csPTPTime/*, flags*/);
 	}
-	MTAL_DP("1.self->m_dTIC_BasePeriod = %llu	[ps]\n", self->m_dTIC_BasePeriod);
+	MTAL_DP("[%u] StartAudioFrameTICTimer with...\n", self->m_pEth_netfilter->nic_id);
+	MTAL_DP("self->m_dTIC_BasePeriod = %llu	[ps]\n", self->m_dTIC_BasePeriod);
 	MTAL_DP("self->m_ui32FrameSize = %u self->m_ui32SamplingRate = %u\n", self->m_ui32FrameSize, self->m_ui32SamplingRate);
 
-    start_clock_timer();
+    //start_clock_timer();
 
 	// samplingrate and/or framesize changed so computation made during PTP locking is no longer valid
 	ResetPTPLock(self, true);
@@ -1123,7 +1148,7 @@ bool StartAudioFrameTICTimer(TClock_PTP* self, uint32_t ulFrameSize, uint32_t ul
 ///////////////////////////////////////////////////////////////////////////////
 bool StopAudioFrameTICTimer(TClock_PTP* self)
 {
-    stop_clock_timer();
+    //stop_clock_timer();
 
     self->m_bAudioFrameTICTimerStarted = false;
 
@@ -1170,7 +1195,7 @@ void SetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig)
         self->m_PTPConfig = *pPTPConfig;
         self->m_ui32PTPConfigChangedCounter++;
         
-        MTAL_DP("PTPConfig: domain = %u, DSCP = %u\n", self->m_PTPConfig.ui8Domain, self->m_PTPConfig.ui8DSCP);
+        MTAL_DP("[%u] PTPConfig: domain = %u, DSCP = %u\n", self->m_pEth_netfilter->nic_id, self->m_PTPConfig.ui8Domain, self->m_PTPConfig.ui8DSCP);
     }
 }
 
@@ -1192,10 +1217,20 @@ void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus)
         return;
     }
     memset(pPTPStatus, 0, sizeof(TPTPStatus));
+
     pPTPStatus->nPTPLockStatus = GetLockStatus(self);
     pPTPStatus->ui64GMID[0] = self->m_ui64PTPMaster_GMID;
     pPTPStatus->i32NetworkJitter = 0; // TODO
-	pPTPStatus->i32ClockJitter = 0; // TODO
+	pPTPStatus->i32ClockJitter = self->m_maxClkJitter;
+
+	//MTAL_DP("[%u] CLK jitter = %u\n", self->m_pEth_netfilter->nic_id, self->m_maxClkJitter);
+	self->m_maxClkJitter = 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+uint8_t GetPTPPriority(TClock_PTP* self)
+{
+	return self->m_PTPMaster_Announce.Priority1;
 }
 
 /////////////////////////////////////////////////////////////////////////////////

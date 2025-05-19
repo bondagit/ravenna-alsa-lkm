@@ -41,7 +41,7 @@
 
 typedef struct
 {
-    TEtherTubeNetfilter *m_pEtherTubeNIC;
+    TEtherTubeNetfilter *m_pEth_netfilter;
 
     uint64_t m_ui64GlobalSAC; // this variable will not change during AudioFrameTIC()
     uint64_t m_ui64GlobalTime; // [100ns] this variable will not change during AudioFrameTIC()
@@ -75,13 +75,15 @@ typedef struct
 
     volatile int64_t m_i64TIC_PTPToRTXClockOffset; // [100us]
 
+    // Timer
+    uint64_t m_ui64LastCurrentRTXClockTime;
+    uint64_t m_ui64LastAbsoluteTime;
+
     unsigned int m_uiTIC_DropCounter;
     unsigned int m_uiTIC_LastDropCounter;
 
     // only for debug check
     uint64_t m_ui64LastTIC_Count;
-    uint64_t m_ui64LastAbsoluteTime;
-    uint64_t m_ui64LastCurrentRTXClockTime;
 
     // PTP Master
     volatile uint16_t m_usPTPMasterPortNumber;
@@ -105,6 +107,9 @@ typedef struct
 
     uint64_t m_ui64PTP_GMID;
     uint8_t m_ui8PTPClockDomain;
+
+    // Stats
+    int32_t m_maxClkJitter;
 
     /*
     CMTAL_PerfMonMinMax<float>      m_pmmmPTPStatRatio;
@@ -143,7 +148,7 @@ extern "C"
 //static uint32_t get_FS(uint32_t ui32SamplingRate);
 //static uint32_t get_samplerate_base(uint32_t ui32SamplingRate);
 
- bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEtherTubeNIC, clock_ptp_ops* audio_streamer_clock_PTP_callback_ptr);
+ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEth_netfilter, clock_ptp_ops* audio_streamer_clock_PTP_callback_ptr);
  void destroy_ptp(TClock_PTP* self);
 
  void SetPTPMasterPortNumber(TClock_PTP* self, uint16_t usPTPMasterPortNumber);
@@ -160,6 +165,7 @@ extern "C"
  void GetPTPConfig(TClock_PTP* self, TPTPConfig* pPTPConfig);
  
  void GetPTPStatus(TClock_PTP* self, TPTPStatus* pPTPStatus);
+ uint8_t GetPTPPriority(TClock_PTP* self);
 //extern void GetPTPStats(TClock_PTP* self, TPTPStats* pPTPStats);
 //extern void GetTICStats(TClock_PTP* self, TTICStats* pTICStats);
 
@@ -178,10 +184,10 @@ extern "C"
 
  //CMTAL_CriticalSectionBase* get_SAC_time_lock(TClock_PTP* self);
 
+ // Timer
  void computeNextAbsoluteTime(TClock_PTP* self, uint32_t ui32FrameCount);
-// Timer
-// Audio TIC
- void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime);
+ void timerSetNextAbsoluteTime(TClock_PTP* self, uint64_t ui64NextAbsoluteTime);
+ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime, uint64_t ui64RTXClockTime);
 
 // Helper
 //static uint64_t GetSeconds(uint8_t byseconds[6]);

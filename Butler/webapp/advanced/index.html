@@ -50,9 +50,48 @@
                 No connection to device.
             </div>    
         </div>
+        <div id="confirmRebootDialog" dojoType="dijit.Dialog" title="Confirm reboot">
+            <div dojoType="dijit.layout.ContentPane">
+                Are you sure you want to reboot?<br/>
+                <div style="text-align:center">
+                    <button data-dojo-type='dijit.form.Button' type='button'>Yes
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.reboot(); });</script>
+                    </button>
+                    <button data-dojo-type='dijit.form.Button' type='button'>No
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.showConfirmRebootDialog(false); });</script>    
+                    </button>
+                </div>
+            </div>    
+        </div>
+        <div id="confirmFactoryResetDialog" dojoType="dijit.Dialog" title="Confirm factory reset">
+            <div dojoType="dijit.layout.ContentPane">
+                Are you sure you want to reboot to factory settings?<br/>
+                <div style="text-align:center">
+                    <button data-dojo-type='dijit.form.Button' type='button'>Yes
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.reset_to_factory(); });</script>
+                    </button>
+                    <button data-dojo-type='dijit.form.Button' type='button'>No
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.showConfirmFactoryResetDialog(false); });</script>    
+                    </button>
+                </div>
+            </div>    
+        </div>
+        <div id="confirmRestartDialog" dojoType="dijit.Dialog" title="Confirm restart">
+            <div dojoType="dijit.layout.ContentPane">
+                Are you sure you want to restart the application?<br/>
+                <div style="text-align:center">
+                    <button data-dojo-type='dijit.form.Button' type='button'>Yes
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.restart(); });</script>
+                    </button>
+                    <button data-dojo-type='dijit.form.Button' type='button'>No
+                        <script type='dojo/on' data-dojo-event='click' data-dojo-args='evt'> require(['dojo/dom'], function(dom){ ravenna.Device.showConfirmRestartDialog(false); });</script>    
+                    </button>
+                </div>
+            </div>    
+        </div>
         <div id="main" dojoType="dijit.layout.BorderContainer" gutters="true" style="min-width: 800px;">
             <div dojoType="dijit.layout.BorderContainer" region="top" style="background-color: #fff; height: 100px;" gutters="false">    <!---->
-                <img style="padding: 5px;" region="left" src="./images/ravenna_AES67.png" alt="Loading..."></img>
+                <img id="top_corner_img" style="padding: 5px;" region="left" src="./images/ravenna_AES67.png" alt="Loading..."></img>
                 <div dojoType="dijit.layout.ContentPane"  region="right" style="width: 100%;">
                     <img id="vendor_img" style="float: right; height: 100px; padding-right: 5px;" src="./images/vendor.png" alt="Loading..."></img>
                     <div dojoType="ravenna.widget.Identity" store="ravenna.Device.store"></div>
@@ -65,8 +104,8 @@
                     <div dojoType="ravenna.widget.DeviceName" store="ravenna.Device.store"></div>  
                     <h1>Audio Configuration</h1>
                     <div dojoType="ravenna.widget.AudioConfiguration" store="ravenna.Device.store"></div>
-					<h1>Session Sinks Global</h1>
-                    <div dojoType="ravenna.widget.SessionSinkGlobalSettings" store="ravenna.Device.store"></div>                       
+					<h1 id="_session_sink_global_settings_h1" style="display:none">Session Sinks Global</h1>
+                    <div dojoType="ravenna.widget.SessionSinkGlobalSettings" store="ravenna.Device.store" id="_session_sink_global_settings_div" style="display:none"></div>                       
                     <h1>Network</h1>                                                            
 					<div dojoType="ravenna.widget.NetworkGlobalSettings" store="ravenna.Device.store"></div>  
                     <div dojoType="ravenna.widget.IPSettings" data-dojo-props="_port_id:0" store="ravenna.Device.store"></div>                                   

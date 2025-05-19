@@ -682,7 +682,7 @@ function Rickshaw_CreateDivGraph(Graph, szName, css_class_prefix_name, nX, nY, n
     var nXAxis_height = 20;
     var nYAxis_width = 40;
     var nLegend_height = 40;
-    var nLegend_width = 250;
+    var nLegend_width = 350;
 
     Graph.nX = nYAxis_width;
     Graph.nY = 10;
@@ -742,6 +742,7 @@ function Rickshaw_CreateGraph(Graph, szName, series_info, time_interval, value_m
     Graph.yAxis = new Rickshaw.Graph.Axis.Y({
         graph: Graph.graph,
         orientation: 'left',
+        ticks: 5,
         element: document.getElementById(szName + "_y_axis")
     });
 
@@ -784,7 +785,7 @@ function Rickshaw_CreateGraph(Graph, szName, series_info, time_interval, value_m
                 var label = document.createElement('div');
                 label.className = 'label';
                 label.style.display = 'inline-block';
-                label.innerHTML = d.name + ": " + d.formattedYValue;
+                label.innerHTML = d.name + ": " + d.formattedYValue;    //Math.floor(d.formattedYValue);
 
                 line.appendChild(swatch);
                 line.appendChild(label);
@@ -815,7 +816,7 @@ function Rickshaw_CreateGraph(Graph, szName, series_info, time_interval, value_m
             return content;
         },*/
         xFormatter: function (x) {
-            return new Date(x * 1000).toLocaleString();
+            return "Time: " + new Date(x * 1000).toLocaleString();
         }
     });
 
@@ -858,4 +859,72 @@ function Rickshaw_DestroyGraph(Graph) {
     delete Graph.xAxis;
     delete Graph.yAxis;
     delete Graph.graph;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+function Rickshaw_RescaleYGraph(Graph, y_value_min, y_value_max) {
+    
+    Graph.graph.configure({
+        min: y_value_min,
+        max: y_value_max
+      });
+    
+      Graph.graph.render();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+function Rickshaw_GetYMin(Graph, series_n) {
+    
+    var data_series = Graph.graph.series[series_n].stack;
+    var min=data_series[0].y; 
+    
+    for(var i=1; i < data_series.length; i++) {
+        if(data_series[i].y < min)
+            min = data_series[i].y;
+    }
+
+    return min;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+function Rickshaw_GetYMax(Graph, series_n) {
+    
+    var data_series = Graph.graph.series[series_n].stack;
+    var max=data_series[0].y; 
+    
+    for(var i=1; i < data_series.length; i++) {
+        if(data_series[i].y > max)
+            max = data_series[i].y;
+    }
+
+    return max;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+function Rickshaw_GetYMinMultipleSeries(Graph, series_count) {
+    
+    var min = Rickshaw_GetYMin(Graph,0);
+
+    for (var i = 1; i < series_count; i++) {
+        current_min = Rickshaw_GetYMin(Graph,i);
+        if(current_min < min)
+            min = current_min;
+    }
+
+    return min;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+function Rickshaw_GetYMaxMultipleSeries(Graph, series_count) {
+    
+    var max = current_max = Rickshaw_GetYMax(Graph,0);
+
+    for (var i = 1; i < series_count; i++) {
+        current_max = Rickshaw_GetYMax(Graph,i);
+        if(current_max > max)
+            max = current_max;
+    }
+
+    return max;
 }

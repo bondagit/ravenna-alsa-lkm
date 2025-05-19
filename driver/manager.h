@@ -66,10 +66,14 @@
 
 struct TManager
 {
+    bool m_Is_NIC_Active[_MAX_NICS];
+
     TEtherTubeNetfilter m_EthernetFilter[_MAX_NICS];
-    TClock_PTP m_PTP;
+    TClock_PTP m_PTP[_MAX_NICS];
     TRTP_streams_manager m_RTP_streams_manager;
 
+    EPTPLockStatus m_lastLockStatus[_MAX_NICS];
+    unsigned short m_Active_PTP_NIC_Idx;
 
     MergingRAVENNAAudioDriverStatus* m_pStatusBuffer;
 
@@ -123,7 +127,9 @@ bool SetNumberOfInputs(struct TManager* self, uint32_t NumberOfChannels);
 bool SetNumberOfOutputs(struct TManager* self, uint32_t NumberOfChannels);
 
 //TRTP_streams_manager& GetRTP_streams_manager() {return m_RTP_streams_manager;}
-TClock_PTP* GetPTP(struct TManager* self);
+TClock_PTP* GetPTP(struct TManager* self, unsigned short ptp_idx);
+void Select_PTP_NIC(struct TManager* self);
+unsigned short GetSelected_PTP_NIC(struct TManager* self);
 
 bool IsStarted(struct TManager* self);
 bool IsIOStarted(struct TManager* self);

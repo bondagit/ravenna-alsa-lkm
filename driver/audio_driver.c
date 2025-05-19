@@ -1352,7 +1352,7 @@ static int mr_alsa_audio_pcm_playback_copy_internal( struct snd_pcm_substream *s
         memset(testblock, 0, sizeof(testblock));
     #endif
     
-    if (channel > 0 && channel >= runtime->channels)
+    if (channel > 0 && channel > runtime->channels)
     {
         printk(KERN_WARNING "Channel %d copy ignored because it does not fit the available runtime channels (%d)", channel, runtime->channels);
        return 0;

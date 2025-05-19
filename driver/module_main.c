@@ -107,9 +107,27 @@ void nf_hook_fct(void* hook_fct, void* hook_struct)
     EtherTubeHookFct(&man, hook_fct, hook_struct);
 }
 
-void t_clock_timer(void* time)
+void t_clock_timer(void* next, uint64_t now)
 {
-    uint64_t ui64CurrentRTXClockTime = 0;
-    timerProcess(GetPTP(&man), &ui64CurrentRTXClockTime);
-    *(uint64_t*)time = ui64CurrentRTXClockTime;
+    uint64_t ui64CurrentRTXClockTime[_MAX_NICS];
+    unsigned short uSelectedNIC = 0;
+
+    Select_PTP_NIC(&man);
+    uSelectedNIC = GetSelected_PTP_NIC(&man);
+
+    timerProcess(GetPTP(&man, 0), &ui64CurrentRTXClockTime[0], now);
+    timerProcess(GetPTP(&man, 1), &ui64CurrentRTXClockTime[1], now);
+  
+    if (uSelectedNIC == 1)
+    {
+        *(uint64_t*)next = ui64CurrentRTXClockTime[1];
+        timerSetNextAbsoluteTime(GetPTP(&man, 0), ui64CurrentRTXClockTime[1]);
+    }
+    else
+    {
+        *(uint64_t*)next = ui64CurrentRTXClockTime[0];
+        timerSetNextAbsoluteTime(GetPTP(&man, 1), ui64CurrentRTXClockTime[0]);
+    }
+
+    AudioFrameTIC(&man);
 }

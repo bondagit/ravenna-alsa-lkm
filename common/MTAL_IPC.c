@@ -607,14 +607,9 @@ static int netSelect(int fd, uint32_t ui32Timeout_sec, uint32_t ui32Timeout_usec
 
 	if (ret == -1)
 	{
-		if (errno == EAGAIN)
+		if (errno == EAGAIN || errno == EINTR)
 		{
-			rv_log(LOG_NOTICE, "netSelect: errno EAGAIN\n");
-			ret = 0;
-		}
-		else if (errno == EINTR)
-		{
-			rv_log(LOG_NOTICE, "netSelect: errno EINTR\n");
+			rv_log(LOG_ERR, "netSelect: errno EAGAIN or EINTR (%d)\n", errno);
 			ret = 0;
 		}
 		else

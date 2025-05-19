@@ -53,7 +53,7 @@ extern void nf_stop(void);
 extern int nf_rx_packet(void* packet, int packet_size, const char* ifname);
 extern void nf_hook_fct(void* hook_fct, void* hook_struct);
 
-extern void t_clock_timer(void* time);
+extern void t_clock_timer(void* next, uint64_t now);
 #ifdef __cplusplus
 }
 #endif

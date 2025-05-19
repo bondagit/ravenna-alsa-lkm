@@ -57,7 +57,8 @@ enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
     do
     {
-        t_clock_timer(&next_wakeup);
+        get_clock_time(&now);
+        t_clock_timer(&next_wakeup, now);
         get_clock_time(&now);
         period = ktime_set(0, next_wakeup - now);
 

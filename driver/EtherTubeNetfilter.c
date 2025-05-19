@@ -172,7 +172,7 @@ int InitEtherTube(TEtherTubeNetfilter* self, struct TManager* pManager, unsigned
 
     self->netfilterLock_ = (void*)kmalloc(sizeof(spinlock_t), GFP_ATOMIC); //GFP_KERNEL
     memset(self->netfilterLock_, 0, sizeof(spinlock_t));
-    spin_lock_init((spinlock_t*)self->netfilterLock_);
+    //spin_lock_init((spinlock_t*)self->netfilterLock_);
 
     if (self->nf_hook_fct_ && self->nf_hook_struct_)
     {
@@ -203,7 +203,7 @@ int Start(TEtherTubeNetfilter* self, const char *ifname)
 {
     int ret = 1;
     //unsigned long flags;
-    spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+    //spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
 
     if (ifname)
     {
@@ -216,7 +216,7 @@ int Start(TEtherTubeNetfilter* self, const char *ifname)
         MTAL_DP_INFO("Start ifname=0\n");
         ret = 0;
     }
-    spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+    //spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     return ret;
 }
 
@@ -224,9 +224,9 @@ int Start(TEtherTubeNetfilter* self, const char *ifname)
 int Stop(TEtherTubeNetfilter* self)
 {
     //unsigned long flags;
-    spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+    //spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     self->started_ = 0;
-    spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+    //spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
     return 1;
 }
 
@@ -251,7 +251,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
     {
         int ret = 0;
         //unsigned long flags;
-        spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+        //spin_lock/*_irqsave*/((spinlock_t*)self->netfilterLock_/*, flags*/);
         do
         {
             if (!self->etherTubeEnable_ || !self->started_)
@@ -262,7 +262,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
             }
         }
         while (0);
-        spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
+        //spin_unlock/*_irqrestore*/((spinlock_t*)self->netfilterLock_/*, flags*/);
         if (ret == 1)
         {
             return 1;
