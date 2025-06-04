@@ -35,7 +35,8 @@
 #include "module_main.h"
 #include "module_timer.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
+
 struct tasklet_hrtimer {
 	struct hrtimer		timer;
 	struct tasklet_struct	tasklet;
@@ -89,7 +90,12 @@ static uint64_t base_period_;
 static uint64_t max_period_allowed;
 static uint64_t min_period_allowed;
 static int stop_;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
 static struct tasklet_hrtimer my_hrtimer_;
+#else
+static struct hrtimer my_hrtimer_;
+#endif
 
 static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 {
@@ -138,7 +144,11 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 int init_clock_timer(void)
 {
     stop_ = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
     tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS /*HRTIMER_MODE_PINNED*/);
+#else
+    hrtimer_setup(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS /*HRTIMER_MODE_PINNED*/);
+#endif
     //base_period_ = 100 * ((unsigned long)1E6L); // 100 ms
     base_period_ = 1333333; // 1.3 ms
     set_base_period(base_period_);
@@ -153,13 +163,21 @@ void kill_clock_timer(void)
 int start_clock_timer(void)
 {
     ktime_t period = ktime_set(0, base_period_);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
     tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
+#else
+    hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
+#endif
     return 0;
 }
 
 void stop_clock_timer(void)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
     tasklet_hrtimer_cancel(&my_hrtimer_);
+#else
+    hrtimer_cancel(&my_hrtimer_);
+#endif
 }
 
 void get_clock_time(uint64_t* clock_time)
