@@ -145,9 +145,9 @@ int init_clock_timer(void)
 {
     stop_ = 0;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
-    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS /*HRTIMER_MODE_PINNED*/);
+    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS);
 #else
-    hrtimer_setup(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS /*HRTIMER_MODE_PINNED*/);
+    hrtimer_setup(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS_SOFT);
 #endif
     //base_period_ = 100 * ((unsigned long)1E6L); // 100 ms
     base_period_ = 1333333; // 1.3 ms
