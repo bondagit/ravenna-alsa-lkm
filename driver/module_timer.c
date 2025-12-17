@@ -166,7 +166,7 @@ int start_clock_timer(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
     tasklet_hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
 #else
-    hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS);
+    hrtimer_start(&my_hrtimer_, period, HRTIMER_MODE_ABS_SOFT);
 #endif
     return 0;
 }
