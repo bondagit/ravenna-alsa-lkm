@@ -202,8 +202,7 @@ int DestroyEtherTube(TEtherTubeNetfilter* self)
 int Start(TEtherTubeNetfilter* self, const char *ifname)
 {
     int ret = 1;
-    unsigned long flags;
-    spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+    spin_lock((spinlock_t*)self->netfilterLock_);
 
     if (ifname)
     {
@@ -216,17 +215,16 @@ int Start(TEtherTubeNetfilter* self, const char *ifname)
         MTAL_DP_INFO("Start ifname=0\n");
         ret = 0;
     }
-    spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+    spin_unlock((spinlock_t*)self->netfilterLock_);
     return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////
 int Stop(TEtherTubeNetfilter* self)
 {
-    unsigned long flags;
-    spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+    spin_lock((spinlock_t*)self->netfilterLock_);
     self->started_ = 0;
-    spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+    spin_unlock((spinlock_t*)self->netfilterLock_);
     return 1;
 }
 
@@ -279,8 +277,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
 {
     {
         int ret = 0;
-        unsigned long flags;
-        spin_lock_irqsave((spinlock_t*)self->netfilterLock_, flags);
+        spin_lock((spinlock_t*)self->netfilterLock_);
         do
         {
             if (!self->etherTubeEnable_ || !self->started_)
@@ -291,7 +288,7 @@ int rx_packet(TEtherTubeNetfilter* self, void* packet, int packet_size, const ch
             }
         }
         while (0);
-        spin_unlock_irqrestore((spinlock_t*)self->netfilterLock_, flags);
+        spin_unlock((spinlock_t*)self->netfilterLock_);
         if (ret == 1)
         {
             return 1;

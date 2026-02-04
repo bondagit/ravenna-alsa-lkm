@@ -46,10 +46,10 @@ struct ravenna_mgr_ops
     uint32_t (*get_playback_buffer_size_in_frames)(void *mr_alsa_audio_chip); /// returns the size of the playback (output) Ravenna Ring Buffer in samples (channel independent)
     void* (*get_capture_buffer)(void *mr_alsa_audio_chip); /// returns pointer to the capture (input) Ravenna Ring Buffer
     uint32_t (*get_capture_buffer_size_in_frames)(void *mr_alsa_audio_chip);/// returns the size of the capture (input) Ravenna Ring Buffer in samples (channel independent)
-    void (*lock_playback_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
-    void (*unlock_playback_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
-    void (*lock_capture_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
-    void (*unlock_capture_buffer)(void *mr_alsa_audio_chip, unsigned long *flags);
+    void (*lock_playback_buffer)(void *mr_alsa_audio_chip);
+    void (*unlock_playback_buffer)(void *mr_alsa_audio_chip);
+    void (*lock_capture_buffer)(void *mr_alsa_audio_chip);
+    void (*unlock_capture_buffer)(void *mr_alsa_audio_chip);
     int (*pcm_interrupt)(void *mr_alsa_audio_chip, int direction);/// direction: 0 for playback, 1 for capture. One interrupt per Ravenna TIC
     //uint32_t (*get_capture_buffer_offset)(void *mr_alsa_audio_chip);/// returns current offset in samples (channel independent) for Ravenna Ring Buffer
     uint32_t (*get_playback_buffer_offset)(void *mr_alsa_audio_chip);/// returns current offset (channel independent) in samples for Ravenna Ring Buffer

@@ -555,36 +555,36 @@ static uint32_t mr_alsa_audio_get_capture_buffer_size_in_frames(void *rawchip)
     }
     return res;
 }
-static void mr_alsa_audio_lock_playback_buffer(void *rawchip, unsigned long *flags)
+static void mr_alsa_audio_lock_playback_buffer(void *rawchip)
 {
-    if(rawchip && flags)
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irqsave(&chip->playback_lock, *flags);
+        spin_lock(&chip->playback_lock);
     }
 }
-static void mr_alsa_audio_unlock_playback_buffer(void *rawchip, unsigned long *flags)
+static void mr_alsa_audio_unlock_playback_buffer(void *rawchip)
 {
-    if(rawchip && flags)
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_unlock_irqrestore(&chip->playback_lock, *flags);
+        spin_unlock(&chip->playback_lock);
     }
 }
-static void mr_alsa_audio_lock_capture_buffer(void *rawchip, unsigned long *flags)
+static void mr_alsa_audio_lock_capture_buffer(void *rawchip)
 {
-    if(rawchip && flags)
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_lock_irqsave(&chip->capture_lock, *flags);
+        spin_lock(&chip->capture_lock);
     }
 }
-static void mr_alsa_audio_unlock_capture_buffer(void *rawchip, unsigned long *flags)
+static void mr_alsa_audio_unlock_capture_buffer(void *rawchip)
 {
-    if(rawchip && flags)
+    if(rawchip)
     {
         struct mr_alsa_audio_chip *chip = (struct mr_alsa_audio_chip*)rawchip;
-        spin_unlock_irqrestore(&chip->capture_lock, *flags);
+        spin_unlock(&chip->capture_lock);
     }
 }
 
@@ -1829,17 +1829,17 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
     spin_lock_irq(&chip->lock);
     if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
-        mr_alsa_audio_lock_playback_buffer(chip, &flags);
+        mr_alsa_audio_lock_playback_buffer(chip);
         chip->playback_pid = -1;
         chip->playback_substream = NULL;
-        mr_alsa_audio_unlock_playback_buffer(chip, &flags);
+        mr_alsa_audio_unlock_playback_buffer(chip);
     }
     else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
-        mr_alsa_audio_lock_capture_buffer(chip, &flags);
+        mr_alsa_audio_lock_capture_buffer(chip);
         chip->capture_pid = -1;
         chip->capture_substream = NULL;
-        mr_alsa_audio_unlock_capture_buffer(chip, &flags);
+        mr_alsa_audio_unlock_capture_buffer(chip);
     }
     spin_unlock_irq(&chip->lock);
     return 0;

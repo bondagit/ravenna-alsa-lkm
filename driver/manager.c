@@ -1070,7 +1070,6 @@ void FreeStatusBuffer(struct TManager* self)
 //////////////////////////////////////////////////////////////////////////////////
 void MuteInputBuffer(struct TManager* self)
 {
-    unsigned long flags;
     int32_t* inputBuffer = nullptr;
     uint32_t bufferLength = self->m_alsa_driver_frontend->get_capture_buffer_size_in_frames(self->m_pALSAChip);
     if(bufferLength == 0)
@@ -1079,25 +1078,24 @@ void MuteInputBuffer(struct TManager* self)
         return;
     }
 
-    self->m_alsa_driver_frontend->lock_capture_buffer(self->m_pALSAChip, &flags);
+    self->m_alsa_driver_frontend->lock_capture_buffer(self->m_pALSAChip);
     inputBuffer = (int32_t*)(self->m_alsa_driver_frontend->get_capture_buffer(self->m_pALSAChip));
     if(inputBuffer == nullptr)
     {
         MTAL_DP("CManager::start() failed: No ALSA capture buffer available\n");
-        self->m_alsa_driver_frontend->unlock_capture_buffer(self->m_pALSAChip, &flags);
+        self->m_alsa_driver_frontend->unlock_capture_buffer(self->m_pALSAChip);
         return;
     }
 
     //MTAL_DP("Input Buffer muted with 0x%x\n", get_live_in_mute_pattern(0));
     memset(inputBuffer, get_live_in_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * self->m_NumberOfInputs);
 
-    self->m_alsa_driver_frontend->unlock_capture_buffer(self->m_pALSAChip, &flags);
+    self->m_alsa_driver_frontend->unlock_capture_buffer(self->m_pALSAChip);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 void MuteOutputBuffer(struct TManager* self)
 {
-    unsigned long flags;
     int32_t* outputBuffer = nullptr;
     uint32_t bufferLength = self->m_alsa_driver_frontend->get_playback_buffer_size_in_frames(self->m_pALSAChip);
     if(bufferLength == 0)
@@ -1106,19 +1104,19 @@ void MuteOutputBuffer(struct TManager* self)
         return;
     }
 
-    self->m_alsa_driver_frontend->lock_playback_buffer(self->m_pALSAChip, &flags);
+    self->m_alsa_driver_frontend->lock_playback_buffer(self->m_pALSAChip);
     outputBuffer = (int32_t*)(self->m_alsa_driver_frontend->get_playback_buffer(self->m_pALSAChip));
     if(outputBuffer == nullptr)
     {
         MTAL_DP("CManager::start() failed: No ALSA playback buffer available\n");
-        self->m_alsa_driver_frontend->unlock_playback_buffer(self->m_pALSAChip, &flags);
+        self->m_alsa_driver_frontend->unlock_playback_buffer(self->m_pALSAChip);
         return;
     }
 
     //MTAL_DP("Output Buffer muted with 0x%x\n", get_live_out_mute_pattern(self, 0));
     memset(outputBuffer, get_live_out_mute_pattern(self, 0), sizeof(int32_t) * bufferLength * self->m_NumberOfOutputs);
 
-    self->m_alsa_driver_frontend->unlock_playback_buffer(self->m_pALSAChip, &flags);
+    self->m_alsa_driver_frontend->unlock_playback_buffer(self->m_pALSAChip);
 }
 
 //////////////////////////////////////////////////////////////////////////////////

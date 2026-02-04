@@ -156,8 +156,8 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
 	{   // SOURCE
         int ret = 0;
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+
+            spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
         #else
             CMTAL_SingleLock Lock(&self->m_csSourceRTPStreams, 1);
 		#endif
@@ -217,7 +217,7 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
         ret = 1;
         } while (0);
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
         #endif
         return ret;
 	}
@@ -228,8 +228,8 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_ORANGE);
         #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+
+            spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -272,7 +272,7 @@ int add_RTP_stream_(TRTP_streams_manager* self, TRTP_stream_info* pRTPStreamInfo
         } while (0);
 
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
         return ret;
 	}
@@ -286,8 +286,8 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
     unsigned short us;
 	{   // SOURCE
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+
+            spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
         #else
             MTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
 		#endif
@@ -327,7 +327,7 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
         } while (0);
 
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
         #endif
 		if (ret)
         	return ret;
@@ -336,8 +336,7 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace nLock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_TURQUOISE);
         #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -376,7 +375,7 @@ int remove_RTP_stream_(TRTP_streams_manager* self, uint64_t hRTPStream)
 		}
 		} while (0);
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 		if (ret)
 			return ret;
@@ -390,8 +389,7 @@ void remove_all_RTP_streams(TRTP_streams_manager* self)
     unsigned short us;
 	{   // SOURCE
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
         #else
             CMTAL_SingleLock Lock(&self->m_csSourceRTPStreams, 1);
 		#endif
@@ -405,7 +403,7 @@ void remove_all_RTP_streams(TRTP_streams_manager* self)
 			Release(&self->m_apRTPSourceStreams[us]);
 		}
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
         #endif
 	}
 
@@ -413,8 +411,7 @@ void remove_all_RTP_streams(TRTP_streams_manager* self)
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_PURPLE);
         #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -428,7 +425,7 @@ void remove_all_RTP_streams(TRTP_streams_manager* self)
 			Release(&self->m_apRTPSinkStreams[us]);
 		}
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 	}
 }
@@ -440,8 +437,7 @@ int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_
 	//MTAL_DP("update_RTP_stream_name: %s\n", pRTP_stream_update_name->m_cName);
 	{
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
         #else
             CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
 		#endif
@@ -454,15 +450,14 @@ int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_
 			}
 		}
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
         #endif
 	}
 	{
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace nLock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_TURQUOISE);
         #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -475,7 +470,7 @@ int update_RTP_stream_name(TRTP_streams_manager* self, const TRTP_stream_update_
 			}
 		}
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 	}
 	return 0; // not found
@@ -490,8 +485,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace nLock(&self->m_csSourceRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_TURQUOISE);
 		#elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-			unsigned long flags;
-			spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+			spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSourceRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -506,7 +500,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 			}
 		}
 		#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-			spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+			spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
 		#endif
 		if (ret)
 		{
@@ -517,8 +511,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace nLock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_TURQUOISE);
 		#elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-			unsigned long flags;
-			spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+			spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 		#endif // UNDER_RTSS
@@ -532,7 +525,7 @@ int get_RTPStream_status_(TRTP_streams_manager* self, uint64_t hRTPStream, TRTP_
 			}
 		}
 		#if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-			spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+			spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
 		#endif
 		if (ret)
 		{
@@ -557,9 +550,6 @@ uint8_t GetNumberOfSinks(TRTP_streams_manager* self)
 ////////////////////////////////////////////////////////////////////
 int GetSinkStats(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamStats* pRTPStreamStats)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	if(!pRTPStreamStats)
 	{
 		return 0;
@@ -568,7 +558,7 @@ int GetSinkStats(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamSta
 	#ifdef UNDER_RTSS
 		CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_PURPLE);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 	#else
 		CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 	#endif // UNDER_RTSS
@@ -576,14 +566,14 @@ int GetSinkStats(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamSta
 	{
         self->m_apRTPSinkOrderedStreams[ui8StreamIdx]->m_RTPAudioStream.GetStats(pRTPStreamStats);
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 		return 1;
 	}
 
 	memset(pRTPStreamStats, 0, sizeof(TRTPStreamStats));
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #endif
 	return 0;
 }
@@ -592,9 +582,6 @@ int GetSinkStats(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamSta
 ////////////////////////////////////////////////////////////////////
 int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPStreamStatsFromTIC* pRTPStreamStatsFromTIC)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	if(!pRTPStreamStatsFromTIC)
 	{
 		return 0;
@@ -603,7 +590,7 @@ int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPSt
 	#ifdef UNDER_RTSS
 		CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_PURPLE);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 	#else
 		CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 	#endif // UNDER_RTSS
@@ -611,14 +598,14 @@ int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPSt
 	{
         GetStatsFromTIC(pRTPStreamStatsFromTIC);
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 		return 1;
 	}
 
 	memset(pRTPStreamStatsFromTIC, 0, sizeof(TRTPStreamStatsFromTIC));
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #endif
 	return 0;
 }
@@ -626,9 +613,6 @@ int GetSinkStatsFromTIC(TRTP_streams_manager* self, uint8_t ui8StreamIdx, TRTPSt
 ////////////////////////////////////////////////////////////////////
 int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTime)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	unsigned short us;
 	TSinkAheadTime SinkAheadTime;
 
@@ -642,7 +626,7 @@ int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTi
 	#ifdef UNDER_RTSS
 		CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_PURPLE);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 	#else
 		CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 	#endif // UNDER_RTSS
@@ -660,7 +644,7 @@ int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTi
 		}
 	}
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #endif
 	return 1;
 }
@@ -668,9 +652,6 @@ int GetMinSinkAheadTime(TRTP_streams_manager* self, TSinkAheadTime* pSinkAheadTi
 ////////////////////////////////////////////////////////////////////
 int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
     unsigned short us;
 	if(!pSinksJitter)
 	{
@@ -682,7 +663,7 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 	#ifdef UNDER_RTSS
 		CMTAL_SingleLockEventTrace Lock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_PURPLE);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 	#else
 		CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 	#endif // UNDER_RTSS
@@ -701,7 +682,7 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 		}
 	}
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #endif
 	return 1;
 }
@@ -709,9 +690,6 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 ////////////////////////////////////////////////////////////////////
 /*f10bint GetLastProcessedSinkFromTIC(TRTP_streams_manager* self, TLastProcessedRTPDeltaFromTIC* pLastProcessedRTPDeltaFromTIC)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	memset(pLastProcessedRTPDeltaFromTIC, 0, sizeof(TLastProcessedRTPDeltaFromTIC));
 	if(GetNumberOfSinks(self) == 0)
 	{
@@ -721,7 +699,7 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 	#ifdef UNDER_RTSS
 		CMTAL_SingleLockEventTrace nLock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_RED);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 	#else
 		CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 	#endif // UNDER_RTSS
@@ -731,7 +709,7 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 	self->m_pmmmLastProcessedRTPDeltaFromTIC.ResetAtNextPoint();
 
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #endif
 	return 1;
 }
@@ -739,9 +717,6 @@ int GetMinMaxSinksJitter(TRTP_streams_manager* self, TSinksJitter* pSinksJitter)
 ////////////////////////////////////////////////////////////////////
 int GetLastSentSourceFromTIC(TRTP_streams_manager* self, TLastSentRTPDeltaFromTIC* pLastSentRTPDeltaFromTIC)
 {
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	if(!pLastSentRTPDeltaFromTIC)
 	{
 		return 0;
@@ -749,7 +724,7 @@ int GetLastSentSourceFromTIC(TRTP_streams_manager* self, TLastSentRTPDeltaFromTI
     memset(pLastSentRTPDeltaFromTIC, 0, sizeof(TLastSentRTPDeltaFromTIC));
 
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
     #else
         CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
 	#endif
@@ -758,7 +733,7 @@ int GetLastSentSourceFromTIC(TRTP_streams_manager* self, TLastSentRTPDeltaFromTI
 	self->m_pmmmLastSentRTPDeltaFromTIC.ResetAtNextPoint();
 
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
     #endif
 	return 1;
 }*/
@@ -773,9 +748,6 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
 #endif // NT_DRIVER
 {
     bool bProceeded = false;
-    #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        unsigned long flags;
-    #endif
 	if(packetsize < sizeof(TRTPPacketBase))
 	{
 		//MTAL_DP("Wrong RTP packet size %u\n", packetsize);
@@ -794,7 +766,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
     #if defined(NT_DRIVER)
         self->m_csSinkRTPStreams.Lock(bDispatchLevel);
     #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
     #else
         self->m_csSinkRTPStreams.Lock(); ///$todo: split lock$
 	#endif
@@ -810,7 +782,7 @@ EDispatchResult process_UDP_packet(TRTP_streams_manager* self, TUDPPacketBase* p
         }
     }
     #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-        spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+        spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
     #else
         self->m_csSinkRTPStreams.Unlock();
 	#endif
@@ -827,8 +799,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
 		{
             unsigned short i;
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                unsigned long flags;
-                spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
             #else
                 CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
             #endif
@@ -839,7 +810,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
 				ReaderEnter(apRTPSourceStreams[i]);
 			}
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
             #endif
 		}
 		for (us = 0; us < usNumberOfRTPSourceStreams; us++)
@@ -852,8 +823,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
 		{
             unsigned short i;
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                unsigned long flags;
-                spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
             #else
                 CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
             #endif
@@ -862,7 +832,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
 				ReaderLeave(apRTPSourceStreams[i]);
             }
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
             #endif
 		}
 	}
@@ -871,8 +841,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
 		#ifdef UNDER_RTSS
 			CMTAL_SingleLockEventTrace nLock(&self->m_csSinkRTPStreams, 1, RTTRACEEVENT_SINK_MUTEX, RT_TRACE_EVENT_COLOR_YELLOW);
         #elif defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            unsigned long flags;
-            spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
 		#else
 			CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1); ///$todo split lock$
 		#endif // UNDER_RTSS
@@ -881,7 +850,7 @@ void prepare_buffer_lives(TRTP_streams_manager* self)
             PrepareBufferLives(&self->m_apRTPSinkOrderedStreams[us]->m_RTPAudioStream);
 		}
         #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-            spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+            spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
         #endif
 	}
 }
@@ -929,8 +898,8 @@ void send_outgoing_packets(TRTP_streams_manager* self)
         {
             uint32_t i;
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                unsigned long flags;
-                spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+    
+                spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
             #else
                 CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
 			#endif
@@ -942,7 +911,7 @@ void send_outgoing_packets(TRTP_streams_manager* self)
             }
 			self->m_ui32RTCPPacketCountdown--;
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
             #endif
         }
         for (ui32SourceStreamIdx = 0; ui32SourceStreamIdx < usNumberOfRTPSourceStreams; ui32SourceStreamIdx++)
@@ -969,8 +938,8 @@ void send_outgoing_packets(TRTP_streams_manager* self)
 		{
             uint32_t i;
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                unsigned long flags;
-                spin_lock_irqsave((spinlock_t*)self->m_csSourceRTPStreams, flags);
+    
+                spin_lock((spinlock_t*)self->m_csSourceRTPStreams);
             #else
                 CMTAL_SingleLock nLock(&self->m_csSourceRTPStreams, 1);
 			#endif
@@ -979,7 +948,7 @@ void send_outgoing_packets(TRTP_streams_manager* self)
 				ReaderLeave(apRTPSourceStreams[i]);
 			}
             #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                spin_unlock_irqrestore((spinlock_t*)self->m_csSourceRTPStreams, flags);
+                spin_unlock((spinlock_t*)self->m_csSourceRTPStreams);
             #endif
 		}
 		//f10bself->m_pmmmLastSentRTPDeltaFromTIC.NewPoint((uint32_t)(MTAL_GetSystemTime() - self->m_pManager->get_global_time(self->m_pManager->user)));
@@ -989,8 +958,8 @@ void send_outgoing_packets(TRTP_streams_manager* self)
 			{
                 uint32_t ui32SinkStreamIdx;
                 #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                unsigned long flags;
-                spin_lock_irqsave((spinlock_t*)self->m_csSinkRTPStreams, flags);
+    
+                spin_lock((spinlock_t*)self->m_csSinkRTPStreams);
                 #else
 				CMTAL_SingleLock Lock(&self->m_csSinkRTPStreams, 1);
 				#endif
@@ -1002,7 +971,7 @@ void send_outgoing_packets(TRTP_streams_manager* self)
 					}
 				}
                 #if defined(MTAL_LINUX) && defined(MTAL_KERNEL)
-                spin_unlock_irqrestore((spinlock_t*)self->m_csSinkRTPStreams, flags);
+                spin_unlock((spinlock_t*)self->m_csSinkRTPStreams);
                 #endif
 			}
 		#endif
