@@ -45,7 +45,7 @@
 #include "MTAL_DP.h"
 
 #define PTP_LOCK_HYSTERESIS		4
-#define PTP_WATCHDOG_ELAPSE		20000000	// we assume to receive at least one sync each 2s
+#define PTP_WATCHDOG_ELAPSE		20000	// we assume to receive at least one sync each 2s
 #define TIC_LOCK_HYSTERESIS		5
 
 //REF_UNIT is cent of microseconde (100us)
@@ -955,6 +955,7 @@ void timerProcess(TClock_PTP* self, uint64_t* pui64NextRTXClockTime)
             spin_lock_irqsave((spinlock_t*)self->m_csPTPTime, flags);
             if(self->m_wLastWatchDogSyncSequenceId == self->m_wLastSyncSequenceId && GetLockStatus(self) != PTPLS_UNLOCKED)
             {
+                printk("PTP Master sync timeout, resetting ...\n");
                 MTAL_DP("Didn't received PTP sync since 2s\n");
                 MTAL_DP("ui64WatchDogElapse = %llu = %llu - %llu\n", ui64WatchDogElapse, ui64CurrentRTXClockTime, self->m_ui64LastWatchDogTime);
                 ResetPTPLock(self, false);
