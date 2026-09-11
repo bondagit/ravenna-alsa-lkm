@@ -95,6 +95,7 @@ typedef struct
 
 
     uint64_t m_ui64T1; //[100us]
+    bool m_bHaveT1;
     uint64_t m_ui64T2; //[100us]
     uint64_t m_ui64DeltaT2; //[100us]
 
