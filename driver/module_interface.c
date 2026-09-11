@@ -59,7 +59,7 @@
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Merging Technologies <alsa@merging.com>");
 MODULE_DESCRIPTION("Merging Technologies RAVENNA ALSA driver"); // see modinfo
-MODULE_VERSION("bondagit-2.2");
+MODULE_VERSION("bondagit-2.3");
 //MODULE_SUPPORTED_DEVICE("{{ALSA,Merging RAVENNA}}");
 
 

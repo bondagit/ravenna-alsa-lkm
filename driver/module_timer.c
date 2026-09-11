@@ -45,7 +45,7 @@ module_param(audio_cpu_affinity, int, 0444);
 MODULE_PARM_DESC(audio_cpu_affinity, "CPU core to pin the hrtimer to (-1 for any CPU, default -1)");
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
 
 struct tasklet_hrtimer {
 	struct hrtimer		timer;
@@ -84,8 +84,12 @@ static void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 			  enum hrtimer_restart (*function)(struct hrtimer *),
 			  clockid_t which_clock, enum hrtimer_mode mode)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,13,0)
+    hrtimer_setup(&ttimer->timer, __hrtimer_tasklet_trampoline, which_clock, mode);
+#else
 	hrtimer_init(&ttimer->timer, which_clock, mode);
 	ttimer->timer.function = __hrtimer_tasklet_trampoline;
+#endif
 	tasklet_init(&ttimer->tasklet, __tasklet_hrtimer_trampoline,
 		     (unsigned long)ttimer);
 	ttimer->function = function;
@@ -97,8 +101,7 @@ void tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
 {
 	hrtimer_start(&ttimer->timer, time, mode);
 }
-#else
-static struct hrtimer my_hrtimer_;
+#endif
 
 struct start_clock_timer_info {
     ktime_t period;
@@ -109,10 +112,9 @@ static void start_clock_timer_on_cpu(void *info)
     struct start_clock_timer_info *timer_info = info;
     ktime_t period = timer_info->period;
 
-    hrtimer_start(&my_hrtimer_, period,
-                  audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED_SOFT : HRTIMER_MODE_ABS_SOFT);
+    tasklet_hrtimer_start(&my_hrtimer_, period,
+                  audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS);
 }
-#endif
 
 static uint64_t base_period_;
 static uint64_t max_period_allowed;
@@ -163,7 +165,6 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,15,0)
 static int validate_audio_cpu_affinity(int cpu)
 {
     /* Validate CPU core number */
@@ -188,13 +189,11 @@ static int validate_audio_cpu_affinity(int cpu)
     
     return 0;
 }
-#endif
 
 int init_clock_timer(void)
 {
     int ret;
     
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,15,0)
     /* Validate the CPU core parameter */
     ret = validate_audio_cpu_affinity(audio_cpu_affinity);
     if (ret != 0)
@@ -211,17 +210,11 @@ int init_clock_timer(void)
     {
         printk("MergingRavennaALSA: hrtimer will run on any available CPU core");
     }
-#endif
     
     atomic_set(&stop_, 0);
     smp_wmb();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
-    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, HRTIMER_MODE_ABS_PINNED);
-#else
-    /* For kernel >= 6.15.0, use PINNED mode if CPU pinning is requested */
-    hrtimer_setup(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, 
-        audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED_SOFT : HRTIMER_MODE_ABS_SOFT);
-#endif
+    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, 
+        audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS);
     WRITE_ONCE(base_period_, 1000000); /* 1ms default (AES67 48 frames @ 48kHz) */
     set_base_period(1000000);
     return 0;
@@ -242,9 +235,6 @@ int start_clock_timer(void)
 
     expiry = ktime_add(ktime_get(), ns_to_ktime(period));
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
-    tasklet_hrtimer_start(&my_hrtimer_, expiry, HRTIMER_MODE_ABS);
-#else
     if (audio_cpu_affinity != -1)
     {
         struct start_clock_timer_info info = { .period = expiry };
@@ -253,9 +243,9 @@ int start_clock_timer(void)
     }
     else
     {
-        hrtimer_start(&my_hrtimer_, expiry, HRTIMER_MODE_ABS_SOFT);
+        tasklet_hrtimer_start(&my_hrtimer_, expiry, HRTIMER_MODE_ABS);
     }
-#endif
+
     return 0;
 }
 
@@ -263,11 +253,7 @@ void stop_clock_timer(void)
 {
     atomic_set(&stop_, 1);
     smp_wmb();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
     tasklet_hrtimer_cancel(&my_hrtimer_);
-#else
-    hrtimer_cancel(&my_hrtimer_);
-#endif
 }
 
 void get_clock_time(uint64_t* clock_time)
