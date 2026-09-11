@@ -279,6 +279,11 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 		return DR_PACKET_NOT_USED;
 	}
 
+	if (pPTPPacketBase->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
+	{
+		return DR_PTP_PACKET_USED;
+	}
+
 	switch(pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F)
 	{
 	case PTP_ANNOUNCE_MESSAGE:
@@ -533,6 +538,9 @@ void ResetPTPMaster(TClock_PTP* self)
 	self->m_ui64DeltaT2 = 0;
 	self->m_wLastSyncSequenceId = 0;
 	self->m_wLastFollowUp = 0;
+	self->m_wLastAnnounceSequenceId = 0;
+	self->m_wLastWatchDogSyncSequenceId = 0;
+	self->m_ui64LastWatchDogTime = 0;
 }
 //######################################################
 
