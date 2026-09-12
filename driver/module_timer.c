@@ -111,9 +111,10 @@ static void start_clock_timer_on_cpu(void *info)
 {
     struct start_clock_timer_info *timer_info = info;
     ktime_t period = timer_info->period;
+    enum hrtimer_mode mode = 
+        (audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS) | HRTIMER_MODE_HARD;
 
-    tasklet_hrtimer_start(&my_hrtimer_, period,
-                  audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS);
+    tasklet_hrtimer_start(&my_hrtimer_, period, mode);
 }
 
 static uint64_t base_period_;
@@ -213,8 +214,9 @@ int init_clock_timer(void)
     
     atomic_set(&stop_, 0);
     smp_wmb();
-    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, 
-        audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS);
+    enum hrtimer_mode mode = 
+        (audio_cpu_affinity != -1 ? HRTIMER_MODE_ABS_PINNED : HRTIMER_MODE_ABS) | HRTIMER_MODE_HARD;
+    tasklet_hrtimer_init(&my_hrtimer_, timer_callback, CLOCK_MONOTONIC/*_RAW*/, mode);
     WRITE_ONCE(base_period_, 1000000); /* 1ms default (AES67 48 frames @ 48kHz) */
     set_base_period(1000000);
     return 0;
@@ -243,7 +245,7 @@ int start_clock_timer(void)
     }
     else
     {
-        tasklet_hrtimer_start(&my_hrtimer_, expiry, HRTIMER_MODE_ABS);
+        tasklet_hrtimer_start(&my_hrtimer_, expiry, HRTIMER_MODE_ABS | HRTIMER_MODE_HARD);
     }
 
     return 0;
@@ -261,7 +263,6 @@ void get_clock_time(uint64_t* clock_time)
     ktime_t kt_now;
     kt_now = ktime_get();
     *clock_time = (uint64_t)ktime_to_ns(kt_now);
-
 }
 
 void set_base_period(uint64_t base_period)
