@@ -279,10 +279,10 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 		return DR_PACKET_NOT_USED;
 	}
 
-	if (pPTPPacketBase->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
+	/*if (pPTPPacketBase->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
 	{
 		return DR_PTP_PACKET_USED;
-	}
+	}*/
 
 	switch(pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F)
 	{
