@@ -39,8 +39,8 @@
 
 
 #define MTAL_SWAP16(x) ((((x) >> 8) & 0x00ff) | (((x) << 8) & 0xff00))
-#define MTAL_SWAP32(x) ((((x) >> 24) & 0x000000ff) | (((x) >> 8 ) & 0x0000ff00) | (((x) << 8 ) & 0x00ff0000) | (((x) << 24) & 0xff000000))
-#define MTAL_SWAP64(x)  (MTAL_SWAP32(x & 0xFFFFFFFF) << 32 | MTAL_SWAP32(x >> 32))
+#define MTAL_SWAP32(x) ((uint32_t)(((((uint32_t)(x)) >> 24) & 0x000000ff) | ((((uint32_t)(x)) >> 8 ) & 0x0000ff00) | ((((uint32_t)(x)) << 8 ) & 0x00ff0000) | ((((uint32_t)(x)) << 24) & 0xff000000)))
+#define MTAL_SWAP64(x)  (((uint64_t)MTAL_SWAP32((uint64_t)(x) & 0xFFFFFFFF) << 32) | MTAL_SWAP32((uint64_t)(x) >> 32))
 
 #define ETHERNET_STANDARD_FRAME_SIZE	(1500 + 14) // 1500 bytes  PAYLOAD + 14 bytes ethernet header, as defined in http://en.wikipedia.org/wiki/Ethernet_frame
 

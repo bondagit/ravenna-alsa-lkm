@@ -294,7 +294,8 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
             //######################################################
             {
-                uint64_t ui64_CurrentClockIdentity = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgHeader.SourcePortId.byClockIdentity;
+                uint64_t ui64_CurrentClockIdentity;
+                memcpy(&ui64_CurrentClockIdentity, pPTPV2MsgAnnouncePacket->V2MsgHeader.SourcePortId.byClockIdentity, sizeof(ui64_CurrentClockIdentity));
                 
                 // is PTPConfig has changed?
                 if (self->m_ui32PTPConfigChangedCounter != self->m_ui32LastPTPConfigChangedCounter)
@@ -351,12 +352,14 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     {   
                         // update GMID and save announce info
                         memcpy(&self->m_PTPMaster_Announce, &pPTPV2MsgAnnouncePacket->V2MsgAnnounce, sizeof(TV2MsgAnnounce));
-                        if (*(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity != self->m_ui64PTPMaster_GMID)
+                        uint64_t ui64_AnnouncedGMID;
+                        memcpy(&ui64_AnnouncedGMID, pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity, sizeof(ui64_AnnouncedGMID));
+                        if (ui64_AnnouncedGMID != self->m_ui64PTPMaster_GMID)
                         {
-                            printk("[%u] Updating PTP Master GMID to %llu\n", self->m_pEth_netfilter->nic_id, *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity);
+                            printk("[%u] Updating PTP Master GMID to %llu\n", self->m_pEth_netfilter->nic_id, ui64_AnnouncedGMID);
                         }
                         // save announce time
-                        self->m_ui64PTPMaster_GMID = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity;
+                        self->m_ui64PTPMaster_GMID = ui64_AnnouncedGMID;
                         self->m_ui64PTPMaster_AnnounceTime = ui64CurrentTime;
                         MTAL_DP("[%u] Updating announce time %llu\n", self->m_pEth_netfilter->nic_id, self->m_ui64PTPMaster_AnnounceTime);
                     }
@@ -389,7 +392,9 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             
             //######################################################
             // Check PTP Clock identity
-            if (*(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
+            uint64_t ui64_SyncClockIdentity;
+            memcpy(&ui64_SyncClockIdentity, pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, sizeof(ui64_SyncClockIdentity));
+            if (ui64_SyncClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
                 //MTAL_DP("PTP sync packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
@@ -464,7 +469,9 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             
             //######################################################
             // Check PTP Clock identity
-            if (*(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
+            uint64_t ui64_FollowUpClockIdentity;
+            memcpy(&ui64_FollowUpClockIdentity, pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, sizeof(ui64_FollowUpClockIdentity));
+            if (ui64_FollowUpClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
                 //MTAL_DP("PTP follow_up packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
