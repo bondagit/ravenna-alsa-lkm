@@ -83,14 +83,6 @@ static uint64_t GetSeconds(uint8_t * bySeconds)
     return ui64;
 }
 
-static uint64_t GetClockIdentity(uint8_t *byClockIdentity)
-{
-	uint64_t ui64ClockIdentity;
-
-	memcpy(&ui64ClockIdentity, byClockIdentity, sizeof(ui64ClockIdentity));
-	return ui64ClockIdentity;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 #if 0
@@ -139,7 +131,6 @@ bool init_ptp(TClock_PTP* self, TEtherTubeNetfilter* pEth_netfilter, clock_ptp_o
 
 	self->m_ui64T2 = 0;
 	self->m_ui64DeltaT2 = 0;
-	self->m_bHaveT1 = false;
 
 	self->m_usPTPLockCounter = PTP_LOCK_HYSTERESIS;
 
@@ -279,11 +270,6 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 		return DR_PACKET_NOT_USED;
 	}
 
-	/*if (pPTPPacketBase->V2MsgHeader.byDomainNumber != self->m_PTPConfig.ui8Domain)
-	{
-		return DR_PTP_PACKET_USED;
-	}*/
-
 	switch(pPTPPacketBase->V2MsgHeader.byTransportSpecificAndMessageType & 0x0F)
 	{
 	case PTP_ANNOUNCE_MESSAGE:
@@ -308,7 +294,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
 
             //######################################################
             {
-				uint64_t ui64_CurrentClockIdentity = GetClockIdentity(pPTPV2MsgAnnouncePacket->V2MsgHeader.SourcePortId.byClockIdentity);
+                uint64_t ui64_CurrentClockIdentity = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgHeader.SourcePortId.byClockIdentity;
                 
                 // is PTPConfig has changed?
                 if (self->m_ui32PTPConfigChangedCounter != self->m_ui32LastPTPConfigChangedCounter)
@@ -365,12 +351,12 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
                     {   
                         // update GMID and save announce info
                         memcpy(&self->m_PTPMaster_Announce, &pPTPV2MsgAnnouncePacket->V2MsgAnnounce, sizeof(TV2MsgAnnounce));
-						if (GetClockIdentity(pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity) != self->m_ui64PTPMaster_GMID)
+                        if (*(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity != self->m_ui64PTPMaster_GMID)
                         {
-							printk("[%u] Updating PTP Master GMID to %llu\n", self->m_pEth_netfilter->nic_id, GetClockIdentity(pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity));
+                            printk("[%u] Updating PTP Master GMID to %llu\n", self->m_pEth_netfilter->nic_id, *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity);
                         }
                         // save announce time
-						self->m_ui64PTPMaster_GMID = GetClockIdentity(pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity);
+                        self->m_ui64PTPMaster_GMID = *(uint64_t*)pPTPV2MsgAnnouncePacket->V2MsgAnnounce.byGrandmasterClockIdentity;
                         self->m_ui64PTPMaster_AnnounceTime = ui64CurrentTime;
                         MTAL_DP("[%u] Updating announce time %llu\n", self->m_pEth_netfilter->nic_id, self->m_ui64PTPMaster_AnnounceTime);
                     }
@@ -403,7 +389,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             
             //######################################################
             // Check PTP Clock identity
-			if (GetClockIdentity(pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity) != self->m_ui64PTPMaster_ClockIdentity)
+            if (*(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
                 //MTAL_DP("PTP sync packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgSyncPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
@@ -478,7 +464,7 @@ EDispatchResult process_PTP_packet(TClock_PTP* self, TUDPPacketBase* pUDPPacketB
             
             //######################################################
             // Check PTP Clock identity
-			if (GetClockIdentity(pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity) != self->m_ui64PTPMaster_ClockIdentity)
+            if (*(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity != self->m_ui64PTPMaster_ClockIdentity)
             { // ignore this packet
                 //MTAL_DP("PTP follow_up packet filtered wrong ClockIdentity %I64X expected %I64X\n", *(uint64_t*)pPTPV2MsgFollowUpPacket->V2MsgHeader.SourcePortId.byClockIdentity, self->m_ui64PTPMaster_ClockIdentity);
                 return DR_RTP_PACKET_USED;
@@ -532,15 +518,6 @@ void ResetPTPMaster(TClock_PTP* self)
     self->m_ui64PTPMaster_AnnounceTime = 0;
     self->m_ui64PTPMaster_ClockIdentity = 0;
     self->m_ui64PTPMaster_GMID = 0;
-	self->m_ui64T1 = 0;
-	self->m_bHaveT1 = false;
-	self->m_ui64T2 = 0;
-	self->m_ui64DeltaT2 = 0;
-	self->m_wLastSyncSequenceId = 0;
-	self->m_wLastFollowUp = 0;
-	self->m_wLastAnnounceSequenceId = 0;
-	self->m_wLastWatchDogSyncSequenceId = 0;
-	self->m_ui64LastWatchDogTime = 0;
 }
 //######################################################
 
@@ -548,21 +525,12 @@ void ResetPTPMaster(TClock_PTP* self)
 // from Sync or Follow_up
 void ProcessT1(TClock_PTP* self, uint64_t ui64T1)
 {
-	uint64_t ui64DeltaT1;
-
-	if (!self->m_bHaveT1)
+	uint64_t ui64DeltaT1 = ui64T1 - self->m_ui64T1;
+	if (ui64DeltaT1 == 0)
 	{
-		self->m_ui64T1 = ui64T1;
-		self->m_bHaveT1 = true;
+		MTAL_DP("[%u] ui64DeltaT1 = %llu, current TIC period not proceed in order to prevent a 0 division !!\n", self->m_pEth_netfilter->nic_id, ui64DeltaT1);
 		return;
 	}
-
-	if (ui64T1 <= self->m_ui64T1)
-	{
-		MTAL_DP("[%u] Non-increasing PTP origin timestamp (%llu <= %llu), ignoring it\n", self->m_pEth_netfilter->nic_id, ui64T1, self->m_ui64T1);
-		return;
-	}
-	ui64DeltaT1 = ui64T1 - self->m_ui64T1;
 	/*if(ui64DeltaT1 > 7000000)
 	{
 	MTAL_DP("ui64DeltaT1 = %llu [100ns] > 0.5ms; Seq = %u\n", ui64DeltaT1, MTAL_SWAP16(pPTPV2MsgFollowUpPacket->V2MsgHeader.wSequenceId));
