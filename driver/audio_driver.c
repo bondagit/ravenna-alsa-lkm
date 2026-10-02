@@ -141,8 +141,10 @@ struct mr_alsa_audio_chip
     /* only one playback and/or capture stream */
     struct snd_pcm_substream *capture_substream;
     spinlock_t capture_lock;
+    bool capture_ready;
     struct snd_pcm_substream *playback_substream;
     spinlock_t playback_lock;
+    bool playback_ready;
 
     struct platform_device *dev;
 
@@ -627,6 +629,30 @@ static void mr_alsa_audio_unlock_capture_buffer(void *rawchip)
     }
 }
 
+static void mr_alsa_audio_release_capture_buffer(struct mr_alsa_audio_chip *chip)
+{
+    unsigned long flags;
+
+    spin_lock_irqsave(&chip->capture_lock, flags);
+    chip->capture_ready = false;
+    chip->dma_capture_buffer = NULL;
+    chip->pcm_capture_buffer_size = 0;
+    chip->capture_interleave_fn = NULL;
+    spin_unlock_irqrestore(&chip->capture_lock, flags);
+}
+
+static void mr_alsa_audio_release_playback_buffer(struct mr_alsa_audio_chip *chip)
+{
+    unsigned long flags;
+
+    spin_lock_irqsave(&chip->playback_lock, flags);
+    chip->playback_ready = false;
+    chip->dma_playback_buffer = NULL;
+    chip->pcm_playback_buffer_size = 0;
+    chip->playback_deinterleave_fn = NULL;
+    spin_unlock_irqrestore(&chip->playback_lock, flags);
+}
+
 /// Driven by PTP Timer's interrupts
 static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
 {
@@ -652,7 +678,10 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
             spin_lock(&chip->capture_lock);
 
             sub = chip->capture_substream;
-            if (!sub) {
+            if (!sub || !sub->runtime ||
+                !chip->capture_ready ||
+                !chip->dma_capture_buffer ||
+                !chip->pcm_capture_buffer_size) {
                 spin_unlock(&chip->capture_lock);
                 return 0;
             }
@@ -714,7 +743,10 @@ static int mr_alsa_audio_pcm_interrupt(void *rawchip, int direction)
             spin_lock(&chip->playback_lock);
 
             sub = chip->playback_substream;
-            if (!sub) {
+            if (!sub || !sub->runtime ||
+                !chip->playback_ready ||
+                !chip->dma_playback_buffer ||
+                !chip->pcm_playback_buffer_size) {
                 spin_unlock(&chip->playback_lock);
                 return 0;
             }
@@ -910,8 +942,15 @@ static int mr_alsa_audio_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd
         return 0;
 
     case SNDRV_PCM_TRIGGER_STOP:
-    case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
     case SNDRV_PCM_TRIGGER_SUSPEND:
+        chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK);
+        if (alsa_sub->stream == SNDRV_PCM_STREAM_CAPTURE)
+            mr_alsa_audio_release_capture_buffer(chip);
+        else
+            mr_alsa_audio_release_playback_buffer(chip);
+        return 0;
+
+    case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
         chip->mr_alsa_audio_ops->stop_interrupts(chip->ravenna_peer, alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK);
         return 0;
     default:
@@ -971,6 +1010,8 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
         /// Number of channels
         if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
         {
+            unsigned long playback_flags;
+
             printk(KERN_DEBUG "mr_alsa_audio_pcm_prepare for playback stream\n");
             if(chip->ravenna_peer)
             {
@@ -984,6 +1025,8 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
                     return -EINVAL;
                 }
             }
+            spin_lock_irqsave(&chip->playback_lock, playback_flags);
+            chip->playback_ready = false;
             chip->current_alsa_playback_format = runtime->format;
             chip->current_alsa_playback_stride = snd_pcm_format_physical_width(runtime->format) >> 3;
             chip->playback_buffer_pos = 0;
@@ -1032,10 +1075,14 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
             atomic_set(&chip->dma_playback_offset, 0);
             chip->dma_playback_buffer = runtime->dma_area;
             chip->pcm_playback_buffer_size = snd_pcm_lib_buffer_bytes(substream);
+            chip->playback_ready = chip->dma_playback_buffer != NULL &&
+                                   chip->pcm_playback_buffer_size != 0;
+            spin_unlock_irqrestore(&chip->playback_lock, playback_flags);
         }
         else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
         {
             uint32_t offset = 0;
+            unsigned long capture_flags;
             chip->mr_alsa_audio_ops->get_input_jitter_buffer_offset(chip->ravenna_peer, &offset);
             
             printk(KERN_DEBUG "mr_alsa_audio_pcm_prepare for capture stream\n");
@@ -1050,6 +1097,8 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
                     return -EINVAL;
                 }
             }
+            spin_lock_irqsave(&chip->capture_lock, capture_flags);
+            chip->capture_ready = false;
             chip->current_alsa_capture_format = runtime->format;
             chip->current_alsa_capture_stride = snd_pcm_format_physical_width(runtime->format) >> 3;
             chip->capture_buffer_pos = offset;
@@ -1081,6 +1130,10 @@ static int mr_alsa_audio_pcm_prepare(struct snd_pcm_substream *substream)
             atomic_set(&chip->dma_capture_offset, 0);
             chip->dma_capture_buffer = runtime->dma_area;
             chip->pcm_capture_buffer_size = snd_pcm_lib_buffer_bytes(substream);
+            chip->capture_ready = chip->dma_capture_buffer != NULL &&
+                                  chip->pcm_capture_buffer_size != 0 &&
+                                  chip->capture_interleave_fn != NULL;
+            spin_unlock_irqrestore(&chip->capture_lock, capture_flags);
         }
     }
     else
@@ -1686,6 +1739,10 @@ static int mr_alsa_audio_pcm_hw_free(struct snd_pcm_substream *substream)
         struct mr_alsa_audio_chip *chip = snd_pcm_substream_chip(substream);
 
         printk(KERN_DEBUG "entering mr_alsa_audio_pcm_hw_free (substream name=%s #%d) ...\n", substream->name, substream->number);
+        if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+            mr_alsa_audio_release_capture_buffer(chip);
+        else
+            mr_alsa_audio_release_playback_buffer(chip);
         spin_lock_irq(&chip->lock);
         err = snd_pcm_lib_free_vmalloc_buffer(substream);
         spin_unlock_irq(&chip->lock);
@@ -2107,6 +2164,7 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
     printk(KERN_DEBUG "entering mr_alsa_audio_pcm_close (substream name=%s #%d) ...\n", substream->name, substream->number);
     if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
+        mr_alsa_audio_release_playback_buffer(chip);
         spin_lock_irq(&chip->playback_lock);
         chip->playback_pid = -1;
         chip->playback_substream = NULL;
@@ -2114,6 +2172,7 @@ static int mr_alsa_audio_pcm_close(struct snd_pcm_substream *substream)
     }
     else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
+        mr_alsa_audio_release_capture_buffer(chip);
         spin_lock_irq(&chip->capture_lock);
         chip->capture_pid = -1;
         chip->capture_substream = NULL;
