@@ -604,13 +604,7 @@ int ProcessRTPAudioPacket(TRTP_audio_stream* self, TRTPPacketBase* pRTPPacketBas
 				pEth_netfilter->nic_id, pRTP_stream_info->m_cName, pRTP_stream_info->m_ui32SSRC, MTAL_SWAP32(pRTPPacketBase->RTPHeader.ui32SSRC));
 		}
 
-		if (self->m_ui64LastGoodSSRCPacketTime == 0)
-		{
-			// Start the failover timer if no matching-SSRC packet has been seen yet.
-			self->m_ui64LastGoodSSRCPacketTime = ui64Now;
-			return 0;
-		}
-		else if (ui64Now - self->m_ui64LastGoodSSRCPacketTime >= SSRC_SWITCH_TIMEOUT_100NS)
+		if (ui64Now - self->m_ui64LastGoodSSRCPacketTime >= SSRC_SWITCH_TIMEOUT_100NS)
 		{
 			printk("[%u] %s: SSRC = 0x%x is not alive, switching to SSRC = 0x%x\n",
 				 pEth_netfilter->nic_id, pRTP_stream_info->m_cName, pRTP_stream_info->m_ui32SSRC,
