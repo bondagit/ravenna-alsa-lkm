@@ -86,6 +86,8 @@ typedef struct
 	uint32_t m_ui32RTPPacketCounter;
 	uint32_t m_ui32RTPPacketLastCounter;
 
+	uint64_t m_ui64LastGoodSSRCPacketTime;
+
 	MTCONVERT_MAPPED_TO_INTERLEAVE_PROTOTYPE m_pfnMTConvertMappedToInterleave;
 	MTCONVERT_INTERLEAVE__TO_MAPPED_PROTOTYPE m_pfnMTConvertInterleaveToMapped;
 
