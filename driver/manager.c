@@ -1422,6 +1422,12 @@ uint32_t get_live_out_jitter_buffer_offset(void* user, const uint64_t ui64Curren
     #else
         uint32_t offset = self->m_alsa_driver_frontend->get_playback_buffer_offset(self->m_pALSAChip);
         const uint32_t sacOffset = (uint32_t)(get_global_SAC(self) - get_frame_size(self) - ui64CurrentSAC);
+        // AudioFrameTIC copies this tick's playback period before sending, so the period to send is the one just
+        // written, a frame behind the copy position, not the slot the next copy overwrites.
+        const uint32_t length = get_live_out_jitter_buffer_length(self);
+        const uint32_t frame = get_frame_size(self);
+        if (length >= frame)
+            offset = offset >= frame ? offset - frame : offset + length - frame;
 
         if(ui64CurrentSAC > get_global_SAC(self))
         {
@@ -1573,14 +1579,15 @@ void AudioFrameTIC(void* user)
             frame_process_end(&self->m_RTP_streams_manager);
         }
         #else
-            /// write live outputs
+            /// write live outputs. The playback period is taken from ALSA before the packets are sent, so it leaves
+            /// in this tick's packets; sent after, it waited a whole ALSA ring in the live-out buffer.
+            if(self->m_pALSAChip && self->m_alsa_driver_frontend && self->m_bIsPlaybackIO)
+                self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
             frame_process_begin(&self->m_RTP_streams_manager);
             if(self->m_pALSAChip && self->m_alsa_driver_frontend)
             {
                 if (self->m_bIsRecordingIO)
                   self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 1);
-                if (self->m_bIsPlaybackIO)
-                  self->m_alsa_driver_frontend->pcm_interrupt(self->m_pALSAChip, 0);
             }
             frame_process_end(&self->m_RTP_streams_manager);
         #endif
